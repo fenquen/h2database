@@ -154,16 +154,16 @@ public final class SimpleCase extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        operand.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        operand.mapColumns(columnResolver, level, state);
         for (SimpleWhen when = this.when; when != null; when = when.next) {
             for (Expression e : when.operands) {
-                e.mapColumns(resolver, level, state);
+                e.mapColumns(columnResolver, level, state);
             }
-            when.result.mapColumns(resolver, level, state);
+            when.result.mapColumns(columnResolver, level, state);
         }
         if (elseResult != null) {
-            elseResult.mapColumns(resolver, level, state);
+            elseResult.mapColumns(columnResolver, level, state);
         }
     }
 

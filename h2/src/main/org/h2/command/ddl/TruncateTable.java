@@ -41,15 +41,15 @@ public class TruncateTable extends DefineCommand {
         if (!table.canTruncate()) {
             throw DbException.get(ErrorCode.CANNOT_TRUNCATE_1, table.getTraceSQL());
         }
-        session.getUser().checkTableRight(table, Right.DELETE);
-        table.lock(session, Table.EXCLUSIVE_LOCK);
-        long result = table.truncate(session);
+        sessionLocal.getUser().checkTableRight(table, Right.DELETE);
+        table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
+        long result = table.truncate(sessionLocal);
         if (restart) {
             for (Column column : table.getColumns()) {
                 Sequence sequence = column.getSequence();
                 if (sequence != null) {
                     sequence.modify(sequence.getStartValue(), null, null, null, null, null, null);
-                    session.getDatabase().updateMeta(session, sequence);
+                    sessionLocal.getDatabase().updateMeta(sessionLocal, sequence);
                 }
             }
         }

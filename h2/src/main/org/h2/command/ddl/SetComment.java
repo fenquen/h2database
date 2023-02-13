@@ -35,40 +35,40 @@ public class SetComment extends DefineCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         DbObject object = null;
         int errorCode = ErrorCode.GENERAL_ERROR_1;
         if (schemaName == null) {
-            schemaName = session.getCurrentSchemaName();
+            schemaName = sessionLocal.getCurrentSchemaName();
         }
         switch (objectType) {
         case DbObject.CONSTANT: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.getConstant(objectName);
             break;
         }
         case DbObject.CONSTRAINT: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.getConstraint(objectName);
             break;
         }
         case DbObject.FUNCTION_ALIAS: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.findFunction(objectName);
             errorCode = ErrorCode.FUNCTION_ALIAS_NOT_FOUND_1;
             break;
         }
         case DbObject.INDEX: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.getIndex(objectName);
             break;
         }
         case DbObject.ROLE:
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             schemaName = null;
             object = db.findRole(objectName);
             errorCode = ErrorCode.ROLE_NOT_FOUND_1;
@@ -76,37 +76,37 @@ public class SetComment extends DefineCommand {
         case DbObject.SCHEMA: {
             schemaName = null;
             Schema schema = db.getSchema(objectName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema;
             break;
         }
         case DbObject.SEQUENCE: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.getSequence(objectName);
             break;
         }
         case DbObject.TABLE_OR_VIEW: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
-            object = schema.getTableOrView(session, objectName);
+            sessionLocal.getUser().checkSchemaOwner(schema);
+            object = schema.getTableOrView(sessionLocal, objectName);
             break;
         }
         case DbObject.TRIGGER: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.findTrigger(objectName);
             errorCode = ErrorCode.TRIGGER_NOT_FOUND_1;
             break;
         }
         case DbObject.USER:
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             schemaName = null;
             object = db.getUser(objectName);
             break;
         case DbObject.DOMAIN: {
             Schema schema = db.getSchema(schemaName);
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             object = schema.findDomain(objectName);
             errorCode = ErrorCode.DOMAIN_NOT_FOUND_1;
             break;
@@ -116,7 +116,7 @@ public class SetComment extends DefineCommand {
         if (object == null) {
             throw DbException.get(errorCode, objectName);
         }
-        String text = expr.optimize(session).getValue(session).getString();
+        String text = expr.optimize(sessionLocal).getValue(sessionLocal).getString();
         if (text != null && text.isEmpty()) {
             text = null;
         }
@@ -130,7 +130,7 @@ public class SetComment extends DefineCommand {
                 objectType == DbObject.USER ||
                 objectType == DbObject.INDEX ||
                 objectType == DbObject.CONSTRAINT) {
-            db.updateMeta(session, object);
+            db.updateMeta(sessionLocal, object);
         } else {
             Comment comment = db.findComment(object);
             if (comment == null) {
@@ -140,14 +140,14 @@ public class SetComment extends DefineCommand {
                     int id = getObjectId();
                     comment = new Comment(db, id, object);
                     comment.setCommentText(text);
-                    db.addDatabaseObject(session, comment);
+                    db.addDatabaseObject(sessionLocal, comment);
                 }
             } else {
                 if (text == null) {
-                    db.removeDatabaseObject(session, comment);
+                    db.removeDatabaseObject(sessionLocal, comment);
                 } else {
                     comment.setCommentText(text);
-                    db.updateMeta(session, comment);
+                    db.updateMeta(sessionLocal, comment);
                 }
             }
         }

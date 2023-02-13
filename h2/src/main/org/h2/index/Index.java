@@ -86,16 +86,16 @@ public abstract class Index extends SchemaObject {
     /**
      * Initialize the index.
      *
-     * @param newTable the table
-     * @param id the object id
-     * @param name the index name
-     * @param newIndexColumns the columns that are indexed or null if this is
-     *            not yet known
+     * @param newTable          the table
+     * @param id                the object id
+     * @param name              the index name
+     * @param newIndexColumns   the columns that are indexed or null if this is
+     *                          not yet known
      * @param uniqueColumnCount count of unique columns
-     * @param newIndexType the index type
+     * @param newIndexType      the index type
      */
     protected Index(Table newTable, int id, String name, IndexColumn[] newIndexColumns, int uniqueColumnCount,
-            IndexType newIndexType) {
+                    IndexType newIndexType) {
         super(newTable.getSchema(), id, name, Trace.INDEX);
         this.uniqueColumnColumn = uniqueColumnCount;
         this.indexType = newIndexType;
@@ -208,7 +208,7 @@ public abstract class Index extends SchemaObject {
      * Add a row to the index.
      *
      * @param session the session to use
-     * @param row the row to add
+     * @param row     the row to add
      */
     public abstract void add(SessionLocal session, Row row);
 
@@ -216,7 +216,7 @@ public abstract class Index extends SchemaObject {
      * Remove a row from the index.
      *
      * @param session the session
-     * @param row the row
+     * @param row     the row
      */
     public abstract void remove(SessionLocal session, Row row);
 
@@ -224,8 +224,8 @@ public abstract class Index extends SchemaObject {
      * Update index after row change.
      *
      * @param session the session
-     * @param oldRow row before the update
-     * @param newRow row after the update
+     * @param oldRow  row before the update
+     * @param newRow  row after the update
      */
     public void update(SessionLocal session, Row oldRow, Row newRow) {
         remove(session, oldRow);
@@ -237,7 +237,7 @@ public abstract class Index extends SchemaObject {
      * index, {@code false} if {@code find()} performs the fast lookup.
      *
      * @return {@code true} if {@code find()} implementation performs scan over all
-     *         index, {@code false} if {@code find()} performs the fast lookup
+     * index, {@code false} if {@code find()} performs the fast lookup
      */
     public boolean isFindUsingFullTableScan() {
         return false;
@@ -248,8 +248,8 @@ public abstract class Index extends SchemaObject {
      * result.
      *
      * @param session the session
-     * @param first the first row, or null for no limit
-     * @param last the last row, or null for no limit
+     * @param first   the first row, or null for no limit
+     * @param last    the last row, or null for no limit
      * @return the cursor to iterate over the results
      */
     public abstract Cursor find(SessionLocal session, SearchRow first, SearchRow last);
@@ -259,17 +259,21 @@ public abstract class Index extends SchemaObject {
      * There is one element per column in the search mask.
      * For possible search masks, see IndexCondition.
      *
-     * @param session the session
-     * @param masks per-column comparison bit masks, null means 'always false',
-     *              see constants in IndexCondition
-     * @param filters all joined table filters
-     * @param filter the current table filter index
-     * @param sortOrder the sort order
+     * @param session       the session
+     * @param masks         per-column comparison bit masks, null means 'always false',
+     *                      see constants in IndexCondition
+     * @param filters       all joined table filters
+     * @param filter        the current table filter index
+     * @param sortOrder     the sort order
      * @param allColumnsSet the set of all columns
      * @return the estimated cost
      */
-    public abstract double getCost(SessionLocal session, int[] masks, TableFilter[] filters, int filter,
-            SortOrder sortOrder, AllColumnsForPlan allColumnsSet);
+    public abstract double getCost(SessionLocal session,
+                                   int[] masks,
+                                   TableFilter[] filters,
+                                   int filter,
+                                   SortOrder sortOrder,
+                                   AllColumnsForPlan allColumnsSet);
 
     /**
      * Remove the index.
@@ -308,9 +312,9 @@ public abstract class Index extends SchemaObject {
      * Find a row or a list of rows that is larger and create a cursor to
      * iterate over the result.
      *
-     * @param session the session
+     * @param session    the session
      * @param higherThan the lower limit (excluding)
-     * @param last the last row, or null for no limit
+     * @param last       the last row, or null for no limit
      * @return the cursor
      */
     public Cursor findNext(SessionLocal session, SearchRow higherThan, SearchRow last) {
@@ -322,8 +326,8 @@ public abstract class Index extends SchemaObject {
      * positioned on the correct row, or on null if no row has been found.
      *
      * @param session the session
-     * @param first true if the first (lowest for ascending indexes) or last
-     *            value should be returned
+     * @param first   true if the first (lowest for ascending indexes) or last
+     *                value should be returned
      * @return a cursor (never null)
      */
     public Cursor findFirstOrLast(SessionLocal session, boolean first) {
@@ -369,7 +373,7 @@ public abstract class Index extends SchemaObject {
      * @param rowData the first row
      * @param compare the second row
      * @return 0 if both rows are equal, -1 if the first row is smaller,
-     *         otherwise 1
+     * otherwise 1
      */
     public final int compareRows(SearchRow rowData, SearchRow compare) {
         if (rowData == compare) {
@@ -482,7 +486,7 @@ public abstract class Index extends SchemaObject {
      * Get the row with the given key.
      *
      * @param session the session
-     * @param key the unique key
+     * @param key     the unique key
      * @return the row
      */
     public Row getRow(SessionLocal session, long key) {
@@ -548,18 +552,18 @@ public abstract class Index extends SchemaObject {
      * b-tree range index. This is the estimated cost required to search one
      * row, and then iterate over the given number of rows.
      *
-     * @param masks the IndexCondition search masks, one for each column in the
-     *            table
-     * @param rowCount the number of rows in the index
-     * @param filters all joined table filters
-     * @param filter the current table filter index
-     * @param sortOrder the sort order
-     * @param isScanIndex whether this is a "table scan" index
+     * @param masks         the IndexCondition search masks, one for each column in the
+     *                      table
+     * @param rowCount      the number of rows in the index
+     * @param filters       all joined table filters
+     * @param filter        the current table filter index
+     * @param sortOrder     the sort order
+     * @param isScanIndex   whether this is a "table scan" index
      * @param allColumnsSet the set of all columns
      * @return the estimated cost
      */
     protected final long getCostRangeIndex(int[] masks, long rowCount, TableFilter[] filters, int filter,
-            SortOrder sortOrder, boolean isScanIndex, AllColumnsForPlan allColumnsSet) {
+                                           SortOrder sortOrder, boolean isScanIndex, AllColumnsForPlan allColumnsSet) {
         rowCount += Constants.COST_ROW_OFFSET;
         int totalSelectivity = 0;
         long rowsCost = rowCount;
@@ -665,7 +669,8 @@ public abstract class Index extends SchemaObject {
             ArrayList<Column> foundCols = allColumnsSet.get(getTable());
             if (foundCols != null) {
                 int main = table.getMainIndexColumn();
-                loop: for (Column c : foundCols) {
+                loop:
+                for (Column c : foundCols) {
                     int id = c.getColumnId();
                     if (id == SearchRow.ROWID_INDEX || id == main) {
                         continue;
@@ -704,31 +709,30 @@ public abstract class Index extends SchemaObject {
      * current compatibility mode. Duplicates with {@code NULL} values are
      * allowed in some modes.
      *
-     * @param searchRow
-     *            the row to check
+     * @param searchRow the row to check
      * @return {@code true} if specified row may have duplicates,
-     *         {@code false otherwise}
+     * {@code false otherwise}
      */
     public final boolean mayHaveNullDuplicates(SearchRow searchRow) {
         switch (database.getMode().uniqueIndexNullsHandling) {
-        case ALLOW_DUPLICATES_WITH_ANY_NULL:
-            for (int i = 0; i < uniqueColumnColumn; i++) {
-                int index = columnIds[i];
-                if (searchRow.getValue(index) == ValueNull.INSTANCE) {
-                    return true;
+            case ALLOW_DUPLICATES_WITH_ANY_NULL:
+                for (int i = 0; i < uniqueColumnColumn; i++) {
+                    int index = columnIds[i];
+                    if (searchRow.getValue(index) == ValueNull.INSTANCE) {
+                        return true;
+                    }
                 }
-            }
-            return false;
-        case ALLOW_DUPLICATES_WITH_ALL_NULLS:
-            for (int i = 0; i < uniqueColumnColumn; i++) {
-                int index = columnIds[i];
-                if (searchRow.getValue(index) != ValueNull.INSTANCE) {
-                    return false;
+                return false;
+            case ALLOW_DUPLICATES_WITH_ALL_NULLS:
+                for (int i = 0; i < uniqueColumnColumn; i++) {
+                    int index = columnIds[i];
+                    if (searchRow.getValue(index) != ValueNull.INSTANCE) {
+                        return false;
+                    }
                 }
-            }
-            return true;
-        default:
-            return false;
+                return true;
+            default:
+                return false;
         }
     }
 

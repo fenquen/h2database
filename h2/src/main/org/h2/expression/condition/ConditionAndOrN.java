@@ -289,9 +289,9 @@ public class ConditionAndOrN extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
         for (Expression e : expressions) {
-            e.mapColumns(resolver, level, state);
+            e.mapColumns(columnResolver, level, state);
         }
     }
 

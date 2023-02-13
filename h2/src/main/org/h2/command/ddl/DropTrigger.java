@@ -38,7 +38,7 @@ public class DropTrigger extends SchemaCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         TriggerObject trigger = getSchema().findTrigger(triggerName);
         if (trigger == null) {
             if (!ifExists) {
@@ -46,8 +46,8 @@ public class DropTrigger extends SchemaCommand {
             }
         } else {
             Table table = trigger.getTable();
-            session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
-            db.removeSchemaObject(session, trigger);
+            sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+            db.removeSchemaObject(sessionLocal, trigger);
         }
         return 0;
     }

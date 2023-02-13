@@ -103,8 +103,8 @@ public class SelectUnion extends Query {
             newValues = new Value[columnCount];
         }
         for (int i = 0; i < columnCount; i++) {
-            Expression e = expressions.get(i);
-            newValues[i] = values[i].convertTo(e.getType(), session);
+            Expression e = expressionList.get(i);
+            newValues[i] = values[i].convertTo(e.getType(), sessionLocal);
         }
         return newValues;
     }
@@ -115,23 +115,23 @@ public class SelectUnion extends Query {
     }
 
     @Override
-    protected ResultInterface queryWithoutCache(long maxRows, ResultTarget target) {
+    protected ResultInterface queryWithoutCache(long maxRows, ResultTarget resultTarget) {
         OffsetFetch offsetFetch = getOffsetFetch(maxRows);
         long offset = offsetFetch.offset;
         long fetch = offsetFetch.fetch;
         boolean fetchPercent = offsetFetch.fetchPercent;
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         if (db.getSettings().optimizeInsertFromSelect) {
-            if (unionType == UnionType.UNION_ALL && target != null) {
+            if (unionType == UnionType.UNION_ALL && resultTarget != null) {
                 if (sort == null && !distinct && fetch < 0 && offset == 0) {
-                    left.query(0, target);
-                    right.query(0, target);
+                    left.query(0, resultTarget);
+                    right.query(0, resultTarget);
                     return null;
                 }
             }
         }
         int columnCount = left.getColumnCount();
-        if (session.isLazyQueryExecution() && unionType == UnionType.UNION_ALL && !distinct &&
+        if (sessionLocal.isLazyQueryExecution() && unionType == UnionType.UNION_ALL && !distinct &&
                 sort == null && !randomAccessResult && !isForUpdate &&
                 offset == 0 && !fetchPercent && !withTies && isReadOnly()) {
             // limit 0 means no rows
@@ -212,32 +212,32 @@ public class SelectUnion extends Query {
         }
         l.close();
         r.close();
-        return finishResult(result, offset, fetch, fetchPercent, target);
+        return finishResult(result, offset, fetch, fetchPercent, resultTarget);
     }
 
     private LocalResult createLocalResult(int columnCount) {
-        return new LocalResult(session, expressionArray, columnCount, columnCount);
+        return new LocalResult(sessionLocal, expressionArray, columnCount, columnCount);
     }
 
     @Override
     public void init() {
-        if (checkInit) {
+        if (initialized) {
             throw DbException.getInternalError();
         }
-        checkInit = true;
+        initialized = true;
         left.init();
         right.init();
         int len = left.getColumnCount();
         if (len != right.getColumnCount()) {
             throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
         }
-        ArrayList<Expression> le = left.getExpressions();
+        ArrayList<Expression> le = left.getExpressionList();
         // set the expressions to get the right column count and names,
         // but can't validate at this time
-        expressions = new ArrayList<>(len);
+        expressionList = new ArrayList<>(len);
         for (int i = 0; i < len; i++) {
             Expression l = le.get(i);
-            expressions.add(l);
+            expressionList.add(l);
         }
         visibleColumnCount = len;
         if (withTies && !hasOrder()) {
@@ -251,24 +251,24 @@ public class SelectUnion extends Query {
         right.prepareExpressions();
         int len = left.getColumnCount();
         // set the correct expressions now
-        expressions = new ArrayList<>(len);
-        ArrayList<Expression> le = left.getExpressions();
-        ArrayList<Expression> re = right.getExpressions();
+        expressionList = new ArrayList<>(len);
+        ArrayList<Expression> le = left.getExpressionList();
+        ArrayList<Expression> re = right.getExpressionList();
         for (int i = 0; i < len; i++) {
             Expression l = le.get(i);
             Expression r = re.get(i);
-            Column col = new Column(l.getAlias(session, i), TypeInfo.getHigherType(l.getType(), r.getType()));
-            Expression e = new ExpressionColumn(session.getDatabase(), col);
-            expressions.add(e);
+            Column col = new Column(l.getAlias(sessionLocal, i), TypeInfo.getHigherType(l.getType(), r.getType()));
+            Expression e = new ExpressionColumn(sessionLocal.getDatabase(), col);
+            expressionList.add(e);
         }
         if (orderList != null) {
             if (initOrder(null, true, null)) {
-                prepareOrder(orderList, expressions.size());
+                prepareOrder(orderList, expressionList.size());
                 cleanupOrder();
             }
         }
-        resultColumnCount = expressions.size();
-        expressionArray = expressions.toArray(new Expression[0]);
+        resultColumnCount = expressionList.size();
+        expressionArray = expressionList.toArray(new Expression[0]);
     }
 
     @Override
@@ -351,7 +351,7 @@ public class SelectUnion extends Query {
             throw DbException.getInternalError("type=" + unionType);
         }
         buff.append('(').append(right.getPlanSQL(sqlFlags)).append(')');
-        appendEndOfQueryToSQL(buff, sqlFlags, expressions.toArray(new Expression[0]));
+        appendEndOfQueryToSQL(buff, sqlFlags, expressionList.toArray(new Expression[0]));
         if (isForUpdate) {
             buff.append("\nFOR UPDATE");
         }
@@ -359,8 +359,8 @@ public class SelectUnion extends Query {
     }
 
     @Override
-    public boolean isEverything(ExpressionVisitor visitor) {
-        return left.isEverything(visitor) && right.isEverything(visitor);
+    public boolean isEverything(ExpressionVisitor expressionVisitor) {
+        return left.isEverything(expressionVisitor) && right.isEverything(expressionVisitor);
     }
 
     @Override
@@ -397,7 +397,7 @@ public class SelectUnion extends Query {
         boolean rightDone;
 
         LazyResultUnion(Expression[] expressions, int columnCount) {
-            super(getSession(), expressions);
+            super(getSessionLocal(), expressions);
             this.columnCount = columnCount;
         }
 

@@ -50,14 +50,14 @@ public class Help extends Prepared {
 
     @Override
     public ResultInterface queryMeta() {
-        LocalResult result = new LocalResult(session, expressions, 4, 4);
+        LocalResult result = new LocalResult(sessionLocal, expressions, 4, 4);
         result.done();
         return result;
     }
 
     @Override
     public ResultInterface query(long maxrows) {
-        LocalResult result = new LocalResult(session, expressions, 4, 4);
+        LocalResult result = new LocalResult(sessionLocal, expressions, 4, 4);
         try {
             ResultSet rs = getTable();
             loop: while (rs.next()) {
@@ -69,13 +69,13 @@ public class Help extends Prepared {
                 }
                 result.addRow(
                         // SECTION
-                        ValueVarchar.get(rs.getString(1).trim(), session),
+                        ValueVarchar.get(rs.getString(1).trim(), sessionLocal),
                         // TOPIC
-                        ValueVarchar.get(topic, session),
+                        ValueVarchar.get(topic, sessionLocal),
                         // SYNTAX
-                        ValueVarchar.get(stripAnnotationsFromSyntax(rs.getString(3)), session),
+                        ValueVarchar.get(stripAnnotationsFromSyntax(rs.getString(3)), sessionLocal),
                         // TEXT
-                        ValueVarchar.get(processHelpText(rs.getString(4)), session));
+                        ValueVarchar.get(processHelpText(rs.getString(4)), sessionLocal));
             }
         } catch (Exception e) {
             throw DbException.convert(e);

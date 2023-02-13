@@ -53,19 +53,19 @@ public final class Update extends FilteredDataChangeStatement {
 
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
-        targetTableFilter.startQuery(session);
+        targetTableFilter.startQuery(sessionLocal);
         targetTableFilter.reset();
         Table table = targetTableFilter.getTable();
-        try (LocalResult rows = LocalResult.forTable(session, table)) {
-            session.getUser().checkTableRight(table, Right.UPDATE);
-            table.fire(session, Trigger.UPDATE, true);
-            table.lock(session, Table.WRITE_LOCK);
+        try (LocalResult rows = LocalResult.forTable(sessionLocal, table)) {
+            sessionLocal.getUser().checkTableRight(table, Right.UPDATE);
+            table.fire(sessionLocal, Trigger.UPDATE, true);
+            table.lock(sessionLocal, Table.WRITE_LOCK);
             // get the old rows, compute the new rows
             setCurrentRowNumber(0);
             long count = 0;
             long limitRows = -1;
             if (fetchExpr != null) {
-                Value v = fetchExpr.getValue(session);
+                Value v = fetchExpr.getValue(sessionLocal);
                 if (v == ValueNull.INSTANCE || (limitRows = v.getLong()) < 0) {
                     throw DbException.getInvalidValueException("FETCH", v);
                 }
@@ -73,25 +73,25 @@ public final class Update extends FilteredDataChangeStatement {
             while (nextRow(limitRows, count)) {
                 Row oldRow = targetTableFilter.get();
                 if (table.isRowLockable()) {
-                    Row lockedRow = table.lockRow(session, oldRow);
+                    Row lockedRow = table.lockRow(sessionLocal, oldRow);
                     if (lockedRow == null) {
                         continue;
                     }
                     if (!oldRow.hasSharedData(lockedRow)) {
                         oldRow = lockedRow;
                         targetTableFilter.set(oldRow);
-                        if (condition != null && !condition.getBooleanValue(session)) {
+                        if (condition != null && !condition.getBooleanValue(sessionLocal)) {
                             continue;
                         }
                     }
                 }
-                if (setClauseList.prepareUpdate(table, session, deltaChangeCollector, deltaChangeCollectionMode,
+                if (setClauseList.prepareUpdate(table, sessionLocal, deltaChangeCollector, deltaChangeCollectionMode,
                         rows, oldRow, onDuplicateKeyInsert != null)) {
                     count++;
                 }
             }
-            doUpdate(this, session, table, rows);
-            table.fire(session, Trigger.UPDATE, false);
+            doUpdate(this, sessionLocal, table, rows);
+            table.fire(sessionLocal, Trigger.UPDATE, false);
             return count;
         }
     }
@@ -140,19 +140,19 @@ public final class Update extends FilteredDataChangeStatement {
             if (fromTableFilter != null) {
                 condition.mapColumns(fromTableFilter, 0, Expression.MAP_INITIAL);
             }
-            condition = condition.optimizeCondition(session);
+            condition = condition.optimizeCondition(sessionLocal);
             if (condition != null) {
-                condition.createIndexConditions(session, targetTableFilter);
+                condition.createIndexConditions(sessionLocal, targetTableFilter);
             }
         }
-        setClauseList.mapAndOptimize(session, targetTableFilter, fromTableFilter);
+        setClauseList.mapAndOptimize(sessionLocal, targetTableFilter, fromTableFilter);
         TableFilter[] filters = null;
         if (fromTableFilter == null) {
             filters = new TableFilter[] { targetTableFilter };
         } else {
             filters = new TableFilter[] { targetTableFilter, fromTableFilter };
         }
-        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters));
+        PlanItem item = targetTableFilter.getBestPlanItem(sessionLocal, filters, 0, new AllColumnsForPlan(filters));
         targetTableFilter.setPlanItem(item);
         targetTableFilter.prepare();
     }

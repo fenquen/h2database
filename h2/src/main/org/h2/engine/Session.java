@@ -45,12 +45,9 @@ public abstract class Session implements CastDataProvider, AutoCloseable {
         /**
          * Creates new instance of static settings.
          *
-         * @param databaseToUpper
-         *            whether unquoted identifiers are converted to upper case
-         * @param databaseToLower
-         *            whether unquoted identifiers are converted to lower case
-         * @param caseInsensitiveIdentifiers
-         *            whether all identifiers are case insensitive
+         * @param databaseToUpper            whether unquoted identifiers are converted to upper case
+         * @param databaseToLower            whether unquoted identifiers are converted to lower case
+         * @param caseInsensitiveIdentifiers whether all identifiers are case insensitive
          */
         public StaticSettings(boolean databaseToUpper, boolean databaseToLower, boolean caseInsensitiveIdentifiers) {
             this.databaseToUpper = databaseToUpper;
@@ -78,10 +75,8 @@ public abstract class Session implements CastDataProvider, AutoCloseable {
         /**
          * Creates new instance of dynamic settings.
          *
-         * @param mode
-         *            the database mode
-         * @param timeZone
-         *            the current time zone
+         * @param mode     the database mode
+         * @param timeZone the current time zone
          */
         public DynamicSettings(Mode mode, TimeZoneProvider timeZone) {
             this.mode = mode;
@@ -105,14 +100,14 @@ public abstract class Session implements CastDataProvider, AutoCloseable {
      * Get the list of the cluster servers for this session.
      *
      * @return A list of "ip:port" strings for the cluster servers in this
-     *         session.
+     * session.
      */
     public abstract ArrayList<String> getClusterServers();
 
     /**
      * Parse a command and prepare it for execution.
      *
-     * @param sql the SQL statement
+     * @param sql       the SQL statement
      * @param fetchSize the number of rows to fetch in one step
      * @return the prepared command
      */
@@ -301,8 +296,7 @@ public abstract class Session implements CastDataProvider, AutoCloseable {
     /**
      * Resets old thread local session.
      *
-     * @param oldSession
-     *            the old thread local session, or {@code null}
+     * @param oldSession the old thread local session, or {@code null}
      */
     public void resetThreadLocalSession(Session oldSession) {
     }

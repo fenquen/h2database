@@ -78,7 +78,7 @@ public class TestScript extends TestDb {
 
     static {
         try {
-            COMMAND = JdbcPreparedStatement.class.getDeclaredField("command");
+            COMMAND = JdbcPreparedStatement.class.getDeclaredField("cmdInterface");
             COMMAND.setAccessible(true);
             PREPARED = CommandContainer.class.getDeclaredField("prepared");
             PREPARED.setAccessible(true);

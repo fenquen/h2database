@@ -35,8 +35,8 @@ public class CreateSchema extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkSchemaAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkSchemaAdmin();
+        Database db = sessionLocal.getDatabase();
         RightOwner owner = db.findUserOrRole(authorization);
         if (owner == null) {
             throw DbException.get(ErrorCode.USER_OR_ROLE_NOT_FOUND_1, authorization);
@@ -50,7 +50,7 @@ public class CreateSchema extends DefineCommand {
         int id = getObjectId();
         Schema schema = new Schema(db, id, schemaName, owner, false);
         schema.setTableEngineParams(tableEngineParams);
-        db.addDatabaseObject(session, schema);
+        db.addDatabaseObject(sessionLocal, schema);
         return 0;
     }
 

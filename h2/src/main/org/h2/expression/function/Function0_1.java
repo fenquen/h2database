@@ -37,9 +37,9 @@ public abstract class Function0_1 extends Expression implements NamedExpression 
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
         if (arg != null) {
-            arg.mapColumns(resolver, level, state);
+            arg.mapColumns(columnResolver, level, state);
         }
     }
 

@@ -28,14 +28,14 @@ public class DropAggregate extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         UserAggregate aggregate = schema.findAggregate(name);
         if (aggregate == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.AGGREGATE_NOT_FOUND_1, name);
             }
         } else {
-            db.removeSchemaObject(session, aggregate);
+            db.removeSchemaObject(sessionLocal, aggregate);
         }
         return 0;
     }

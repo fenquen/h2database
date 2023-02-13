@@ -49,8 +49,8 @@ public class AlterTableRenameColumn extends AlterTable {
         table.checkSupportAlter();
         table.renameColumn(column, newName);
         table.setModified();
-        Database db = session.getDatabase();
-        db.updateMeta(session, table);
+        Database db = sessionLocal.getDatabase();
+        db.updateMeta(sessionLocal, table);
 
         // if we have foreign key constraints pointing at this table, we need to update them
         for (DbObject childDbObject : table.getChildren()) {
@@ -62,7 +62,7 @@ public class AlterTableRenameColumn extends AlterTable {
 
         for (DbObject child : table.getChildren()) {
             if (child.getCreateSQL() != null) {
-                db.updateMeta(session, child);
+                db.updateMeta(sessionLocal, child);
             }
         }
         return 0;

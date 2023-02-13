@@ -44,10 +44,10 @@ public class RunScriptCommand extends ScriptBase {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
+        sessionLocal.getUser().checkAdmin();
         int count = 0;
-        boolean oldQuirksMode = session.isQuirksMode();
-        boolean oldVariableBinary = session.isVariableBinary();
+        boolean oldQuirksMode = sessionLocal.isQuirksMode();
+        boolean oldVariableBinary = sessionLocal.isVariableBinary();
         try {
             openInput(charset);
             // if necessary, strip the BOM from the front of the file
@@ -56,10 +56,10 @@ public class RunScriptCommand extends ScriptBase {
                 reader.reset();
             }
             if (quirksMode) {
-                session.setQuirksMode(true);
+                sessionLocal.setQuirksMode(true);
             }
             if (variableBinary) {
-                session.setVariableBinary(true);
+                sessionLocal.setVariableBinary(true);
             }
             ScriptReader r = new ScriptReader(reader);
             while (true) {
@@ -78,10 +78,10 @@ public class RunScriptCommand extends ScriptBase {
             throw DbException.convertIOException(e, null);
         } finally {
             if (quirksMode) {
-                session.setQuirksMode(oldQuirksMode);
+                sessionLocal.setQuirksMode(oldQuirksMode);
             }
             if (variableBinary) {
-                session.setVariableBinary(oldVariableBinary);
+                sessionLocal.setVariableBinary(oldVariableBinary);
             }
             closeIO();
         }
@@ -100,8 +100,8 @@ public class RunScriptCommand extends ScriptBase {
             }
         }
         try {
-            Prepared command = session.prepare(sql);
-            CommandContainer commandContainer = new CommandContainer(session, sql, command);
+            Prepared command = sessionLocal.prepare(sql);
+            CommandContainer commandContainer = new CommandContainer(sessionLocal, sql, command);
             if (commandContainer.isQuery()) {
                 commandContainer.executeQuery(0, false);
             } else {

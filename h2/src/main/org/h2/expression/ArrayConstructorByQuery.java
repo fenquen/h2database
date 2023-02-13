@@ -48,7 +48,7 @@ public final class ArrayConstructorByQuery extends Expression {
 
     @Override
     public Value getValue(SessionLocal session) {
-        query.setSession(session);
+        query.setSessionLocal(session);
         ArrayList<Value> values = new ArrayList<>();
         try (ResultInterface result = query.query(0)) {
             while (result.next()) {
@@ -64,8 +64,8 @@ public final class ArrayConstructorByQuery extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        query.mapColumns(resolver, level + 1);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        query.mapColumns(columnResolver, level + 1);
     }
 
     @Override
@@ -74,7 +74,7 @@ public final class ArrayConstructorByQuery extends Expression {
         if (query.getColumnCount() != 1) {
             throw DbException.get(ErrorCode.SUBQUERY_IS_NOT_SINGLE_COLUMN);
         }
-        componentType = query.getExpressions().get(0).getType();
+        componentType = query.getExpressionList().get(0).getType();
         type = TypeInfo.getTypeInfo(Value.ARRAY, -1L, -1, componentType);
         return this;
     }

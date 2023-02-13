@@ -17,7 +17,6 @@ import org.h2.mvstore.WriteBuffer;
  * Class DBMetaType is a type for values in the type registry map.
  *
  * @param <D> type of opaque parameter passed as an operational context to Factory.create()
- *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
 public final class MetaType<D> extends BasicDataType<DataType<?>> {
@@ -55,8 +54,7 @@ public final class MetaType<D> extends BasicDataType<DataType<?>> {
         }
         String className = clazz.getName();
         int len = className.length();
-        buff.putVarInt(len)
-            .putStringData(className, len);
+        buff.putVarInt(len).putStringData(className, len);
         if (statefulDataType != null) {
             statefulDataType.save(buff, this);
         }

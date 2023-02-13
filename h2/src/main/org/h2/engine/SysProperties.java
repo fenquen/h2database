@@ -21,7 +21,7 @@ import org.h2.util.Utils;
  * <pre>
  * java -Dh2.baseDir=/temp
  * </pre>
- *
+ * <p>
  * They can be set within the application, but this must be done before loading
  * any classes of this database (before loading the JDBC driver):
  *
@@ -268,6 +268,7 @@ public class SysProperties {
      * This value must be a power of 2.
      */
     public static final int OBJECT_CACHE_SIZE;
+
     static {
         try {
             OBJECT_CACHE_SIZE = MathUtils.nextPowerOf2(
@@ -369,7 +370,7 @@ public class SysProperties {
      * current thread-context class loader will be used.
      */
     public static final boolean USE_THREAD_CONTEXT_CLASS_LOADER =
-        Utils.getProperty("h2.useThreadContextClassLoader", false);
+            Utils.getProperty("h2.useThreadContextClassLoader", false);
 
     /**
      * System property <code>h2.javaObjectSerializer</code>
@@ -386,7 +387,6 @@ public class SysProperties {
      * (default: null).
      * authConfigFile define the URL of configuration file
      * of {@link org.h2.security.auth.DefaultAuthenticator}
-     *
      */
     public static final String AUTH_CONFIG_FILE =
             Utils.getProperty("h2.authConfigFile", null);
@@ -399,6 +399,7 @@ public class SysProperties {
 
     /**
      * INTERNAL
+     *
      * @param dir base directory
      */
     public static void setBaseDir(String dir) {
@@ -410,6 +411,7 @@ public class SysProperties {
 
     /**
      * INTERNAL
+     *
      * @return base directory
      */
     public static String getBaseDir() {

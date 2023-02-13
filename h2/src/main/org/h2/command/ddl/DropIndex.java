@@ -41,15 +41,15 @@ public class DropIndex extends SchemaCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
-        Index index = getSchema().findIndex(session, indexName);
+        Database db = sessionLocal.getDatabase();
+        Index index = getSchema().findIndex(sessionLocal, indexName);
         if (index == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.INDEX_NOT_FOUND_1, indexName);
             }
         } else {
             Table table = index.getTable();
-            session.getUser().checkTableRight(index.getTable(), Right.SCHEMA_OWNER);
+            sessionLocal.getUser().checkTableRight(index.getTable(), Right.SCHEMA_OWNER);
             Constraint pkConstraint = null;
             ArrayList<Constraint> constraints = table.getConstraints();
             for (int i = 0; constraints != null && i < constraints.size(); i++) {
@@ -71,9 +71,9 @@ public class DropIndex extends SchemaCommand {
             }
             index.getTable().setModified();
             if (pkConstraint != null) {
-                db.removeSchemaObject(session, pkConstraint);
+                db.removeSchemaObject(sessionLocal, pkConstraint);
             } else {
-                db.removeSchemaObject(session, index);
+                db.removeSchemaObject(sessionLocal, index);
             }
         }
         return 0;

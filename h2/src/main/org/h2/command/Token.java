@@ -435,7 +435,10 @@ public abstract class Token implements Cloneable {
 
         private boolean unicode;
 
-        IdentifierToken(int start, String identifier, boolean quoted, boolean unicode) {
+        IdentifierToken(int start,
+                        String identifier,
+                        boolean quoted,
+                        boolean unicode) {
             super(start);
             this.identifier = identifier;
             this.quoted = quoted;

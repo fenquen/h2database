@@ -82,12 +82,12 @@ public class CreateDomain extends SchemaOwnerCommand {
             throw DbException.get(ErrorCode.DOMAIN_ALREADY_EXISTS_1, typeName);
         }
         if (typeName.indexOf(' ') < 0) {
-            DataType builtIn = DataType.getTypeByName(typeName, session.getDatabase().getMode());
+            DataType builtIn = DataType.getTypeByName(typeName, sessionLocal.getDatabase().getMode());
             if (builtIn != null) {
-                if (session.getDatabase().equalsIdentifiers(typeName, Value.getTypeName(builtIn.type))) {
+                if (sessionLocal.getDatabase().equalsIdentifiers(typeName, Value.getTypeName(builtIn.type))) {
                     throw DbException.get(ErrorCode.DOMAIN_ALREADY_EXISTS_1, typeName);
                 }
-                Table table = session.getDatabase().getFirstUserTable();
+                Table table = sessionLocal.getDatabase().getFirstUserTable();
                 if (table != null) {
                     StringBuilder builder = new StringBuilder(typeName).append(" (");
                     table.getSQL(builder, HasSQL.TRACE_SQL_FLAGS).append(')');
@@ -99,10 +99,10 @@ public class CreateDomain extends SchemaOwnerCommand {
         Domain domain = new Domain(schema, id, typeName);
         domain.setDataType(dataType != null ? dataType : parentDomain.getDataType());
         domain.setDomain(parentDomain);
-        domain.setDefaultExpression(session, defaultExpression);
-        domain.setOnUpdateExpression(session, onUpdateExpression);
+        domain.setDefaultExpression(sessionLocal, defaultExpression);
+        domain.setOnUpdateExpression(sessionLocal, onUpdateExpression);
         domain.setComment(comment);
-        schema.getDatabase().addSchemaObject(session, domain);
+        schema.getDatabase().addSchemaObject(sessionLocal, domain);
         if (constraintCommands != null) {
             for (AlterDomainAddConstraint command : constraintCommands) {
                 command.update();

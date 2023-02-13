@@ -107,17 +107,17 @@ public class AlterTableAlterColumn extends CommandWithColumns {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
-        Table table = getSchema().resolveTableOrView(session, tableName);
+        Database db = sessionLocal.getDatabase();
+        Table table = getSchema().resolveTableOrView(sessionLocal, tableName);
         if (table == null) {
             if (ifTableExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
         }
-        session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+        sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
         table.checkSupportAlter();
-        table.lock(session, Table.EXCLUSIVE_LOCK);
+        table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
         if (newColumn != null) {
             checkDefaultReferencesTable(table, newColumn.getDefaultExpression());
             checkClustering(newColumn);
@@ -136,7 +136,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             }
             checkNoNullValues(table);
             oldColumn.setNullable(false);
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_NOT_NULL: {
@@ -146,7 +146,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             }
             checkNullable(table);
             oldColumn.setNullable(true);
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT:
@@ -162,14 +162,14 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                     break;
                 }
                 checkDefaultReferencesTable(table, defaultExpression);
-                oldColumn.setDefaultExpression(session, defaultExpression);
+                oldColumn.setDefaultExpression(sessionLocal, defaultExpression);
             } else {
                 if (type == CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_EXPRESSION != oldColumn.isGenerated()) {
                     break;
                 }
-                oldColumn.setDefaultExpression(session, null);
+                oldColumn.setDefaultExpression(sessionLocal, null);
             }
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_IDENTITY:  {
@@ -182,7 +182,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             }
             oldColumn.setSequence(null, false);
             removeSequence(table, sequence);
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_ON_UPDATE: {
@@ -194,11 +194,11 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                     break;
                 }
                 checkDefaultReferencesTable(table, defaultExpression);
-                oldColumn.setOnUpdateExpression(session, defaultExpression);
+                oldColumn.setOnUpdateExpression(sessionLocal, defaultExpression);
             } else {
-                oldColumn.setOnUpdateExpression(session, null);
+                oldColumn.setOnUpdateExpression(sessionLocal, null);
             }
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE: {
@@ -211,10 +211,10 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (oldColumn.isWideningConversion(newColumn) && usingExpression == null) {
                 convertIdentityColumn(table, newColumn);
                 oldColumn.copy(newColumn);
-                db.updateMeta(session, table);
+                db.updateMeta(sessionLocal, table);
             } else {
                 oldColumn.setSequence(null, false);
-                oldColumn.setDefaultExpression(session, null);
+                oldColumn.setDefaultExpression(sessionLocal, null);
                 if (oldColumn.isNullable() && !newColumn.isNullable()) {
                     checkNoNullValues(table);
                 } else if (!oldColumn.isNullable() && newColumn.isNullable()) {
@@ -246,7 +246,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (table.getColumns().length - columnsToRemove.size() < 1) {
                 throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, columnsToRemove.get(0).getTraceSQL());
             }
-            table.dropMultipleColumnsConstraintsAndIndexes(session, columnsToRemove);
+            table.dropMultipleColumnsConstraintsAndIndexes(sessionLocal, columnsToRemove);
             copyData(table, null, false);
             break;
         }
@@ -254,9 +254,9 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (oldColumn == null) {
                 break;
             }
-            int value = newSelectivity.optimize(session).getValue(session).getInt();
+            int value = newSelectivity.optimize(sessionLocal).getValue(sessionLocal).getInt();
             oldColumn.setSelectivity(value);
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_VISIBILITY:
@@ -266,7 +266,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (oldColumn.getVisible() != booleanFlag) {
                 oldColumn.setVisible(booleanFlag);
                 table.setModified();
-                db.updateMeta(session, table);
+                db.updateMeta(sessionLocal, table);
             }
             break;
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT_ON_NULL:
@@ -276,7 +276,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (oldColumn.isDefaultOnNull() != booleanFlag) {
                 oldColumn.setDefaultOnNull(booleanFlag);
                 table.setModified();
-                db.updateMeta(session, table);
+                db.updateMeta(sessionLocal, table);
             }
             break;
         default:
@@ -300,7 +300,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
 
     private void checkClustering(Column c) {
         if (!Constants.CLUSTERING_DISABLED
-                .equals(session.getDatabase().getCluster())
+                .equals(sessionLocal.getDatabase().getCluster())
                 && c.hasIdentityOptions()) {
             throw DbException.getUnsupportedException(
                     "CLUSTERING && identity columns");
@@ -311,10 +311,10 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         if (c.hasIdentityOptions()) {
             if (c.isPrimaryKey()) {
                 addConstraintCommand(
-                        Parser.newPrimaryKeyConstraintCommand(session, table.getSchema(), table.getName(), c));
+                        Parser.newPrimaryKeyConstraintCommand(sessionLocal, table.getSchema(), table.getName(), c));
             }
             int objId = getObjectId();
-            c.initializeSequence(session, getSchema(), objId, table.isTemporary());
+            c.initializeSequence(sessionLocal, getSchema(), objId, table.isTemporary());
         }
     }
 
@@ -322,8 +322,8 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         if (sequence != null) {
             table.removeSequence(sequence);
             sequence.setBelongsToTable(false);
-            Database db = session.getDatabase();
-            db.removeSchemaObject(session, sequence);
+            Database db = sessionLocal.getDatabase();
+            db.removeSchemaObject(sessionLocal, sequence);
         }
     }
 
@@ -331,9 +331,9 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         if (table.isTemporary()) {
             throw DbException.getUnsupportedException("TEMP TABLE");
         }
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         String baseName = table.getName();
-        String tempName = db.getTempTableName(baseName, session);
+        String tempName = db.getTempTableName(baseName, sessionLocal);
         Column[] columns = table.getColumns();
         ArrayList<Column> newColumns = new ArrayList<>(columns.length);
         Table newTable = cloneTableStructure(table, columns, db, tempName, newColumns);
@@ -360,7 +360,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         StringBuilder builder = new StringBuilder("DROP TABLE ");
         table.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" IGNORE");
         execute(builder.toString());
-        db.renameSchemaObject(session, newTable, tableName);
+        db.renameSchemaObject(sessionLocal, newTable, tableName);
         for (DbObject child : newTable.getChildren()) {
             if (child instanceof Sequence) {
                 continue;
@@ -373,15 +373,15 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 name = name.substring(tempName.length() + 1);
                 SchemaObject so = (SchemaObject) child;
                 if (so instanceof Constraint) {
-                    if (so.getSchema().findConstraint(session, name) != null) {
-                        name = so.getSchema().getUniqueConstraintName(session, newTable);
+                    if (so.getSchema().findConstraint(sessionLocal, name) != null) {
+                        name = so.getSchema().getUniqueConstraintName(sessionLocal, newTable);
                     }
                 } else if (so instanceof Index) {
-                    if (so.getSchema().findIndex(session, name) != null) {
-                        name = so.getSchema().getUniqueIndexName(session, newTable, name);
+                    if (so.getSchema().findIndex(sessionLocal, name) != null) {
+                        name = so.getSchema().getUniqueIndexName(sessionLocal, newTable, name);
                     }
                 }
-                db.renameSchemaObject(session, so, name);
+                db.renameSchemaObject(sessionLocal, so, name);
             }
         }
         if (createConstraints) {
@@ -450,7 +450,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         data.persistData = table.isPersistData();
         data.persistIndexes = table.isPersistIndexes();
         data.isHidden = table.isHidden();
-        data.session = session;
+        data.session = sessionLocal;
         Table newTable = getSchema().createTable(data);
         newTable.setComment(table.getComment());
         String newTableSQL = newTable.getCreateSQLForMeta();
@@ -481,10 +481,10 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         }
         String newTableName = newTable.getName();
         Schema newTableSchema = newTable.getSchema();
-        newTable.removeChildrenAndResources(session);
+        newTable.removeChildrenAndResources(sessionLocal);
 
         execute(newTableSQL);
-        newTable = newTableSchema.getTableOrView(session, newTableName);
+        newTable = newTableSchema.getTableOrView(sessionLocal, newTableName);
         ArrayList<String> children = Utils.newSmallArrayList();
         ArrayList<String> triggers = Utils.newSmallArrayList();
         boolean hasDelegateIndex = false;
@@ -601,18 +601,18 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         String newTableName = newTable.getName();
         Database db = sourceTable.getDatabase();
         // save the real table under a temporary name
-        String temp = db.getTempTableName(sourceTableName, session);
-        db.renameSchemaObject(session, sourceTable, temp);
+        String temp = db.getTempTableName(sourceTableName, sessionLocal);
+        db.renameSchemaObject(sessionLocal, sourceTable, temp);
         try {
             // have our new table impersonate the target table
-            db.renameSchemaObject(session, newTable, sourceTableName);
+            db.renameSchemaObject(sessionLocal, newTable, sourceTableName);
             checkViewsAreValid(sourceTable);
         } finally {
             // always put the source tables back with their proper names
             try {
-                db.renameSchemaObject(session, newTable, newTableName);
+                db.renameSchemaObject(sessionLocal, newTable, newTableName);
             } finally {
-                db.renameSchemaObject(session, sourceTable, sourceTableName);
+                db.renameSchemaObject(sessionLocal, sourceTable, sourceTableName);
             }
         }
     }
@@ -630,7 +630,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 // do not execute, not even with limit 1, because that could
                 // have side effects or take a very long time
                 try {
-                    session.prepare(sql);
+                    sessionLocal.prepare(sql);
                 } catch (DbException e) {
                     throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, e, view.getTraceSQL());
                 }
@@ -640,8 +640,8 @@ public class AlterTableAlterColumn extends CommandWithColumns {
     }
 
     private void execute(String sql) {
-        Prepared command = session.prepare(sql);
-        CommandContainer commandContainer = new CommandContainer(session, sql, command);
+        Prepared command = sessionLocal.prepare(sql);
+        CommandContainer commandContainer = new CommandContainer(sessionLocal, sql, command);
         commandContainer.executeUpdate(null);
     }
 
@@ -649,7 +649,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         if (oldColumn.isIdentity()) {
             throw DbException.get(ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, oldColumn.getName());
         }
-        for (Index index : table.getIndexes()) {
+        for (Index index : table.getIndexList()) {
             if (index.getColumnIndex(oldColumn) < 0) {
                 continue;
             }
@@ -665,7 +665,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         table.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" WHERE ");
         oldColumn.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" IS NULL");
         String sql = builder.toString();
-        Prepared command = session.prepare(sql);
+        Prepared command = sessionLocal.prepare(sql);
         ResultInterface result = command.query(0);
         result.next();
         if (result.currentRow()[0].getInt() > 0) {

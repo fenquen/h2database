@@ -152,15 +152,15 @@ public class ScriptCommand extends ScriptBase {
     }
 
     private LocalResult createResult() {
-        return new LocalResult(session, new Expression[] {
-                new ExpressionColumn(session.getDatabase(), new Column("SCRIPT", TypeInfo.TYPE_VARCHAR)) }, 1, 1);
+        return new LocalResult(sessionLocal, new Expression[] {
+                new ExpressionColumn(sessionLocal.getDatabase(), new Column("SCRIPT", TypeInfo.TYPE_VARCHAR)) }, 1, 1);
     }
 
     @Override
     public ResultInterface query(long maxrows) {
-        session.getUser().checkAdmin();
+        sessionLocal.getUser().checkAdmin();
         reset();
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         if (schemaNames != null) {
             for (String schemaName : schemaNames) {
                 Schema schema = db.findSchema(schemaName);
@@ -247,7 +247,7 @@ public class ScriptCommand extends ScriptBase {
                 if (table.isHidden()) {
                     continue;
                 }
-                table.lock(session, Table.READ_LOCK);
+                table.lock(sessionLocal, Table.READ_LOCK);
                 String sql = table.getCreateSQL();
                 if (sql == null) {
                     // null for metadata tables
@@ -290,7 +290,7 @@ public class ScriptCommand extends ScriptBase {
                 if (table.isHidden()) {
                     continue;
                 }
-                table.lock(session, Table.READ_LOCK);
+                table.lock(sessionLocal, Table.READ_LOCK);
                 String createTableSql = table.getCreateSQL();
                 if (createTableSql == null) {
                     // null for metadata tables
@@ -307,9 +307,9 @@ public class ScriptCommand extends ScriptBase {
                     }
                 }
                 if (TableType.TABLE == tableType) {
-                    if (table.canGetRowCount(session)) {
+                    if (table.canGetRowCount(sessionLocal)) {
                         StringBuilder builder = new StringBuilder("-- ")
-                                .append(table.getRowCountApproximation(session))
+                                .append(table.getRowCountApproximation(sessionLocal))
                                 .append(" +/- SELECT COUNT(*) FROM ");
                         table.getSQL(builder, HasSQL.TRACE_SQL_FLAGS);
                         add(builder.toString(), false);
@@ -318,7 +318,7 @@ public class ScriptCommand extends ScriptBase {
                         count = generateInsertValues(count, table);
                     }
                 }
-                final ArrayList<Index> indexes = table.getIndexes();
+                final ArrayList<Index> indexes = table.getIndexList();
                 for (int j = 0; indexes != null && j < indexes.size(); j++) {
                     Index index = indexes.get(j);
                     if (!index.getIndexType().getBelongsToConstraint()) {
@@ -482,9 +482,9 @@ public class ScriptCommand extends ScriptBase {
     }
 
     private int generateInsertValues(int count, Table table) throws IOException {
-        PlanItem plan = table.getBestPlanItem(session, null, null, -1, null, null);
+        PlanItem plan = table.getBestPlanItem(sessionLocal, null, null, -1, null, null);
         Index index = plan.getIndex();
-        Cursor cursor = index.find(session, null, null);
+        Cursor cursor = index.find(sessionLocal, null, null);
         Column[] columns = table.getColumns();
         boolean withGenerated = false, withGeneratedAlwaysAsIdentity = false;
         for (Column c : columns) {
@@ -787,7 +787,7 @@ public class ScriptCommand extends ScriptBase {
         }
         if (tables != null) {
             // if filtering on specific tables, only include those schemas
-            for (Table table : schema.getAllTablesAndViews(session)) {
+            for (Table table : schema.getAllTablesAndViews(sessionLocal)) {
                 if (tables.contains(table)) {
                     return false;
                 }

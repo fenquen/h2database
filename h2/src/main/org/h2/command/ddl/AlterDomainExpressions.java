@@ -40,27 +40,27 @@ public class AlterDomainExpressions extends AlterDomain {
     long update(Schema schema, Domain domain) {
         switch (type) {
         case CommandInterface.ALTER_DOMAIN_DEFAULT:
-            domain.setDefaultExpression(session, expression);
+            domain.setDefaultExpression(sessionLocal, expression);
             break;
         case CommandInterface.ALTER_DOMAIN_ON_UPDATE:
-            domain.setOnUpdateExpression(session, expression);
+            domain.setOnUpdateExpression(sessionLocal, expression);
             break;
         default:
             throw DbException.getInternalError("type=" + type);
         }
         if (expression != null) {
-            forAllDependencies(session, domain, this::copyColumn, this::copyDomain, true);
+            forAllDependencies(sessionLocal, domain, this::copyColumn, this::copyDomain, true);
         }
-        session.getDatabase().updateMeta(session, domain);
+        sessionLocal.getDatabase().updateMeta(sessionLocal, domain);
         return 0;
     }
 
     private boolean copyColumn(Domain domain, Column targetColumn) {
-        return copyExpressions(session, domain, targetColumn);
+        return copyExpressions(sessionLocal, domain, targetColumn);
     }
 
     private boolean copyDomain(Domain domain, Domain targetDomain) {
-        return copyExpressions(session, domain, targetDomain);
+        return copyExpressions(sessionLocal, domain, targetDomain);
     }
 
     private boolean copyExpressions(SessionLocal session, Domain domain, ColumnTemplate targetColumn) {

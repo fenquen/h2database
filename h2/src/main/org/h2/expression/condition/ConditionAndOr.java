@@ -285,9 +285,9 @@ public class ConditionAndOr extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        left.mapColumns(resolver, level, state);
-        right.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        left.mapColumns(columnResolver, level, state);
+        right.mapColumns(columnResolver, level, state);
     }
 
     @Override

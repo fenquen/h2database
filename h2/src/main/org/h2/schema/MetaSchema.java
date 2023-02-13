@@ -36,13 +36,13 @@ public abstract class MetaSchema extends Schema {
     }
 
     @Override
-    public Table findTableOrView(SessionLocal session, String name) {
-        Map<String, Table> map = getMap(session);
+    public Table findTableOrView(SessionLocal sessionLocal, String name) {
+        Map<String, Table> map = getMap(sessionLocal);
         Table table = map.get(name);
         if (table != null) {
             return table;
         }
-        return super.findTableOrView(session, name);
+        return super.findTableOrView(sessionLocal, name);
     }
 
     @Override

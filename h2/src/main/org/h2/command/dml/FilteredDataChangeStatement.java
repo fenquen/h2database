@@ -70,7 +70,7 @@ abstract class FilteredDataChangeStatement extends DataChangeStatement {
         if (limitRows < 0 || count < limitRows) {
             while (targetTableFilter.next()) {
                 setCurrentRowNumber(count + 1);
-                if (condition == null || condition.getBooleanValue(session)) {
+                if (condition == null || condition.getBooleanValue(sessionLocal)) {
                     return true;
                 }
             }

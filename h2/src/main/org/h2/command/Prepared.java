@@ -29,12 +29,12 @@ public abstract class Prepared {
     /**
      * The session.
      */
-    protected SessionLocal session;
+    protected SessionLocal sessionLocal;
 
     /**
      * The SQL string.
      */
-    protected String sqlStatement;
+    protected String sqlStr;
 
     /**
      * The SQL tokens.
@@ -49,7 +49,7 @@ public abstract class Prepared {
     /**
      * The list of parameters.
      */
-    protected ArrayList<Parameter> parameters;
+    public ArrayList<Parameter> parameterList;
 
     private boolean withParamValues;
 
@@ -58,7 +58,7 @@ public abstract class Prepared {
      * queries with LIKE ?, because the query plan depends on the parameter
      * value.
      */
-    protected boolean prepareAlways;
+    public boolean prepareAlways;
 
     private long modificationMetaId;
     private Command command;
@@ -79,11 +79,11 @@ public abstract class Prepared {
     /**
      * Create a new object.
      *
-     * @param session the session
+     * @param sessionLocal the session
      */
-    public Prepared(SessionLocal session) {
-        this.session = session;
-        modificationMetaId = session.getDatabase().getModificationMetaId();
+    public Prepared(SessionLocal sessionLocal) {
+        this.sessionLocal = sessionLocal;
+        modificationMetaId = sessionLocal.getDatabase().getModificationMetaId();
     }
 
     /**
@@ -124,15 +124,15 @@ public abstract class Prepared {
      * @return true if it must
      */
     public boolean needRecompile() {
-        Database db = session.getDatabase();
-        if (db == null) {
+        if (sessionLocal.database == null) {
             throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "database closed");
         }
+
         // parser: currently, compiling every create/drop/... twice
         // because needRecompile return true even for the first execution
         return prepareAlways ||
-                modificationMetaId < db.getModificationMetaId() ||
-                db.getSettings().recompileAlways;
+                modificationMetaId < sessionLocal.database.getModificationMetaId() ||
+                sessionLocal.database.dbSettings.recompileAlways;
     }
 
     /**
@@ -160,7 +160,7 @@ public abstract class Prepared {
      * @param parameters the parameter list
      */
     public void setParameterList(ArrayList<Parameter> parameters) {
-        this.parameters = parameters;
+        this.parameterList = parameters;
     }
 
     /**
@@ -168,8 +168,8 @@ public abstract class Prepared {
      *
      * @return the parameter list
      */
-    public ArrayList<Parameter> getParameters() {
-        return parameters;
+    public ArrayList<Parameter> getParameterList() {
+        return parameterList;
     }
 
     /**
@@ -202,8 +202,8 @@ public abstract class Prepared {
             // i.e. due to concurrent update
             persistedObjectId = ~persistedObjectId;
         }
-        if (parameters != null) {
-            for (Parameter param : parameters) {
+        if (parameterList != null) {
+            for (Parameter param : parameterList) {
                 param.checkSet();
             }
         }
@@ -259,11 +259,11 @@ public abstract class Prepared {
     /**
      * Set the SQL statement.
      *
-     * @param sql the SQL statement
+     * @param sqlStr the SQL statement
      * @param sqlTokens the SQL tokens
      */
-    public final void setSQL(String sql, ArrayList<Token> sqlTokens) {
-        this.sqlStatement = sql;
+    public final void setSQL(String sqlStr, ArrayList<Token> sqlTokens) {
+        this.sqlStr = sqlStr;
         this.sqlTokens = sqlTokens;
     }
 
@@ -273,7 +273,7 @@ public abstract class Prepared {
      * @return the SQL statement
      */
     public final String getSQL() {
-        return sqlStatement;
+        return sqlStr;
     }
 
     /**
@@ -307,7 +307,7 @@ public abstract class Prepared {
     protected int getObjectId() {
         int id = persistedObjectId;
         if (id == 0) {
-            id = session.getDatabase().allocateObjectId();
+            id = sessionLocal.getDatabase().allocateObjectId();
         } else if (id < 0) {
             throw DbException.getInternalError("Prepared.getObjectId() was called before");
         }
@@ -331,8 +331,8 @@ public abstract class Prepared {
      * @throws DbException if it was canceled
      */
     public void checkCanceled() {
-        session.checkCanceled();
-        Command c = command != null ? command : session.getCurrentCommand();
+        sessionLocal.checkCanceled();
+        Command c = command != null ? command : sessionLocal.getCurrentCommand();
         if (c != null) {
             c.checkCanceled();
         }
@@ -353,8 +353,8 @@ public abstract class Prepared {
      *
      * @param currentSession the new session
      */
-    public void setSession(SessionLocal currentSession) {
-        this.session = currentSession;
+    public void setSessionLocal(SessionLocal currentSession) {
+        this.sessionLocal = currentSession;
     }
 
     /**
@@ -365,16 +365,16 @@ public abstract class Prepared {
      * @param rowCount the query or update row count
      */
     void trace(long startTimeNanos, long rowCount) {
-        if (session.getTrace().isInfoEnabled() && startTimeNanos > 0) {
+        if (sessionLocal.getTrace().isInfoEnabled() && startTimeNanos > 0) {
             long deltaTimeNanos = System.nanoTime() - startTimeNanos;
-            String params = Trace.formatParams(parameters);
-            session.getTrace().infoSQL(sqlStatement, params, rowCount, deltaTimeNanos / 1_000_000L);
+            String params = Trace.formatParams(parameterList);
+            sessionLocal.getTrace().infoSQL(sqlStr, params, rowCount, deltaTimeNanos / 1_000_000L);
         }
         // startTime_nanos can be zero for the command that actually turns on
         // statistics
-        if (session.getDatabase().getQueryStatistics() && startTimeNanos != 0) {
+        if (sessionLocal.getDatabase().getQueryStatistics() && startTimeNanos != 0) {
             long deltaTimeNanos = System.nanoTime() - startTimeNanos;
-            session.getDatabase().getQueryStatisticsData().update(toString(), deltaTimeNanos, rowCount);
+            sessionLocal.getDatabase().getQueryStatisticsData().update(toString(), deltaTimeNanos, rowCount);
         }
     }
 
@@ -415,7 +415,7 @@ public abstract class Prepared {
      */
     private void setProgress() {
         if ((currentRowNumber & 127) == 0) {
-            session.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStatement,
+            sessionLocal.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStr,
                     currentRowNumber, 0L);
         }
     }
@@ -427,7 +427,7 @@ public abstract class Prepared {
      */
     @Override
     public String toString() {
-        return sqlStatement;
+        return sqlStr;
     }
 
     /**
@@ -450,8 +450,8 @@ public abstract class Prepared {
      */
     protected DbException setRow(DbException e, long rowId, String values) {
         StringBuilder buff = new StringBuilder();
-        if (sqlStatement != null) {
-            buff.append(sqlStatement);
+        if (sqlStr != null) {
+            buff.append(sqlStr);
         }
         buff.append(" -- ");
         if (rowId > 0) {
@@ -481,8 +481,8 @@ public abstract class Prepared {
         this.cteCleanups = cteCleanups;
     }
 
-    public final SessionLocal getSession() {
-        return session;
+    public final SessionLocal getSessionLocal() {
+        return sessionLocal;
     }
 
     /**

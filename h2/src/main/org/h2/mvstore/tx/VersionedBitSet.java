@@ -14,17 +14,7 @@ import java.util.BitSet;
 final class VersionedBitSet extends BitSet {
     private static final long serialVersionUID = 1L;
 
-    private long version;
-
-    public VersionedBitSet() {}
-
-    public long getVersion() {
-        return version;
-    }
-
-    public void setVersion(long version) {
-        this.version = version;
-    }
+    public long version;
 
     @Override
     public VersionedBitSet clone() {

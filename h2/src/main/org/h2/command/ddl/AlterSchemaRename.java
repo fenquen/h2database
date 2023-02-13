@@ -37,20 +37,20 @@ public class AlterSchemaRename extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkSchemaAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkSchemaAdmin();
+        Database db = sessionLocal.getDatabase();
         if (!oldSchema.canDrop()) {
             throw DbException.get(ErrorCode.SCHEMA_CAN_NOT_BE_DROPPED_1, oldSchema.getName());
         }
         if (db.findSchema(newSchemaName) != null || newSchemaName.equals(oldSchema.getName())) {
             throw DbException.get(ErrorCode.SCHEMA_ALREADY_EXISTS_1, newSchemaName);
         }
-        db.renameDatabaseObject(session, oldSchema, newSchemaName);
+        db.renameDatabaseObject(sessionLocal, oldSchema, newSchemaName);
         ArrayList<SchemaObject> all = new ArrayList<>();
         for (Schema schema : db.getAllSchemas()) {
             schema.getAll(all);
             for (SchemaObject schemaObject : all) {
-                db.updateMeta(session, schemaObject);
+                db.updateMeta(sessionLocal, schemaObject);
             }
             all.clear();
         }

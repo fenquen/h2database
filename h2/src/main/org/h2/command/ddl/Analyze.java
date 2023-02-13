@@ -146,14 +146,14 @@ public class Analyze extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         if (table != null) {
-            analyzeTable(session, table, sampleRows, true);
+            analyzeTable(sessionLocal, table, sampleRows, true);
         } else {
             for (Schema schema : db.getAllSchemasNoMeta()) {
                 for (Table table : schema.getAllTablesAndViews(null)) {
-                    analyzeTable(session, table, sampleRows, true);
+                    analyzeTable(sessionLocal, table, sampleRows, true);
                 }
             }
         }

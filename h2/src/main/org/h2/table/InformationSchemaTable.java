@@ -2601,7 +2601,7 @@ public final class InformationSchemaTable extends MetaTable {
         if (hideTable(table, session)) {
             return;
         }
-        ArrayList<Index> indexes = table.getIndexes();
+        ArrayList<Index> indexes = table.getIndexList();
         if (indexes == null) {
             return;
         }

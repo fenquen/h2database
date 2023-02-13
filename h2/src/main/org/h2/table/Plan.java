@@ -21,37 +21,41 @@ import org.h2.message.Trace;
  */
 public class Plan {
 
-    private final TableFilter[] filters;
-    private final HashMap<TableFilter, PlanItem> planItems = new HashMap<>();
+    public final TableFilter[] tableFilters;
+    public final HashMap<TableFilter, PlanItem> tableFilter_planItem = new HashMap<>();
     private final Expression[] allConditions;
-    private final TableFilter[] allFilters;
+    private final TableFilter[] allTableFilters;
 
     /**
      * Create a query plan with the given order.
      *
-     * @param filters the tables of the query
-     * @param count the number of table items
-     * @param condition the condition in the WHERE clause
+     * @param tableFilters the tables of the query
+     * @param count        the number of table items
+     * @param condition    the condition in the WHERE clause
      */
-    public Plan(TableFilter[] filters, int count, Expression condition) {
-        this.filters = new TableFilter[count];
-        System.arraycopy(filters, 0, this.filters, 0, count);
-        final ArrayList<Expression> allCond = new ArrayList<>();
-        final ArrayList<TableFilter> all = new ArrayList<>();
+    public Plan(TableFilter[] tableFilters, int count, Expression condition) {
+        this.tableFilters = new TableFilter[count];
+        System.arraycopy(tableFilters, 0, this.tableFilters, 0, count);
+
+        ArrayList<Expression> allConditionList = new ArrayList<>();
+        ArrayList<TableFilter> allTableFilterList = new ArrayList<>();
+
         if (condition != null) {
-            allCond.add(condition);
+            allConditionList.add(condition);
         }
-        for (int i = 0; i < count; i++) {
-            TableFilter f = filters[i];
-            f.visit(f1 -> {
-                all.add(f1);
+
+        for (TableFilter tableFilter : this.tableFilters) {
+            tableFilter.visit(f1 -> {
+                allTableFilterList.add(f1);
+
                 if (f1.getJoinCondition() != null) {
-                    allCond.add(f1.getJoinCondition());
+                    allConditionList.add(f1.getJoinCondition());
                 }
             });
         }
-        allConditions = allCond.toArray(new Expression[0]);
-        allFilters = all.toArray(new TableFilter[0]);
+
+        allConditions = allConditionList.toArray(new Expression[0]);
+        allTableFilters = allTableFilterList.toArray(new TableFilter[0]);
     }
 
     /**
@@ -61,7 +65,7 @@ public class Plan {
      * @return the plan item
      */
     public PlanItem getItem(TableFilter filter) {
-        return planItems.get(filter);
+        return tableFilter_planItem.get(filter);
     }
 
     /**
@@ -69,18 +73,18 @@ public class Plan {
      *
      * @return the list of tables
      */
-    public TableFilter[] getFilters() {
-        return filters;
+    public TableFilter[] getTableFilters() {
+        return tableFilters;
     }
 
     /**
      * Remove all index conditions that can not be used.
      */
     public void removeUnusableIndexConditions() {
-        for (int i = 0; i < allFilters.length; i++) {
-            TableFilter f = allFilters[i];
+        for (int i = 0; i < allTableFilters.length; i++) {
+            TableFilter f = allTableFilters[i];
             setEvaluatable(f, true);
-            if (i < allFilters.length - 1) {
+            if (i < allTableFilters.length - 1) {
                 // the last table doesn't need the optimization,
                 // otherwise the expression is calculated twice unnecessarily
                 // (not that bad but not optimal)
@@ -88,7 +92,7 @@ public class Plan {
             }
             f.removeUnusableIndexConditions();
         }
-        for (TableFilter f : allFilters) {
+        for (TableFilter f : allTableFilters) {
             setEvaluatable(f, false);
         }
     }
@@ -96,30 +100,36 @@ public class Plan {
     /**
      * Calculate the cost of this query plan.
      *
-     * @param session the session
-     * @param allColumnsSet calculates all columns on-demand
+     * @param sessionLocal      the session
+     * @param allColumnsForPlan calculates all columns on-demand
      * @return the cost
      */
-    public double calculateCost(SessionLocal session, AllColumnsForPlan allColumnsSet) {
-        Trace t = session.getTrace();
+    public double calculateCost(SessionLocal sessionLocal, AllColumnsForPlan allColumnsForPlan) {
+        Trace t = sessionLocal.getTrace();
         if (t.isDebugEnabled()) {
-            t.debug("Plan       : calculate cost for plan {0}", Arrays.toString(allFilters));
+            t.debug("Plan: calculate cost for plan {0}", Arrays.toString(allTableFilters));
         }
+
         double cost = 1;
         boolean invalidPlan = false;
-        for (int i = 0; i < allFilters.length; i++) {
-            TableFilter tableFilter = allFilters[i];
+
+        for (int i = 0; i < allTableFilters.length; i++) {
+            TableFilter tableFilter = allTableFilters[i];
             if (t.isDebugEnabled()) {
-                t.debug("Plan       :   for table filter {0}", tableFilter);
+                t.debug("Plan:for table filter {0}", tableFilter);
             }
-            PlanItem item = tableFilter.getBestPlanItem(session, allFilters, i, allColumnsSet);
-            planItems.put(tableFilter, item);
+
+            // 针对了各个的表计算scan和index中的的成本小的
+            PlanItem planItem = tableFilter.getBestPlanItem(sessionLocal, allTableFilters, i, allColumnsForPlan);
+            tableFilter_planItem.put(tableFilter, planItem);
+
             if (t.isDebugEnabled()) {
-                t.debug("Plan       :   best plan item cost {0} index {1}",
-                        item.cost, item.getIndex().getPlanSQL());
+                t.debug("Plan:best plan item cost {0} index {1}", planItem.cost, planItem.getIndex().getPlanSQL());
             }
-            cost += cost * item.cost;
+
+            cost += cost * planItem.cost;
             setEvaluatable(tableFilter, true);
+
             Expression on = tableFilter.getJoinCondition();
             if (on != null) {
                 if (!on.isEverything(ExpressionVisitor.EVALUATABLE_VISITOR)) {
@@ -128,15 +138,19 @@ public class Plan {
                 }
             }
         }
+
         if (invalidPlan) {
             cost = Double.POSITIVE_INFINITY;
         }
+
         if (t.isDebugEnabled()) {
-            session.getTrace().debug("Plan       : plan cost {0}", cost);
+            sessionLocal.getTrace().debug("Plan: plan cost {0}", cost);
         }
-        for (TableFilter f : allFilters) {
+
+        for (TableFilter f : allTableFilters) {
             setEvaluatable(f, false);
         }
+
         return cost;
     }
 

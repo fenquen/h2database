@@ -39,33 +39,33 @@ public final class Delete extends FilteredDataChangeStatement {
 
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
-        targetTableFilter.startQuery(session);
+        targetTableFilter.startQuery(sessionLocal);
         targetTableFilter.reset();
         Table table = targetTableFilter.getTable();
-        session.getUser().checkTableRight(table, Right.DELETE);
-        table.fire(session, Trigger.DELETE, true);
-        table.lock(session, Table.WRITE_LOCK);
+        sessionLocal.getUser().checkTableRight(table, Right.DELETE);
+        table.fire(sessionLocal, Trigger.DELETE, true);
+        table.lock(sessionLocal, Table.WRITE_LOCK);
         long limitRows = -1;
         if (fetchExpr != null) {
-            Value v = fetchExpr.getValue(session);
+            Value v = fetchExpr.getValue(sessionLocal);
             if (v == ValueNull.INSTANCE || (limitRows = v.getLong()) < 0) {
                 throw DbException.getInvalidValueException("FETCH", v);
             }
         }
-        try (LocalResult rows = LocalResult.forTable(session, table)) {
+        try (LocalResult rows = LocalResult.forTable(sessionLocal, table)) {
             setCurrentRowNumber(0);
             long count = 0;
             while (nextRow(limitRows, count)) {
                 Row row = targetTableFilter.get();
                 if (table.isRowLockable()) {
-                    Row lockedRow = table.lockRow(session, row);
+                    Row lockedRow = table.lockRow(sessionLocal, row);
                     if (lockedRow == null) {
                         continue;
                     }
                     if (!row.hasSharedData(lockedRow)) {
                         row = lockedRow;
                         targetTableFilter.set(row);
-                        if (condition != null && !condition.getBooleanValue(session)) {
+                        if (condition != null && !condition.getBooleanValue(sessionLocal)) {
                             continue;
                         }
                     }
@@ -73,7 +73,7 @@ public final class Delete extends FilteredDataChangeStatement {
                 if (deltaChangeCollectionMode == ResultOption.OLD) {
                     deltaChangeCollector.addRow(row.getValueList());
                 }
-                if (!table.fireRow() || !table.fireBeforeRow(session, row, null)) {
+                if (!table.fireRow() || !table.fireBeforeRow(sessionLocal, row, null)) {
                     rows.addRowForTable(row);
                 }
                 count++;
@@ -85,14 +85,14 @@ public final class Delete extends FilteredDataChangeStatement {
                     checkCanceled();
                 }
                 Row row = rows.currentRowForTable();
-                table.removeRow(session, row);
+                table.removeRow(sessionLocal, row);
             }
             if (table.fireRow()) {
                 for (rows.reset(); rows.next();) {
-                    table.fireAfterRow(session, rows.currentRowForTable(), null, false);
+                    table.fireAfterRow(sessionLocal, rows.currentRowForTable(), null, false);
                 }
             }
-            table.fire(session, Trigger.DELETE, false);
+            table.fire(sessionLocal, Trigger.DELETE, false);
             return count;
         }
     }
@@ -109,13 +109,13 @@ public final class Delete extends FilteredDataChangeStatement {
     void doPrepare() {
         if (condition != null) {
             condition.mapColumns(targetTableFilter, 0, Expression.MAP_INITIAL);
-            condition = condition.optimizeCondition(session);
+            condition = condition.optimizeCondition(sessionLocal);
             if (condition != null) {
-                condition.createIndexConditions(session, targetTableFilter);
+                condition.createIndexConditions(sessionLocal, targetTableFilter);
             }
         }
         TableFilter[] filters = new TableFilter[] { targetTableFilter };
-        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters));
+        PlanItem item = targetTableFilter.getBestPlanItem(sessionLocal, filters, 0, new AllColumnsForPlan(filters));
         targetTableFilter.setPlanItem(item);
         targetTableFilter.prepare();
     }

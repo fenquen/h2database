@@ -37,8 +37,8 @@ public class SelectListColumnResolver implements ColumnResolver {
         int columnCount = select.getColumnCount();
         columns = new Column[columnCount];
         expressions = new Expression[columnCount];
-        ArrayList<Expression> columnList = select.getExpressions();
-        SessionLocal session = select.getSession();
+        ArrayList<Expression> columnList = select.getExpressionList();
+        SessionLocal session = select.getSessionLocal();
         for (int i = 0; i < columnCount; i++) {
             Expression expr = columnList.get(i);
             columns[i] = new Column(expr.getAlias(session, i), TypeInfo.TYPE_NULL, null, i);
@@ -53,7 +53,7 @@ public class SelectListColumnResolver implements ColumnResolver {
 
     @Override
     public Column findColumn(String name) {
-        Database db = select.getSession().getDatabase();
+        Database db = select.getSessionLocal().getDatabase();
         for (Column column : columns) {
             if (db.equalsIdentifiers(column.getName(), name)) {
                 return column;

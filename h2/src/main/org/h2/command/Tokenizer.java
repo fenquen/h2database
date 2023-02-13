@@ -164,384 +164,389 @@ public final class Tokenizer {
         int end = sql.length() - 1;
         boolean foundUnicode = false;
         int lastParameter = 0;
-        loop: for (int i = 0; i <= end;) {
+
+        loop:
+        for (int i = 0; i <= end; ) {
             int tokenStart = i;
             char c = sql.charAt(i);
             Token token;
             switch (c) {
-            case '!':
-                if (i < end) {
-                    char c2 = sql.charAt(++i);
-                    if (c2 == '=') {
-                        token = new Token.KeywordToken(tokenStart, NOT_EQUAL);
-                        break;
-                    }
-                    if (c2 == '~') {
-                        token = new Token.KeywordToken(tokenStart, NOT_TILDE);
-                        break;
-                    }
-                }
-                throw DbException.getSyntaxError(sql, tokenStart);
-            case '"':
-            case '`':
-                i = readQuotedIdentifier(sql, end, tokenStart, i, c, false, tokens);
-                continue loop;
-            case '#':
-                if (provider.getMode().supportPoundSymbolForColumnNames) {
-                    i = readIdentifier(sql, end, tokenStart, i, c, tokens);
-                    continue loop;
-                }
-                throw DbException.getSyntaxError(sql, tokenStart);
-            case '$':
-                if (i < end) {
-                    char c2 = sql.charAt(i + 1);
-                    if (c2 == '$') {
-                        i += 2;
-                        int stringEnd = sql.indexOf("$$", i);
-                        if (stringEnd < 0) {
-                            throw DbException.getSyntaxError(sql, tokenStart);
+                case '!':
+                    if (i < end) {
+                        char c2 = sql.charAt(++i);
+                        if (c2 == '=') {
+                            token = new Token.KeywordToken(tokenStart, NOT_EQUAL);
+                            break;
                         }
-                        token = new Token.CharacterStringToken(tokenStart, sql.substring(i, stringEnd), false);
-                        i = stringEnd + 1;
-                    } else {
-                        i = parseParameterIndex(sql, end, i, tokens);
-                        lastParameter = assignParameterIndex(tokens, lastParameter, parameters);
-                        continue loop;
+                        if (c2 == '~') {
+                            token = new Token.KeywordToken(tokenStart, NOT_TILDE);
+                            break;
+                        }
                     }
-                } else {
-                    token = new Token.ParameterToken(tokenStart, 0);
-                }
-                break;
-            case '%':
-                token = new Token.KeywordToken(tokenStart, PERCENT);
-                break;
-            case '&':
-                if (i < end && sql.charAt(i + 1) == '&') {
-                    i++;
-                    token = new Token.KeywordToken(tokenStart, SPATIAL_INTERSECTS);
-                    break;
-                }
-                throw DbException.getSyntaxError(sql, tokenStart);
-            case '\'':
-                i = readCharacterString(sql, tokenStart, end, i, false, tokens);
-                continue loop;
-            case '(':
-                token = new Token.KeywordToken(tokenStart, OPEN_PAREN);
-                break;
-            case ')':
-                token = new Token.KeywordToken(tokenStart, CLOSE_PAREN);
-                if (stopOnCloseParen) {
-                    tokens.add(token);
-                    end = skipWhitespace(sql, end, i + 1) - 1;
-                    break loop;
-                }
-                break;
-            case '*':
-                token = new Token.KeywordToken(tokenStart, ASTERISK);
-                break;
-            case '+':
-                token = new Token.KeywordToken(tokenStart, PLUS_SIGN);
-                break;
-            case ',':
-                token = new Token.KeywordToken(tokenStart, COMMA);
-                break;
-            case '-':
-                if (i < end && sql.charAt(i + 1) == '-') {
-                    i = skipSimpleComment(sql, end, i);
+                    throw DbException.getSyntaxError(sql, tokenStart);
+                case '"':
+                case '`':
+                    i = readQuotedIdentifier(sql, end, tokenStart, i, c, false, tokens);
                     continue loop;
-                } else {
-                    token = new Token.KeywordToken(tokenStart, MINUS_SIGN);
-                }
-                break;
-            case '.':
-                if (i < end) {
-                    char c2 = sql.charAt(i + 1);
-                    if (c2 >= '0' && c2 <= '9') {
-                        i = readNumeric(sql, tokenStart, end, i + 1, c2, false, false, tokens);
-                        continue loop;
-                    }
-                }
-                token = new Token.KeywordToken(tokenStart, DOT);
-                break;
-            case '/':
-                if (i < end) {
-                    char c2 = sql.charAt(i + 1);
-                    if (c2 == '*') {
-                        i = skipBracketedComment(sql, tokenStart, end, i);
-                        continue loop;
-                    } else if (c2 == '/') {
-                        i = skipSimpleComment(sql, end, i);
-                        continue loop;
-                    }
-                }
-                token = new Token.KeywordToken(tokenStart, SLASH);
-                break;
-            case '0':
-                if (i < end) {
-                    char c2 = sql.charAt(i + 1);
-                    if (c2 == 'X' || c2 == 'x') {
-                        i = readHexNumber(sql, provider, tokenStart, end, i + 2, tokens);
-                        continue loop;
-                    }
-                }
-                //$FALL-THROUGH$
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                i = readNumeric(sql, tokenStart, end, i + 1, c, tokens);
-                continue loop;
-            case ':':
-                if (i < end) {
-                    char c2 = sql.charAt(i + 1);
-                    if (c2 == ':') {
-                        i++;
-                        token = new Token.KeywordToken(tokenStart, COLON_COLON);
-                        break;
-                    } else if (c2 == '=') {
-                        i++;
-                        token = new Token.KeywordToken(tokenStart, COLON_EQ);
-                        break;
-                    }
-                }
-                token = new Token.KeywordToken(tokenStart, COLON);
-                break;
-            case ';':
-                token = new Token.KeywordToken(tokenStart, SEMICOLON);
-                break;
-            case '<':
-                if (i < end) {
-                    char c2 = sql.charAt(i + 1);
-                    if (c2 == '=') {
-                        i++;
-                        token = new Token.KeywordToken(tokenStart, SMALLER_EQUAL);
-                        break;
-                    }
-                    if (c2 == '>') {
-                        i++;
-                        token = new Token.KeywordToken(tokenStart, NOT_EQUAL);
-                        break;
-                    }
-                }
-                token = new Token.KeywordToken(tokenStart, SMALLER);
-                break;
-            case '=':
-                token = new Token.KeywordToken(tokenStart, EQUAL);
-                break;
-            case '>':
-                if (i < end && sql.charAt(i + 1) == '=') {
-                    i++;
-                    token = new Token.KeywordToken(tokenStart, BIGGER_EQUAL);
-                    break;
-                }
-                token = new Token.KeywordToken(tokenStart, BIGGER);
-                break;
-            case '?': {
-                if (i + 1 < end && sql.charAt(i + 1) == '?') {
-                    char c3 = sql.charAt(i + 2);
-                    if (c3 == '(') {
-                        i += 2;
-                        token = new Token.KeywordToken(tokenStart, OPEN_BRACKET);
-                        break;
-                    }
-                    if (c3 == ')') {
-                        i += 2;
-                        token = new Token.KeywordToken(tokenStart, CLOSE_BRACKET);
-                        break;
-                    }
-                }
-                i = parseParameterIndex(sql, end, i, tokens);
-                lastParameter = assignParameterIndex(tokens, lastParameter, parameters);
-                continue loop;
-            }
-            case '@':
-                token = new Token.KeywordToken(tokenStart, AT);
-                break;
-            case 'A':
-            case 'a':
-                i = readA(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'B':
-            case 'b':
-                i = readB(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'C':
-            case 'c':
-                i = readC(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'D':
-            case 'd':
-                i = readD(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'E':
-            case 'e':
-                i = readE(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'F':
-            case 'f':
-                i = readF(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'G':
-            case 'g':
-                i = readG(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'H':
-            case 'h':
-                i = readH(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'I':
-            case 'i':
-                i = readI(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'J':
-            case 'j':
-                i = readJ(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'K':
-            case 'k':
-                i = readK(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'L':
-            case 'l':
-                i = readL(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'M':
-            case 'm':
-                i = readM(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'N':
-            case 'n':
-                if (i < end && sql.charAt(i + 1) == '\'') {
-                    i = readCharacterString(sql, tokenStart, end, i + 1, false, tokens);
-                } else {
-                    i = readN(sql, end, tokenStart, i, tokens);
-                }
-                continue loop;
-            case 'O':
-            case 'o':
-                i = readO(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'P':
-            case 'p':
-                i = readP(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'Q':
-            case 'q':
-                i = readQ(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'R':
-            case 'r':
-                i = readR(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'S':
-            case 's':
-                i = readS(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'T':
-            case 't':
-                i = readT(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'U':
-            case 'u':
-                if (i + 1 < end && sql.charAt(i + 1) == '&') {
-                    char c3 = sql.charAt(i + 2);
-                    if (c3 == '"') {
-                        i = readQuotedIdentifier(sql, end, tokenStart, i + 2, '"', true, tokens);
-                        foundUnicode = true;
-                        continue loop;
-                    } else if (c3 == '\'') {
-                        i = readCharacterString(sql, tokenStart, end, i + 2, true, tokens);
-                        foundUnicode = true;
-                        continue loop;
-                    }
-                }
-                i = readU(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'V':
-            case 'v':
-                i = readV(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'W':
-            case 'w':
-                i = readW(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'X':
-            case 'x':
-                if (i < end && sql.charAt(i + 1) == '\'') {
-                    i = readBinaryString(sql, tokenStart, end, i + 1, tokens);
-                } else {
-                    i = readIdentifier(sql, end, tokenStart, i, c, tokens);
-                }
-                continue loop;
-            case 'Y':
-            case 'y':
-                i = readY(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case 'Z':
-            case 'z':
-                i = readIdentifier(sql, end, tokenStart, i, c, tokens);
-                continue loop;
-            case '[':
-                if (provider.getMode().squareBracketQuotedNames) {
-                    int identifierEnd = sql.indexOf(']', ++i);
-                    if (identifierEnd < 0) {
-                        throw DbException.getSyntaxError(sql, tokenStart);
-                    }
-                    token = new Token.IdentifierToken(tokenStart, sql.substring(i, identifierEnd), true, false);
-                    i = identifierEnd;
-                } else {
-                    token = new Token.KeywordToken(tokenStart, OPEN_BRACKET);
-                }
-                break;
-            case ']':
-                token = new Token.KeywordToken(tokenStart, CLOSE_BRACKET);
-                break;
-            case '_':
-                i = read_(sql, end, tokenStart, i, tokens);
-                continue loop;
-            case '{':
-                token = new Token.KeywordToken(tokenStart, OPEN_BRACE);
-                break;
-            case '|':
-                if (i < end && sql.charAt(++i) == '|') {
-                    token = new Token.KeywordToken(tokenStart, CONCATENATION);
-                    break;
-                }
-                throw DbException.getSyntaxError(sql, tokenStart);
-            case '}':
-                token = new Token.KeywordToken(tokenStart, CLOSE_BRACE);
-                break;
-            case '~':
-                token = new Token.KeywordToken(tokenStart, TILDE);
-                break;
-            default:
-                if (c <= ' ') {
-                    i++;
-                    continue loop;
-                } else {
-                    int cp = Character.isHighSurrogate(c) ? sql.codePointAt(i++) : c;
-                    if (Character.isSpaceChar(cp)) {
-                        continue loop;
-                    }
-                    if (Character.isJavaIdentifierStart(cp)) {
-                        i = readIdentifier(sql, end, tokenStart, i, cp, tokens);
+                case '#':
+                    if (provider.getMode().supportPoundSymbolForColumnNames) {
+                        i = readIdentifier(sql, end, tokenStart, i, c, tokens);
                         continue loop;
                     }
                     throw DbException.getSyntaxError(sql, tokenStart);
+                case '$':
+                    if (i < end) {
+                        char c2 = sql.charAt(i + 1);
+                        if (c2 == '$') {
+                            i += 2;
+                            int stringEnd = sql.indexOf("$$", i);
+                            if (stringEnd < 0) {
+                                throw DbException.getSyntaxError(sql, tokenStart);
+                            }
+                            token = new Token.CharacterStringToken(tokenStart, sql.substring(i, stringEnd), false);
+                            i = stringEnd + 1;
+                        } else {
+                            i = parseParameterIndex(sql, end, i, tokens);
+                            lastParameter = assignParameterIndex(tokens, lastParameter, parameters);
+                            continue loop;
+                        }
+                    } else {
+                        token = new Token.ParameterToken(tokenStart, 0);
+                    }
+                    break;
+                case '%':
+                    token = new Token.KeywordToken(tokenStart, PERCENT);
+                    break;
+                case '&':
+                    if (i < end && sql.charAt(i + 1) == '&') {
+                        i++;
+                        token = new Token.KeywordToken(tokenStart, SPATIAL_INTERSECTS);
+                        break;
+                    }
+                    throw DbException.getSyntaxError(sql, tokenStart);
+                case '\'':
+                    i = readCharacterString(sql, tokenStart, end, i, false, tokens);
+                    continue loop;
+                case '(':
+                    token = new Token.KeywordToken(tokenStart, OPEN_PAREN);
+                    break;
+                case ')':
+                    token = new Token.KeywordToken(tokenStart, CLOSE_PAREN);
+                    if (stopOnCloseParen) {
+                        tokens.add(token);
+                        end = skipWhitespace(sql, end, i + 1) - 1;
+                        break loop;
+                    }
+                    break;
+                case '*':
+                    token = new Token.KeywordToken(tokenStart, ASTERISK);
+                    break;
+                case '+':
+                    token = new Token.KeywordToken(tokenStart, PLUS_SIGN);
+                    break;
+                case ',':
+                    token = new Token.KeywordToken(tokenStart, COMMA);
+                    break;
+                case '-':
+                    if (i < end && sql.charAt(i + 1) == '-') {
+                        i = skipSimpleComment(sql, end, i);
+                        continue loop;
+                    } else {
+                        token = new Token.KeywordToken(tokenStart, MINUS_SIGN);
+                    }
+                    break;
+                case '.':
+                    if (i < end) {
+                        char c2 = sql.charAt(i + 1);
+                        if (c2 >= '0' && c2 <= '9') {
+                            i = readNumeric(sql, tokenStart, end, i + 1, c2, false, false, tokens);
+                            continue loop;
+                        }
+                    }
+                    token = new Token.KeywordToken(tokenStart, DOT);
+                    break;
+                case '/':
+                    if (i < end) {
+                        char c2 = sql.charAt(i + 1);
+                        if (c2 == '*') {
+                            i = skipBracketedComment(sql, tokenStart, end, i);
+                            continue loop;
+                        } else if (c2 == '/') {
+                            i = skipSimpleComment(sql, end, i);
+                            continue loop;
+                        }
+                    }
+                    token = new Token.KeywordToken(tokenStart, SLASH);
+                    break;
+                case '0':
+                    if (i < end) {
+                        char c2 = sql.charAt(i + 1);
+                        if (c2 == 'X' || c2 == 'x') {
+                            i = readHexNumber(sql, provider, tokenStart, end, i + 2, tokens);
+                            continue loop;
+                        }
+                    }
+                    //$FALL-THROUGH$
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    i = readNumeric(sql, tokenStart, end, i + 1, c, tokens);
+                    continue loop;
+                case ':':
+                    if (i < end) {
+                        char c2 = sql.charAt(i + 1);
+                        if (c2 == ':') {
+                            i++;
+                            token = new Token.KeywordToken(tokenStart, COLON_COLON);
+                            break;
+                        } else if (c2 == '=') {
+                            i++;
+                            token = new Token.KeywordToken(tokenStart, COLON_EQ);
+                            break;
+                        }
+                    }
+                    token = new Token.KeywordToken(tokenStart, COLON);
+                    break;
+                case ';':
+                    token = new Token.KeywordToken(tokenStart, SEMICOLON);
+                    break;
+                case '<':
+                    if (i < end) {
+                        char c2 = sql.charAt(i + 1);
+                        if (c2 == '=') {
+                            i++;
+                            token = new Token.KeywordToken(tokenStart, SMALLER_EQUAL);
+                            break;
+                        }
+                        if (c2 == '>') {
+                            i++;
+                            token = new Token.KeywordToken(tokenStart, NOT_EQUAL);
+                            break;
+                        }
+                    }
+                    token = new Token.KeywordToken(tokenStart, SMALLER);
+                    break;
+                case '=':
+                    token = new Token.KeywordToken(tokenStart, EQUAL);
+                    break;
+                case '>':
+                    if (i < end && sql.charAt(i + 1) == '=') {
+                        i++;
+                        token = new Token.KeywordToken(tokenStart, BIGGER_EQUAL);
+                        break;
+                    }
+                    token = new Token.KeywordToken(tokenStart, BIGGER);
+                    break;
+                case '?': {
+                    if (i + 1 < end && sql.charAt(i + 1) == '?') {
+                        char c3 = sql.charAt(i + 2);
+                        if (c3 == '(') {
+                            i += 2;
+                            token = new Token.KeywordToken(tokenStart, OPEN_BRACKET);
+                            break;
+                        }
+                        if (c3 == ')') {
+                            i += 2;
+                            token = new Token.KeywordToken(tokenStart, CLOSE_BRACKET);
+                            break;
+                        }
+                    }
+                    i = parseParameterIndex(sql, end, i, tokens);
+                    lastParameter = assignParameterIndex(tokens, lastParameter, parameters);
+                    continue loop;
                 }
+                case '@':
+                    token = new Token.KeywordToken(tokenStart, AT);
+                    break;
+                case 'A':
+                case 'a':
+                    i = readA(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'B':
+                case 'b':
+                    i = readB(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'C':
+                case 'c':
+                    i = readC(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'D':
+                case 'd':
+                    i = readD(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'E':
+                case 'e':
+                    i = readE(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'F':
+                case 'f':
+                    i = readF(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'G':
+                case 'g':
+                    i = readG(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'H':
+                case 'h':
+                    i = readH(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'I':
+                case 'i':
+                    i = readI(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'J':
+                case 'j':
+                    i = readJ(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'K':
+                case 'k':
+                    i = readK(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'L':
+                case 'l':
+                    i = readL(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'M':
+                case 'm':
+                    i = readM(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'N':
+                case 'n':
+                    if (i < end && sql.charAt(i + 1) == '\'') {
+                        i = readCharacterString(sql, tokenStart, end, i + 1, false, tokens);
+                    } else {
+                        i = readN(sql, end, tokenStart, i, tokens);
+                    }
+                    continue loop;
+                case 'O':
+                case 'o':
+                    i = readO(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'P':
+                case 'p':
+                    i = readP(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'Q':
+                case 'q':
+                    i = readQ(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'R':
+                case 'r':
+                    i = readR(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'S':
+                case 's':
+                    i = readS(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'T':
+                case 't':
+                    i = readT(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'U':
+                case 'u':
+                    if (i + 1 < end && sql.charAt(i + 1) == '&') {
+                        char c3 = sql.charAt(i + 2);
+                        if (c3 == '"') {
+                            i = readQuotedIdentifier(sql, end, tokenStart, i + 2, '"', true, tokens);
+                            foundUnicode = true;
+                            continue loop;
+                        } else if (c3 == '\'') {
+                            i = readCharacterString(sql, tokenStart, end, i + 2, true, tokens);
+                            foundUnicode = true;
+                            continue loop;
+                        }
+                    }
+                    i = readU(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'V':
+                case 'v':
+                    i = readV(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'W':
+                case 'w':
+                    i = readW(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'X':
+                case 'x':
+                    if (i < end && sql.charAt(i + 1) == '\'') {
+                        i = readBinaryString(sql, tokenStart, end, i + 1, tokens);
+                    } else {
+                        i = readIdentifier(sql, end, tokenStart, i, c, tokens);
+                    }
+                    continue loop;
+                case 'Y':
+                case 'y':
+                    i = readY(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case 'Z':
+                case 'z':
+                    i = readIdentifier(sql, end, tokenStart, i, c, tokens);
+                    continue loop;
+                case '[':
+                    if (provider.getMode().squareBracketQuotedNames) {
+                        int identifierEnd = sql.indexOf(']', ++i);
+                        if (identifierEnd < 0) {
+                            throw DbException.getSyntaxError(sql, tokenStart);
+                        }
+                        token = new Token.IdentifierToken(tokenStart, sql.substring(i, identifierEnd), true, false);
+                        i = identifierEnd;
+                    } else {
+                        token = new Token.KeywordToken(tokenStart, OPEN_BRACKET);
+                    }
+                    break;
+                case ']':
+                    token = new Token.KeywordToken(tokenStart, CLOSE_BRACKET);
+                    break;
+                case '_':
+                    i = read_(sql, end, tokenStart, i, tokens);
+                    continue loop;
+                case '{':
+                    token = new Token.KeywordToken(tokenStart, OPEN_BRACE);
+                    break;
+                case '|':
+                    if (i < end && sql.charAt(++i) == '|') {
+                        token = new Token.KeywordToken(tokenStart, CONCATENATION);
+                        break;
+                    }
+                    throw DbException.getSyntaxError(sql, tokenStart);
+                case '}':
+                    token = new Token.KeywordToken(tokenStart, CLOSE_BRACE);
+                    break;
+                case '~':
+                    token = new Token.KeywordToken(tokenStart, TILDE);
+                    break;
+                default:
+                    if (c <= ' ') {
+                        i++;
+                        continue loop;
+                    } else {
+                        int cp = Character.isHighSurrogate(c) ? sql.codePointAt(i++) : c;
+                        if (Character.isSpaceChar(cp)) {
+                            continue loop;
+                        }
+                        if (Character.isJavaIdentifierStart(cp)) {
+                            i = readIdentifier(sql, end, tokenStart, i, cp, tokens);
+                            continue loop;
+                        }
+                        throw DbException.getSyntaxError(sql, tokenStart);
+                    }
             }
             tokens.add(token);
             i++;
         }
+
         if (foundUnicode) {
             processUescape(sql, tokens);
         }
+
         tokens.add(new Token.EndOfInputToken(end + 1));
+
         return tokens;
     }
 
@@ -612,33 +617,33 @@ public final class Tokenizer {
     private static int getTokenTypeCurrent(String s, int tokenStart, int length) {
         tokenStart += 8;
         switch (length) {
-        case 12:
-            if (eqCurrent("CURRENT_DATE", s, tokenStart, length)) {
-                return CURRENT_DATE;
-            } else if (eqCurrent("CURRENT_PATH", s, tokenStart, length)) {
-                return CURRENT_PATH;
-            } else if (eqCurrent("CURRENT_ROLE", s, tokenStart, length)) {
-                return CURRENT_ROLE;
-            } else if (eqCurrent("CURRENT_TIME", s, tokenStart, length)) {
-                return CURRENT_TIME;
-            } else if (eqCurrent("CURRENT_USER", s, tokenStart, length)) {
-                return CURRENT_USER;
-            }
-            break;
-        case 14:
-            if (eqCurrent("CURRENT_SCHEMA", s, tokenStart, length)) {
-                return CURRENT_SCHEMA;
-            }
-            break;
-        case 15:
-            if (eqCurrent("CURRENT_CATALOG", s, tokenStart, length)) {
-                return CURRENT_CATALOG;
-            }
-            break;
-        case 17:
-            if (eqCurrent("CURRENT_TIMESTAMP", s, tokenStart, length)) {
-                return CURRENT_TIMESTAMP;
-            }
+            case 12:
+                if (eqCurrent("CURRENT_DATE", s, tokenStart, length)) {
+                    return CURRENT_DATE;
+                } else if (eqCurrent("CURRENT_PATH", s, tokenStart, length)) {
+                    return CURRENT_PATH;
+                } else if (eqCurrent("CURRENT_ROLE", s, tokenStart, length)) {
+                    return CURRENT_ROLE;
+                } else if (eqCurrent("CURRENT_TIME", s, tokenStart, length)) {
+                    return CURRENT_TIME;
+                } else if (eqCurrent("CURRENT_USER", s, tokenStart, length)) {
+                    return CURRENT_USER;
+                }
+                break;
+            case 14:
+                if (eqCurrent("CURRENT_SCHEMA", s, tokenStart, length)) {
+                    return CURRENT_SCHEMA;
+                }
+                break;
+            case 15:
+                if (eqCurrent("CURRENT_CATALOG", s, tokenStart, length)) {
+                    return CURRENT_CATALOG;
+                }
+                break;
+            case 17:
+                if (eqCurrent("CURRENT_TIMESTAMP", s, tokenStart, length)) {
+                    return CURRENT_TIMESTAMP;
+                }
         }
         return IDENTIFIER;
     }
@@ -735,17 +740,17 @@ public final class Tokenizer {
         int type;
         if (length == 2) {
             switch ((sql.charAt(tokenStart + 1) & 0xffdf)) {
-            case 'F':
-                type = IF;
-                break;
-            case 'N':
-                type = IN;
-                break;
-            case 'S':
-                type = IS;
-                break;
-            default:
-                type = IDENTIFIER;
+                case 'F':
+                    type = IF;
+                    break;
+                case 'N':
+                    type = IN;
+                    break;
+                case 'S':
+                    type = IS;
+                    break;
+                default:
+                    type = IDENTIFIER;
             }
         } else {
             if (eq("INNER", sql, tokenStart, length)) {
@@ -833,14 +838,14 @@ public final class Tokenizer {
         int type;
         if (length == 2) {
             switch ((sql.charAt(tokenStart + 1) & 0xffdf)) {
-            case 'N':
-                type = ON;
-                break;
-            case 'R':
-                type = OR;
-                break;
-            default:
-                type = IDENTIFIER;
+                case 'N':
+                    type = ON;
+                    break;
+                case 'R':
+                    type = OR;
+                    break;
+                default:
+                    type = IDENTIFIER;
             }
         } else {
             if (eq("OFFSET", sql, tokenStart, length)) {
@@ -884,9 +889,16 @@ public final class Tokenizer {
         return readIdentifierOrKeyword(sql, tokenStart, tokens, endIndex, type);
     }
 
-    private int readS(String sql, int end, int tokenStart, int i, ArrayList<Token> tokens) {
-        int endIndex = findIdentifierEnd(sql, end, i);
+    private int readS(String sql,
+                      int end,
+                      int tokenStart,
+                      int currentIndex,
+                      ArrayList<Token> tokens) {
+
+        int endIndex = findIdentifierEnd(sql, end, currentIndex);
+
         int length = endIndex - tokenStart;
+
         int type;
         if (eq("SECOND", sql, tokenStart, length)) {
             type = SECOND;
@@ -905,7 +917,10 @@ public final class Tokenizer {
         } else {
             type = IDENTIFIER;
         }
-        return readIdentifierOrKeyword(sql, tokenStart, tokens, endIndex, type);
+
+        readIdentifierOrKeyword(sql, tokenStart, tokens, endIndex, type);
+
+        return endIndex;
     }
 
     private int readT(String sql, int end, int tokenStart, int i, ArrayList<Token> tokens) {
@@ -1000,7 +1015,7 @@ public final class Tokenizer {
             token = new Token.IdentifierToken(tokenStart, extractIdentifier(sql, tokenStart, endIndex), false, false);
         } else if (nonKeywords != null && nonKeywords.get(type)) {
             token = new Token.KeywordOrIdentifierToken(tokenStart, type, extractIdentifier(sql, tokenStart, endIndex));
-        } else {
+        } else { // key word
             token = new Token.KeywordToken(tokenStart, type);
         }
         tokens.add(token);
@@ -1021,14 +1036,15 @@ public final class Tokenizer {
 
     private int findIdentifierEnd(String sql, int end, int i) {
         i++;
-        for (;;) {
+        for (; ; ) {
             int cp;
-            if (i > end || (!Character.isJavaIdentifierPart(cp = sql.codePointAt(i))
-                    && (cp != '#' || !provider.getMode().supportPoundSymbolForColumnNames))) {
+            if (i > end || (!Character.isJavaIdentifierPart(cp = sql.codePointAt(i)) && (cp != '#' || !provider.getMode().supportPoundSymbolForColumnNames))) {
                 break;
             }
+
             i += Character.charCount(cp);
         }
+
         return i;
     }
 
@@ -1037,7 +1053,7 @@ public final class Tokenizer {
     }
 
     private int readQuotedIdentifier(String sql, int end, int tokenStart, int i, char c, boolean unicode,
-            ArrayList<Token> tokens) {
+                                     ArrayList<Token> tokens) {
         int identifierEnd = sql.indexOf(c, ++i);
         if (identifierEnd < 0) {
             throw DbException.getSyntaxError(sql, tokenStart);
@@ -1088,7 +1104,7 @@ public final class Tokenizer {
     }
 
     private static int readCharacterString(String sql, int tokenStart, int end, int i, boolean unicode,
-            ArrayList<Token> tokens) {
+                                           ArrayList<Token> tokens) {
         String s = null;
         StringBuilder builder = null;
         int stringEnd;
@@ -1150,11 +1166,11 @@ public final class Tokenizer {
     }
 
     private static int readHexNumber(String sql, CastDataProvider provider, int tokenStart, int end, int i,
-            ArrayList<Token> tokens) {
+                                     ArrayList<Token> tokens) {
         if (provider.getMode().zeroExLiteralsAreBinaryStrings) {
             int start = i;
             for (char c; i <= end
-                    && (((c = sql.charAt(i)) >= '0' && c <= '9') || ((c &= 0xffdf) >= 'A' && c <= 'F'));) {
+                    && (((c = sql.charAt(i)) >= '0' && c <= '9') || ((c &= 0xffdf) >= 'A' && c <= 'F')); ) {
                 i++;
             }
             if (i <= end && Character.isJavaIdentifierPart(sql.codePointAt(i))) {
@@ -1207,14 +1223,14 @@ public final class Tokenizer {
             c = sql.charAt(i);
             if (c < '0' || c > '9') {
                 switch (c) {
-                case '.':
-                    return readNumeric(sql, tokenStart, end, i, c, false, false, tokens);
-                case 'E':
-                case 'e':
-                    return readNumeric(sql, tokenStart, end, i, c, false, true, tokens);
-                case 'L':
-                case 'l':
-                    return finishBigInteger(sql, tokenStart, end, i, tokenStart, true, 10, tokens);
+                    case '.':
+                        return readNumeric(sql, tokenStart, end, i, c, false, false, tokens);
+                    case 'E':
+                    case 'e':
+                        return readNumeric(sql, tokenStart, end, i, c, false, true, tokens);
+                    case 'L':
+                    case 'l':
+                        return finishBigInteger(sql, tokenStart, end, i, tokenStart, true, 10, tokens);
                 }
                 break;
             }
@@ -1228,7 +1244,7 @@ public final class Tokenizer {
     }
 
     private static int readNumeric(String sql, int tokenStart, int end, int i, char c, boolean integer,
-            boolean approximate, ArrayList<Token> tokens) {
+                                   boolean approximate, ArrayList<Token> tokens) {
         if (!approximate) {
             while (++i <= end) {
                 c = sql.charAt(i);
@@ -1274,7 +1290,7 @@ public final class Tokenizer {
     }
 
     private static int finishBigInteger(String sql, int tokenStart, int end, int i, int start, boolean asBigint,
-            int radix, ArrayList<Token> tokens) {
+                                        int radix, ArrayList<Token> tokens) {
         int endIndex = i;
         if (asBigint) {
             i++;
@@ -1298,8 +1314,8 @@ public final class Tokenizer {
 
     private static int skipBracketedComment(String sql, int tokenStart, int end, int i) {
         i += 2;
-        for (int level = 1; level > 0;) {
-            for (;;) {
+        for (int level = 1; level > 0; ) {
+            for (; ; ) {
                 if (i >= end) {
                     throw DbException.getSyntaxError(sql, tokenStart);
                 }
@@ -1330,7 +1346,7 @@ public final class Tokenizer {
     private static int parseParameterIndex(String sql, int end, int i, ArrayList<Token> tokens) {
         int tokenStart = i;
         long number = 0;
-        for (char c; ++i <= end && (c = sql.charAt(i)) >= '0' && c <= '9';) {
+        for (char c; ++i <= end && (c = sql.charAt(i)) >= '0' && c <= '9'; ) {
             number = number * 10 + (c - '0');
             if (number > Integer.MAX_VALUE) {
                 throw DbException.getInvalidValueException("parameter index", number);
@@ -1366,7 +1382,8 @@ public final class Tokenizer {
             Token token = i.next();
             if (token.needsUnicodeConversion()) {
                 int uescape = '\\';
-                condition: if (i.hasNext()) {
+                condition:
+                if (i.hasNext()) {
                     Token t2 = i.next();
                     if (t2.tokenType() == UESCAPE) {
                         i.remove();
@@ -1380,12 +1397,12 @@ public final class Tokenizer {
                                     if (!Character.isWhitespace(escape) && (escape < '0' || escape > '9')
                                             && (escape < 'A' || escape > 'F') && (escape < 'a' || escape > 'f')) {
                                         switch (escape) {
-                                        default:
-                                            uescape = escape;
-                                            break condition;
-                                        case '"':
-                                        case '\'':
-                                        case '+':
+                                            default:
+                                                uescape = escape;
+                                                break condition;
+                                            case '"':
+                                            case '\'':
+                                            case '+':
                                         }
                                     }
                                 }

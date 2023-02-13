@@ -40,21 +40,21 @@ public class AlterTableRenameConstraint extends AlterTable {
 
     @Override
     public long update(Table table) {
-        Constraint constraint = getSchema().findConstraint(session, constraintName);
-        Database db = session.getDatabase();
+        Constraint constraint = getSchema().findConstraint(sessionLocal, constraintName);
+        Database db = sessionLocal.getDatabase();
         if (constraint == null || constraint.getConstraintType() == Type.DOMAIN || constraint.getTable() != table) {
             throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, constraintName);
         }
-        if (getSchema().findConstraint(session, newConstraintName) != null
+        if (getSchema().findConstraint(sessionLocal, newConstraintName) != null
                 || newConstraintName.equals(constraintName)) {
             throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, newConstraintName);
         }
-        User user = session.getUser();
+        User user = sessionLocal.getUser();
         Table refTable = constraint.getRefTable();
         if (refTable != table) {
             user.checkTableRight(refTable, Right.SCHEMA_OWNER);
         }
-        db.renameSchemaObject(session, constraint, newConstraintName);
+        db.renameSchemaObject(sessionLocal, constraint, newConstraintName);
         return 0;
     }
 

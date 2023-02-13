@@ -35,7 +35,7 @@ public class CreateConstant extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         if (schema.findConstant(constantName) != null) {
             if (ifNotExists) {
                 return 0;
@@ -44,10 +44,10 @@ public class CreateConstant extends SchemaOwnerCommand {
         }
         int id = getObjectId();
         Constant constant = new Constant(schema, id, constantName);
-        expression = expression.optimize(session);
-        Value value = expression.getValue(session);
+        expression = expression.optimize(sessionLocal);
+        Value value = expression.getValue(sessionLocal);
         constant.setValue(value);
-        db.addSchemaObject(session, constant);
+        db.addSchemaObject(sessionLocal, constant);
         return 0;
     }
 

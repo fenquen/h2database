@@ -42,7 +42,7 @@ public final class Subquery extends Expression {
 
     @Override
     public Value getValue(SessionLocal session) {
-        query.setSession(session);
+        query.setSessionLocal(session);
         try (ResultInterface result = query.query(2)) {
             Value v;
             if (!result.next()) {
@@ -66,7 +66,7 @@ public final class Subquery extends Expression {
      */
     public ArrayList<Value> getAllRows(SessionLocal session) {
         ArrayList<Value> list = new ArrayList<>();
-        query.setSession(session);
+        query.setSessionLocal(session);
         try (ResultInterface result = query.query(Integer.MAX_VALUE)) {
             while (result.next()) {
                 list.add(readRow(result));
@@ -88,9 +88,9 @@ public final class Subquery extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        outerResolvers.add(resolver);
-        query.mapColumns(resolver, level + 1);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        outerResolvers.add(columnResolver);
+        query.mapColumns(columnResolver, level + 1);
     }
 
     @Override
@@ -113,7 +113,7 @@ public final class Subquery extends Expression {
     }
 
     private void setType() {
-        ArrayList<Expression> expressions = query.getExpressions();
+        ArrayList<Expression> expressions = query.getExpressionList();
         int columnCount = query.getColumnCount();
         if (columnCount == 1) {
             expression = expressions.get(0);

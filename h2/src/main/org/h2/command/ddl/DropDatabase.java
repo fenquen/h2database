@@ -42,16 +42,16 @@ public class DropDatabase extends DefineCommand {
             dropAllObjects();
         }
         if (deleteFiles) {
-            session.getDatabase().setDeleteFilesOnDisconnect(true);
+            sessionLocal.getDatabase().setDeleteFilesOnDisconnect(true);
         }
         return 0;
     }
 
     private void dropAllObjects() {
-        User user = session.getUser();
+        User user = sessionLocal.getUser();
         user.checkAdmin();
-        Database db = session.getDatabase();
-        db.lockMeta(session);
+        Database db = sessionLocal.getDatabase();
+        db.lockMeta(sessionLocal);
 
         // There can be dependencies between tables e.g. using computed columns,
         // so we might need to loop over them multiple times.
@@ -90,7 +90,7 @@ public class DropDatabase extends DefineCommand {
                 if (t.getName() == null) {
                     // ignore, already dead
                 } else if (db.getDependentTable(t, t) == null) {
-                    db.removeSchemaObject(session, t);
+                    db.removeSchemaObject(sessionLocal, t);
                 } else {
                     runLoopAgain = true;
                 }
@@ -101,7 +101,7 @@ public class DropDatabase extends DefineCommand {
         Collection<Schema> schemas = db.getAllSchemasNoMeta();
         for (Schema schema : schemas) {
             if (schema.canDrop()) {
-                db.removeDatabaseObject(session, schema);
+                db.removeDatabaseObject(sessionLocal, schema);
             }
         }
         ArrayList<SchemaObject> list = new ArrayList<>();
@@ -127,16 +127,16 @@ public class DropDatabase extends DefineCommand {
             if (!obj.getSchema().isValid() || obj.isHidden()) {
                 continue;
             }
-            db.removeSchemaObject(session, obj);
+            db.removeSchemaObject(sessionLocal, obj);
         }
         Role publicRole = db.getPublicRole();
         for (RightOwner rightOwner : db.getAllUsersAndRoles()) {
             if (rightOwner != user && rightOwner != publicRole) {
-                db.removeDatabaseObject(session, rightOwner);
+                db.removeDatabaseObject(sessionLocal, rightOwner);
             }
         }
         for (Right right : db.getAllRights()) {
-            db.removeDatabaseObject(session, right);
+            db.removeDatabaseObject(sessionLocal, right);
         }
         for (SessionLocal s : db.getSessions(false)) {
             s.setLastIdentity(ValueNull.INSTANCE);

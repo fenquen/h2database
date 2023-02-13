@@ -36,14 +36,14 @@ public class DropConstant extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         Constant constant = schema.findConstant(constantName);
         if (constant == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.CONSTANT_NOT_FOUND_1, constantName);
             }
         } else {
-            db.removeSchemaObject(session, constant);
+            db.removeSchemaObject(sessionLocal, constant);
         }
         return 0;
     }

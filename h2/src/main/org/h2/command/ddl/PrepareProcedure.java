@@ -34,10 +34,10 @@ public class PrepareProcedure extends DefineCommand {
     @Override
     public long update() {
         Procedure proc = new Procedure(procedureName, prepared);
-        prepared.setParameterList(parameters);
+        prepared.setParameterList(parameterList);
         prepared.setPrepareAlways(prepareAlways);
         prepared.prepare();
-        session.addProcedure(proc);
+        sessionLocal.addProcedure(proc);
         return 0;
     }
 
@@ -50,7 +50,7 @@ public class PrepareProcedure extends DefineCommand {
     }
 
     @Override
-    public ArrayList<Parameter> getParameters() {
+    public ArrayList<Parameter> getParameterList() {
         return new ArrayList<>(0);
     }
 

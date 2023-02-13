@@ -67,7 +67,7 @@ public class GrantRevoke extends DefineCommand {
     }
 
     public void setGranteeName(String granteeName) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         grantee = db.findUserOrRole(granteeName);
         if (grantee == null) {
             throw DbException.get(ErrorCode.USER_OR_ROLE_NOT_FOUND_1, granteeName);
@@ -76,8 +76,8 @@ public class GrantRevoke extends DefineCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
-        User user = session.getUser();
+        Database db = sessionLocal.getDatabase();
+        User user = sessionLocal.getUser();
         if (roleNames != null) {
             user.checkAdmin();
             for (String name : roleNames) {
@@ -125,19 +125,19 @@ public class GrantRevoke extends DefineCommand {
     }
 
     private void grantRight(DbObject object) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         Right right = grantee.getRightForObject(object);
         if (right == null) {
             int id = getPersistedObjectId();
             if (id == 0) {
-                id = session.getDatabase().allocateObjectId();
+                id = sessionLocal.getDatabase().allocateObjectId();
             }
             right = new Right(db, id, grantee, rightMask, object);
             grantee.grantRight(object, right);
-            db.addDatabaseObject(session, right);
+            db.addDatabaseObject(sessionLocal, right);
         } else {
             right.setRightMask(right.getRightMask() | rightMask);
-            db.updateMeta(session, right);
+            db.updateMeta(sessionLocal, right);
         }
     }
 
@@ -152,10 +152,10 @@ public class GrantRevoke extends DefineCommand {
                 throw DbException.get(ErrorCode.ROLE_ALREADY_GRANTED_1, grantedRole.getTraceSQL());
             }
         }
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         int id = getObjectId();
         Right right = new Right(db, id, grantee, grantedRole);
-        db.addDatabaseObject(session, right);
+        db.addDatabaseObject(sessionLocal, right);
         grantee.grantRole(grantedRole, right);
     }
 
@@ -175,12 +175,12 @@ public class GrantRevoke extends DefineCommand {
         }
         int mask = right.getRightMask();
         int newRight = mask & ~rightMask;
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         if (newRight == 0) {
-            db.removeDatabaseObject(session, right);
+            db.removeDatabaseObject(sessionLocal, right);
         } else {
             right.setRightMask(newRight);
-            db.updateMeta(session, right);
+            db.updateMeta(sessionLocal, right);
         }
     }
 
@@ -190,8 +190,8 @@ public class GrantRevoke extends DefineCommand {
         if (right == null) {
             return;
         }
-        Database db = session.getDatabase();
-        db.removeDatabaseObject(session, right);
+        Database db = sessionLocal.getDatabase();
+        db.removeDatabaseObject(sessionLocal, right);
     }
 
     @Override

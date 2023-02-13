@@ -56,7 +56,7 @@ public final class TableInfoFunction extends Function1_2 {
             break;
         case ESTIMATED_ENVELOPE: {
             Column column = table.getColumn(v2.getString());
-            ArrayList<Index> indexes = table.getIndexes();
+            ArrayList<Index> indexes = table.getIndexList();
             if (indexes != null) {
                 for (int i = 1, size = indexes.size(); i < size; i++) {
                     Index index = indexes.get(i);

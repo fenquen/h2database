@@ -44,14 +44,14 @@ public class BackupCommand extends Prepared {
 
     @Override
     public long update() {
-        String name = fileNameExpr.getValue(session).getString();
-        session.getUser().checkAdmin();
+        String name = fileNameExpr.getValue(sessionLocal).getString();
+        sessionLocal.getUser().checkAdmin();
         backupTo(name);
         return 0;
     }
 
     private void backupTo(String fileName) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         if (!db.isPersistent()) {
             throw DbException.get(ErrorCode.DATABASE_IS_NOT_PERSISTENT);
         }

@@ -105,8 +105,8 @@ public final class ConditionInConstantSet extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        left.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        left.mapColumns(columnResolver, level, state);
     }
 
     @Override

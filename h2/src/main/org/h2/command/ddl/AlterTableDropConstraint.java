@@ -43,7 +43,7 @@ public class AlterTableDropConstraint extends AlterTable {
 
     @Override
     public long update(Table table) {
-        Constraint constraint = getSchema().findConstraint(session, constraintName);
+        Constraint constraint = getSchema().findConstraint(sessionLocal, constraintName);
         Type constraintType;
         if (constraint == null || (constraintType = constraint.getConstraintType()) == Type.DOMAIN
                 || constraint.getTable() != table) {
@@ -53,7 +53,7 @@ public class AlterTableDropConstraint extends AlterTable {
         } else {
             Table refTable = constraint.getRefTable();
             if (refTable != table) {
-                session.getUser().checkTableRight(refTable, Right.SCHEMA_OWNER);
+                sessionLocal.getUser().checkTableRight(refTable, Right.SCHEMA_OWNER);
             }
             if (constraintType == Type.PRIMARY_KEY || constraintType == Type.UNIQUE) {
                 for (Constraint c : constraint.getTable().getConstraints()) {
@@ -64,12 +64,12 @@ public class AlterTableDropConstraint extends AlterTable {
                         }
                         Table t = c.getTable();
                         if (t != table && t != refTable) {
-                            session.getUser().checkTableRight(t, Right.SCHEMA_OWNER);
+                            sessionLocal.getUser().checkTableRight(t, Right.SCHEMA_OWNER);
                         }
                     }
                 }
             }
-            session.getDatabase().removeSchemaObject(session, constraint);
+            sessionLocal.getDatabase().removeSchemaObject(sessionLocal, constraint);
         }
         return 0;
     }

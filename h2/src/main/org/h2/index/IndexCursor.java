@@ -146,14 +146,18 @@ public class IndexCursor implements Cursor {
     /**
      * Re-evaluate the start and end values of the index search for rows.
      *
-     * @param s the session
+     * @param sessionLocal the session
      * @param indexConditions the index conditions
      */
-    public void find(SessionLocal s, ArrayList<IndexCondition> indexConditions) {
-        prepare(s, indexConditions);
+    public void find(SessionLocal sessionLocal,
+                     ArrayList<IndexCondition> indexConditions) {
+
+        prepare(sessionLocal, indexConditions);
+
         if (inColumn != null) {
             return;
         }
+
         if (!alwaysFalse) {
             if (intersects != null && index instanceof SpatialIndex) {
                 cursor = ((SpatialIndex) index).findByGeometry(session, start, end, intersects);
@@ -267,6 +271,7 @@ public class IndexCursor implements Cursor {
         if (cursor == null) {
             return null;
         }
+
         return cursor.get();
     }
 
@@ -284,9 +289,11 @@ public class IndexCursor implements Cursor {
                     return false;
                 }
             }
+
             if (cursor.next()) {
                 return true;
             }
+
             cursor = null;
         }
     }

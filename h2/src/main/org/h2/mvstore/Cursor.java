@@ -25,9 +25,9 @@ public final class Cursor<K,V> implements Iterator<K> {
     private Page<K,V> lastPage;
 
 
-    public Cursor(RootReference<K,V> rootReference, K from, K to) {
-        this(rootReference, from, to, false);
-    }
+    //public Cursor(RootReference<K,V> rootReference, K from, K to) {
+     //   this(rootReference, from, to, false);
+   // }
 
     /**
      * @param rootReference of the tree
@@ -46,23 +46,29 @@ public final class Cursor<K,V> implements Iterator<K> {
     public boolean hasNext() {
         if (cursorPos != null) {
             int increment = reverse ? -1 : 1;
+
             while (current == null) {
                 Page<K,V> page = cursorPos.page;
                 int index = cursorPos.index;
+
                 if (reverse ? index < 0 : index >= upperBound(page)) {
-                    // traversal of this page is over, going up a level or stop if at the root already
+                    // traversal of this page is over, go to high level or stop if at the root already
                     CursorPos<K,V> tmp = cursorPos;
                     cursorPos = cursorPos.parent;
                     if (cursorPos == null) {
                         return false;
                     }
+
                     tmp.parent = keeper;
                     keeper = tmp;
                 } else {
-                    // traverse down to the leaf taking the leftmost path
                     while (!page.isLeaf()) {
+                        // traverse down to the leaf
                         page = page.getChildPage(index);
+
+                        // taking the leftmost path
                         index = reverse ? upperBound(page) - 1 : 0;
+
                         if (keeper == null) {
                             cursorPos = new CursorPos<>(page, index, cursorPos);
                         } else {
@@ -74,19 +80,23 @@ public final class Cursor<K,V> implements Iterator<K> {
                             cursorPos = tmp;
                         }
                     }
+
                     if (reverse ? index >= 0 : index < page.getKeyCount()) {
                         K key = page.getKey(index);
-                        if (to != null && Integer.signum(page.map.getKeyType().compare(key, to)) == increment) {
+                        if (to != null && Integer.signum(page.mvMap.getKeyType().compare(key, to)) == increment) {
                             return false;
                         }
+
                         current = last = key;
                         lastValue = page.getValue(index);
                         lastPage = page;
                     }
                 }
+
                 cursorPos.index += increment;
             }
         }
+
         return current != null;
     }
 
@@ -95,6 +105,7 @@ public final class Cursor<K,V> implements Iterator<K> {
         if(!hasNext()) {
             throw new NoSuchElementException();
         }
+
         current = null;
         return last;
     }
@@ -144,7 +155,7 @@ public final class Cursor<K,V> implements Iterator<K> {
             CursorPos<K,V> parent;
             while ((parent = cp.parent) != null) cp = parent;
             Page<K,V> root = cp.page;
-            MVMap<K,V> map = root.map;
+            MVMap<K,V> map = root.mvMap;
             long index = map.getKeyIndex(next());
             last = map.getKey(index + (reverse ? -n : n));
             this.cursorPos = traverseDown(root, last, reverse);
@@ -166,11 +177,13 @@ public final class Cursor<K,V> implements Iterator<K> {
      *         all the way up to to the root page provided
      */
     static <K,V> CursorPos<K,V> traverseDown(Page<K,V> page, K key, boolean reverse) {
-        CursorPos<K,V> cursorPos = key != null ? CursorPos.traverseDown(page, key) :
-                reverse ? page.getAppendCursorPos(null) : page.getPrependCursorPos(null);
+        CursorPos<K,V> cursorPos = key != null ?
+                CursorPos.traverseDown(page, key) : reverse ?
+                page.getAppendCursorPos(null) : page.getPrependCursorPos(null);
+
         int index = cursorPos.index;
         if (index < 0) {
-            index = ~index;
+            index = ~index; // -1的话会变为0
             if (reverse) {
                 --index;
             }
@@ -180,6 +193,6 @@ public final class Cursor<K,V> implements Iterator<K> {
     }
 
     private static <K,V> int upperBound(Page<K,V> page) {
-        return page.isLeaf() ? page.getKeyCount() : page.map.getChildPageCount(page);
+        return page.isLeaf() ? page.getKeyCount() : page.mvMap.getChildPageCount(page);
     }
 }

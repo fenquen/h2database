@@ -39,8 +39,8 @@ public class DropDomain extends AlterDomain {
 
     @Override
     long update(Schema schema, Domain domain) {
-        forAllDependencies(session, domain, this::copyColumn, this::copyDomain, true);
-        session.getDatabase().removeSchemaObject(session, domain);
+        forAllDependencies(sessionLocal, domain, this::copyColumn, this::copyDomain, true);
+        sessionLocal.getDatabase().removeSchemaObject(sessionLocal, domain);
         return 0;
     }
 
@@ -53,15 +53,15 @@ public class DropDomain extends AlterDomain {
         ArrayList<ConstraintDomain> constraints = domain.getConstraints();
         if (constraints != null && !constraints.isEmpty()) {
             for (ConstraintDomain constraint : constraints) {
-                Expression checkCondition = constraint.getCheckConstraint(session, columnName);
-                AlterTableAddConstraint check = new AlterTableAddConstraint(session, targetTable.getSchema(),
+                Expression checkCondition = constraint.getCheckConstraint(sessionLocal, columnName);
+                AlterTableAddConstraint check = new AlterTableAddConstraint(sessionLocal, targetTable.getSchema(),
                         CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_CHECK, false);
                 check.setTableName(targetTable.getName());
                 check.setCheckExpression(checkCondition);
                 check.update();
             }
         }
-        copyExpressions(session, domain, targetColumn);
+        copyExpressions(sessionLocal, domain, targetColumn);
         return true;
     }
 
@@ -72,15 +72,15 @@ public class DropDomain extends AlterDomain {
         ArrayList<ConstraintDomain> constraints = domain.getConstraints();
         if (constraints != null && !constraints.isEmpty()) {
             for (ConstraintDomain constraint : constraints) {
-                Expression checkCondition = constraint.getCheckConstraint(session, null);
-                AlterDomainAddConstraint check = new AlterDomainAddConstraint(session, targetDomain.getSchema(), //
+                Expression checkCondition = constraint.getCheckConstraint(sessionLocal, null);
+                AlterDomainAddConstraint check = new AlterDomainAddConstraint(sessionLocal, targetDomain.getSchema(), //
                         false);
                 check.setDomainName(targetDomain.getName());
                 check.setCheckExpression(checkCondition);
                 check.update();
             }
         }
-        copyExpressions(session, domain, targetDomain);
+        copyExpressions(sessionLocal, domain, targetDomain);
         return true;
     }
 

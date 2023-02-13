@@ -7,10 +7,7 @@ package org.h2.engine;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Properties;
+import java.util.*;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.dml.SetTypes;
@@ -40,7 +37,7 @@ public class ConnectionInfo implements Cloneable {
     private String url;
     private String user;
     private byte[] filePasswordHash;
-    private byte[] fileEncryptionKey;
+    public byte[] fileEncryptionKey;
     private byte[] userPasswordHash;
 
     private TimeZoneProvider timeZone;
@@ -55,13 +52,13 @@ public class ConnectionInfo implements Cloneable {
     private boolean persistent;
     private boolean unnamed;
 
-    private NetworkConnectionInfo networkConnectionInfo;
+    public NetworkConnectionInfo networkConnectionInfo;
 
     /**
      * Create a connection info object.
      *
      * @param name the database name (including tags), but without the
-     *            "jdbc:h2:" prefix
+     *             "jdbc:h2:" prefix
      */
     public ConnectionInfo(String name) {
         this.name = name;
@@ -72,12 +69,11 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Create a connection info object.
      *
-     * @param u the database URL (must start with jdbc:h2:)
-     * @param info the connection properties or {@code null}
-     * @param user the user name or {@code null}
-     * @param password
-     *            the password as {@code String} or {@code char[]}, or
-     *            {@code null}
+     * @param u        the database URL (must start with jdbc:h2:)
+     * @param info     the connection properties or {@code null}
+     * @param user     the user name or {@code null}
+     * @param password the password as {@code String} or {@code char[]}, or
+     *                 {@code null}
      */
     public ConnectionInfo(String u, Properties info, String user, Object password) {
         u = remapURL(u);
@@ -100,7 +96,7 @@ public class ConnectionInfo implements Cloneable {
             timeZone = TimeZoneProvider.ofId(timeZoneName.toString());
         }
         setUserName(removeProperty("USER", ""));
-        name = url.substring(Constants.START_URL.length());
+        name = url.substring(Constants.START_URL.length()); // file:/home/a/file_collector_data/record
         parseName();
         convertPasswords();
         String recoverTest = removeProperty("RECOVER_TEST", null);
@@ -149,7 +145,7 @@ public class ConnectionInfo implements Cloneable {
             }
         }
         KNOWN_SETTINGS = set;
-        settings = new String[] { //
+        settings = new String[]{ //
                 "ASSERT", //
                 "BINARY_COLLATION", //
                 "DB_CLOSE_ON_EXIT", //
@@ -157,12 +153,8 @@ public class ConnectionInfo implements Cloneable {
                 "UUID_COLLATION", //
         };
         set = new HashSet<>(32);
-        for (String setting : commonSettings) {
-            set.add(setting);
-        }
-        for (String setting : settings) {
-            set.add(setting);
-        }
+        Collections.addAll(set, commonSettings);
+        Collections.addAll(set, settings);
         IGNORED_BY_PARSER = set;
     }
 
@@ -174,10 +166,8 @@ public class ConnectionInfo implements Cloneable {
      * Returns whether setting with the specified name should be ignored by
      * parser.
      *
-     * @param name
-     *            the name of the setting
-     * @return whether setting with the specified name should be ignored by
-     *         parser
+     * @param name the name of the setting
+     * @return whether setting with the specified name should be ignored by parser
      */
     public static boolean isIgnoredByParser(String name) {
         return IGNORED_BY_PARSER.contains(name);
@@ -238,7 +228,7 @@ public class ConnectionInfo implements Cloneable {
             if (absolute) {
                 n = name;
             } else {
-                n  = FileUtils.unwrap(name);
+                n = FileUtils.unwrap(name);
                 prefix = name.substring(0, name.length() - n.length());
                 n = dir + File.separatorChar + n;
             }
@@ -350,8 +340,8 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private void preservePasswordForAuthentication(Object password) {
-        if ((!isRemote() || isSSL()) &&  prop.containsKey("AUTHREALM") && password!=null) {
-            prop.put("AUTHZPWD",password instanceof char[] ? new String((char[])password) : password);
+        if ((!isRemote() || isSSL()) && prop.containsKey("AUTHREALM") && password != null) {
+            prop.put("AUTHZPWD", password instanceof char[] ? new String((char[]) password) : password);
         }
     }
 
@@ -397,7 +387,7 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private static byte[] hashPassword(boolean passwordHash, String userName,
-            char[] password) {
+                                       char[] password) {
         if (passwordHash) {
             return StringUtils.convertHexToBytes(new String(password));
         }
@@ -410,7 +400,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Get a boolean property if it is set and return the value.
      *
-     * @param key the property name
+     * @param key          the property name
      * @param defaultValue the default value
      * @return the value
      */
@@ -421,7 +411,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Remove a boolean property if it is set and return the value.
      *
-     * @param key the property name
+     * @param key          the property name
      * @param defaultValue the default value
      * @return the value
      */
@@ -432,7 +422,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Remove a String property if it is set and return the value.
      *
-     * @param key the property name
+     * @param key          the property name
      * @param defaultValue the default value
      * @return the value
      */
@@ -449,10 +439,11 @@ public class ConnectionInfo implements Cloneable {
      *
      * @return the database name
      */
-    public String getName() {
+    public String getDatabasePath() {
         if (!persistent) {
             return name;
         }
+
         if (nameNormalized == null) {
             if (!FileUtils.isAbsolute(name) && !name.contains("./") && !name.contains(".\\") && !name.contains(":/")
                     && !name.contains(":\\")) {
@@ -531,7 +522,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Get the value of the given property.
      *
-     * @param key the property key
+     * @param key          the property key
      * @param defaultValue the default value
      * @return the value as a String
      */
@@ -546,7 +537,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Get the value of the given property.
      *
-     * @param key the property key
+     * @param key          the property key
      * @param defaultValue the default value
      * @return the value as a String
      */
@@ -561,7 +552,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Get the value of the given property.
      *
-     * @param setting the setting id
+     * @param setting      the setting id
      * @param defaultValue the default value
      * @return the value as a String
      */
@@ -574,7 +565,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Get the value of the given property.
      *
-     * @param setting the setting id
+     * @param setting      the setting id
      * @param defaultValue the default value
      * @return the value as an integer
      */
@@ -632,7 +623,7 @@ public class ConnectionInfo implements Cloneable {
     /**
      * Overwrite a property.
      *
-     * @param key the property name
+     * @param key   the property name
      * @param value the value
      */
     public void setProperty(String key, String value) {

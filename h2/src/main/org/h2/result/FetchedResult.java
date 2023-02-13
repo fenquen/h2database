@@ -37,6 +37,7 @@ public abstract class FetchedResult implements ResultInterface {
             nextRow = null;
             return true;
         }
+
         if (!afterLast) {
             rowId++;
             currentRow = null;

@@ -647,7 +647,7 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public ArrayList<Index> getIndexes() {
+            public ArrayList<Index> getIndexList() {
                 return null;
             }
 
@@ -881,7 +881,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public ArrayList<Index> getIndexes() {
+        public ArrayList<Index> getIndexList() {
             return indexes;
         }
 

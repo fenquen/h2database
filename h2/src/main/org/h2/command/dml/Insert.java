@@ -140,9 +140,9 @@ public final class Insert extends CommandWithValues implements ResultTarget {
     }
 
     private long insertRows() {
-        session.getUser().checkTableRight(table, Right.INSERT);
+        sessionLocal.getUser().checkTableRight(table, Right.INSERT);
         setCurrentRowNumber(0);
-        table.fire(session, Trigger.INSERT, true);
+        table.fire(sessionLocal, Trigger.INSERT, true);
         rowNumber = 0;
         int listSize = valuesExpressionList.size();
         if (listSize > 0) {
@@ -157,21 +157,21 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                     Expression e = expr[i];
                     if (e != ValueExpression.DEFAULT) {
                         try {
-                            newRow.setValue(index, e.getValue(session));
+                            newRow.setValue(index, e.getValue(sessionLocal));
                         } catch (DbException ex) {
                             throw setRow(ex, x, getSimpleSQL(expr));
                         }
                     }
                 }
                 rowNumber++;
-                table.convertInsertRow(session, newRow, overridingSystem);
+                table.convertInsertRow(sessionLocal, newRow, overridingSystem);
                 if (deltaChangeCollectionMode == ResultOption.NEW) {
                     deltaChangeCollector.addRow(newRow.getValueList().clone());
                 }
-                if (!table.fireBeforeRow(session, null, newRow)) {
-                    table.lock(session, Table.WRITE_LOCK);
+                if (!table.fireBeforeRow(sessionLocal, null, newRow)) {
+                    table.lock(sessionLocal, Table.WRITE_LOCK);
                     try {
-                        table.addRow(session, newRow);
+                        table.addRow(sessionLocal, newRow);
                     } catch (DbException de) {
                         if (handleOnDuplicate(de, null)) {
                             // MySQL returns 2 for updated row
@@ -183,16 +183,16 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                         }
                         continue;
                     }
-                    DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+                    DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector,
                             deltaChangeCollectionMode, newRow);
-                    table.fireAfterRow(session, null, newRow, false);
+                    table.fireAfterRow(sessionLocal, null, newRow, false);
                 } else {
-                    DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+                    DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector,
                             deltaChangeCollectionMode, newRow);
                 }
             }
         } else {
-            table.lock(session, Table.WRITE_LOCK);
+            table.lock(sessionLocal, Table.WRITE_LOCK);
             if (insertFromSelect) {
                 query.query(0, this);
             } else {
@@ -215,7 +215,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 rows.close();
             }
         }
-        table.fire(session, Trigger.INSERT, false);
+        table.fire(sessionLocal, Trigger.INSERT, false);
         return rowNumber;
     }
 
@@ -226,17 +226,17 @@ public final class Insert extends CommandWithValues implements ResultTarget {
         for (int j = 0, len = columns.length; j < len; j++) {
             newRow.setValue(columns[j].getColumnId(), values[j]);
         }
-        table.convertInsertRow(session, newRow, overridingSystem);
+        table.convertInsertRow(sessionLocal, newRow, overridingSystem);
         if (deltaChangeCollectionMode == ResultOption.NEW) {
             deltaChangeCollector.addRow(newRow.getValueList().clone());
         }
-        if (!table.fireBeforeRow(session, null, newRow)) {
-            table.addRow(session, newRow);
-            DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+        if (!table.fireBeforeRow(sessionLocal, null, newRow)) {
+            table.addRow(sessionLocal, newRow);
+            DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector,
                     deltaChangeCollectionMode, newRow);
-            table.fireAfterRow(session, null, newRow, false);
+            table.fireAfterRow(sessionLocal, null, newRow, false);
         } else {
-            DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+            DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector,
                     deltaChangeCollectionMode, newRow);
         }
     }
@@ -297,7 +297,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 for (int i = 0, len = expr.length; i < len; i++) {
                     Expression e = expr[i];
                     if (e != null) {
-                        e = e.optimize(session);
+                        e = e.optimize(sessionLocal);
                         if (e instanceof Parameter) {
                             Parameter p = (Parameter) e;
                             p.setColumn(columns[i]);
@@ -359,7 +359,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 value = currentRow[i];
                 row[i] = ValueExpression.get(value);
             } else {
-                value = row[i].getValue(session);
+                value = row[i].getValue(sessionLocal);
             }
             onDuplicateKeyRow[columns[i].getColumnId()] = value;
         }
@@ -383,11 +383,11 @@ public final class Insert extends CommandWithValues implements ResultTarget {
         }
         prepareUpdateCondition(foundIndex, row).getUnenclosedSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
         String sql = builder.toString();
-        Update command = (Update) session.prepare(sql);
+        Update command = (Update) sessionLocal.prepare(sql);
         command.setOnDuplicateKeyInsert(this);
-        for (Parameter param : command.getParameters()) {
-            Parameter insertParam = parameters.get(param.getIndex());
-            param.setValue(insertParam.getValue(session));
+        for (Parameter param : command.getParameterList()) {
+            Parameter insertParam = parameterList.get(param.getIndex());
+            param.setValue(insertParam.getValue(sessionLocal));
         }
         boolean result = command.update() > 0;
         onDuplicateKeyRow = null;
@@ -412,10 +412,10 @@ public final class Insert extends CommandWithValues implements ResultTarget {
 
         Expression condition = null;
         for (Column column : indexedColumns) {
-            ExpressionColumn expr = new ExpressionColumn(session.getDatabase(),
+            ExpressionColumn expr = new ExpressionColumn(sessionLocal.getDatabase(),
                     table.getSchema().getName(), table.getName(), column.getName());
             for (int i = 0; i < columns.length; i++) {
-                if (expr.getColumnName(session, i).equals(columns[i].getName())) {
+                if (expr.getColumnName(sessionLocal, i).equals(columns[i].getName())) {
                     if (condition == null) {
                         condition = new Comparison(Comparison.EQUAL, expr, row[i], false);
                     } else {

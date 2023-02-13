@@ -63,15 +63,9 @@ public final class Store {
      */
     private final ConcurrentHashMap<String, MVTable> tableMap = new ConcurrentHashMap<>();
 
-    /**
-     * The store.
-     */
-    private final MVStore mvStore;
+    public final MVStore mvStore;
 
-    /**
-     * The transaction store.
-     */
-    private final TransactionStore transactionStore;
+    public final TransactionStore transactionStore;
 
     private long statisticsStart;
 
@@ -79,98 +73,108 @@ public final class Store {
 
     private final boolean encrypted;
 
-    private final String fileName;
+    private final String mvFilePath;
 
     /**
      * Creates the store.
      *
-     * @param db the database
-     * @param key for file encryption
+     * @param database      the database
+     * @param encryptionKey for file encryption
      */
-    public Store(Database db, byte[] key) {
-        String dbPath = db.getDatabasePath();
-        MVStore.Builder builder = new MVStore.Builder();
+    public Store(Database database, byte[] encryptionKey) {
+        String databasePath = database.getDatabasePath();
+        MVStore.Builder mvStoreBuilder = new MVStore.Builder();
         boolean encrypted = false;
-        if (dbPath != null) {
-            String fileName = dbPath + Constants.SUFFIX_MV_FILE;
-            this.fileName = fileName;
-            MVStoreTool.compactCleanUp(fileName);
-            builder.fileName(fileName);
-            builder.pageSplitSize(db.getPageSize());
-            if (db.isReadOnly()) {
-                builder.readOnly();
+
+        if (databasePath != null) {
+            String mvFilePath = databasePath + Constants.SUFFIX_MV_FILE;
+            this.mvFilePath = mvFilePath;
+            MVStoreTool.compactCleanUp(mvFilePath);
+            mvStoreBuilder.fileName(mvFilePath);
+            mvStoreBuilder.pageSplitSize(database.getPageSize());
+
+            if (database.isReadOnly()) {
+                mvStoreBuilder.readOnly();
             } else {
                 // possibly create the directory
-                boolean exists = FileUtils.exists(fileName);
-                if (exists && !FileUtils.canWrite(fileName)) {
+                boolean exists = FileUtils.exists(mvFilePath);
+
+                if (exists && !FileUtils.canWrite(mvFilePath)) {
                     // read only
                 } else {
-                    String dir = FileUtils.getParent(fileName);
+                    String dir = FileUtils.getParent(mvFilePath);
                     FileUtils.createDirectories(dir);
                 }
-                int autoCompactFillRate = db.getSettings().autoCompactFillRate;
+
+                int autoCompactFillRate = database.getSettings().autoCompactFillRate;
                 if (autoCompactFillRate <= 100) {
-                    builder.autoCompactFillRate(autoCompactFillRate);
+                    mvStoreBuilder.autoCompactFillRate(autoCompactFillRate);
                 }
             }
-            if (key != null) {
+
+            if (encryptionKey != null) {
                 encrypted = true;
-                builder.encryptionKey(decodePassword(key));
+                mvStoreBuilder.encryptionKey(decodePassword(encryptionKey));
             }
-            if (db.getSettings().compressData) {
-                builder.compress();
+
+            if (database.getSettings().compressData) {
+                mvStoreBuilder.compress();
                 // use a larger page split size to improve the compression ratio
-                builder.pageSplitSize(64 * 1024);
+                mvStoreBuilder.pageSplitSize(64 * 1024);
             }
-            builder.backgroundExceptionHandler((t, e) -> db.setBackgroundException(DbException.convert(e)));
+
+            mvStoreBuilder.backgroundExceptionHandler((t, e) -> database.setBackgroundException(DbException.convert(e)));
+
             // always start without background thread first, and if necessary,
             // it will be set up later, after db has been fully started,
             // otherwise background thread would compete for store lock
             // with maps opening procedure
-            builder.autoCommitDisabled();
+            mvStoreBuilder.autoCommitDisabled();
         } else {
-            fileName = null;
+            mvFilePath = null;
         }
+
         this.encrypted = encrypted;
+
         try {
-            this.mvStore = builder.open();
-            if (!db.getSettings().reuseSpace) {
+            mvStore = mvStoreBuilder.open();
+
+            if (!database.getSettings().reuseSpace) {
                 mvStore.setReuseSpace(false);
             }
+
             mvStore.setVersionsToKeep(0);
-            this.transactionStore = new TransactionStore(mvStore,
-                    new MetaType<>(db, mvStore.backgroundExceptionHandler), new ValueDataType(db, null),
-                    db.getLockTimeout());
+
+            transactionStore = new TransactionStore(mvStore,
+                    new MetaType<>(database, mvStore.backgroundExceptionHandler),
+                    new ValueDataType(database, null),
+                    database.getLockTimeout());
         } catch (MVStoreException e) {
             throw convertMVStoreException(e);
         }
     }
 
     /**
-     * Convert a MVStoreException to the similar exception used
-     * for the table/sql layers.
-     *
-     * @param e the illegal state exception
-     * @return the database exception
+     * Convert a MVStoreException to the similar exception used for the table/sql layers.
      */
     DbException convertMVStoreException(MVStoreException e) {
         switch (e.getErrorCode()) {
-        case DataUtils.ERROR_CLOSED:
-            throw DbException.get(ErrorCode.DATABASE_IS_CLOSED, e, fileName);
-        case DataUtils.ERROR_UNSUPPORTED_FORMAT:
-            throw DbException.get(ErrorCode.FILE_VERSION_ERROR_1, e, fileName);
-        case DataUtils.ERROR_FILE_CORRUPT:
-            if (encrypted) {
-                throw DbException.get(ErrorCode.FILE_ENCRYPTION_ERROR_1, e, fileName);
-            }
-            throw DbException.get(ErrorCode.FILE_CORRUPTED_1, e, fileName);
-        case DataUtils.ERROR_FILE_LOCKED:
-            throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1, e, fileName);
-        case DataUtils.ERROR_READING_FAILED:
-        case DataUtils.ERROR_WRITING_FAILED:
-            throw DbException.get(ErrorCode.IO_EXCEPTION_1, e, fileName);
-        default:
-            throw DbException.get(ErrorCode.GENERAL_ERROR_1, e, e.getMessage());
+            case DataUtils.ERROR_CLOSED:
+                throw DbException.get(ErrorCode.DATABASE_IS_CLOSED, e, mvFilePath);
+            case DataUtils.ERROR_UNSUPPORTED_FORMAT:
+                throw DbException.get(ErrorCode.FILE_VERSION_ERROR_1, e, mvFilePath);
+            case DataUtils.ERROR_FILE_CORRUPT:
+                if (encrypted) {
+                    throw DbException.get(ErrorCode.FILE_ENCRYPTION_ERROR_1, e, mvFilePath);
+                }
+                throw DbException.get(ErrorCode.FILE_CORRUPTED_1, e, mvFilePath);
+            case DataUtils.ERROR_FILE_LOCKED:
+                throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1, e, mvFilePath);
+            case DataUtils.ERROR_READING_FAILED:
+            case DataUtils.ERROR_WRITING_FAILED:
+                throw DbException.get(ErrorCode.IO_EXCEPTION_1, e, mvFilePath);
+            default:
+                throw DbException.get(ErrorCode.GENERAL_ERROR_1, e, e.getMessage());
         }
     }
 
@@ -178,14 +182,14 @@ public final class Store {
      * Gets a SQL exception meaning the type of expression is invalid or unknown.
      *
      * @param param the name of the parameter
-     * @param e the expression
+     * @param e     the expression
      * @return the exception
      */
     public static DbException getInvalidExpressionTypeException(String param, Typed e) {
         TypeInfo type = e.getType();
         if (type.getValueType() == Value.UNKNOWN) {
             return DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1,
-                                    (e instanceof HasSQL ? (HasSQL) e : type).getTraceSQL());
+                    (e instanceof HasSQL ? (HasSQL) e : type).getTraceSQL());
         }
         return DbException.get(ErrorCode.INVALID_VALUE_2, type.getTraceSQL(), param);
     }
@@ -211,14 +215,14 @@ public final class Store {
     /**
      * Create a table.
      *
-     * @param data CreateTableData
+     * @param createTableData CreateTableData
      * @return table created
      */
-    public MVTable createTable(CreateTableData data) {
+    public MVTable createTable(CreateTableData createTableData) {
         try {
-            MVTable table = new MVTable(data, this);
-            tableMap.put(table.getMapName(), table);
-            return table;
+            MVTable mvTable = new MVTable(createTableData, this);
+            tableMap.put(mvTable.getMapName(), mvTable);
+            return mvTable;
         } catch (MVStoreException e) {
             throw convertMVStoreException(e);
         }
@@ -289,7 +293,7 @@ public final class Store {
     /**
      * Prepare a transaction.
      *
-     * @param session the session
+     * @param session         the session
      * @param transactionName the transaction name (may be null)
      */
     public void prepareCommit(SessionLocal session, String transactionName) {

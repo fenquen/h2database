@@ -38,16 +38,16 @@ public class AlterDomainRenameConstraint extends AlterDomain {
 
     @Override
     long update(Schema schema, Domain domain) {
-        Constraint constraint = getSchema().findConstraint(session, constraintName);
+        Constraint constraint = getSchema().findConstraint(sessionLocal, constraintName);
         if (constraint == null || constraint.getConstraintType() != Type.DOMAIN
                 || ((ConstraintDomain) constraint).getDomain() != domain) {
             throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, constraintName);
         }
-        if (getSchema().findConstraint(session, newConstraintName) != null
+        if (getSchema().findConstraint(sessionLocal, newConstraintName) != null
                 || newConstraintName.equals(constraintName)) {
             throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, newConstraintName);
         }
-        session.getDatabase().renameSchemaObject(session, constraint, newConstraintName);
+        sessionLocal.getDatabase().renameSchemaObject(sessionLocal, constraint, newConstraintName);
         return 0;
     }
 

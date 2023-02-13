@@ -28,14 +28,14 @@ public class DropFunctionAlias extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         FunctionAlias functionAlias = schema.findFunction(aliasName);
         if (functionAlias == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.FUNCTION_ALIAS_NOT_FOUND_1, aliasName);
             }
         } else {
-            db.removeSchemaObject(session, functionAlias);
+            db.removeSchemaObject(sessionLocal, functionAlias);
         }
         return 0;
     }

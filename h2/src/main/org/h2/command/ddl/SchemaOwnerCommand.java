@@ -29,7 +29,7 @@ abstract class SchemaOwnerCommand extends SchemaCommand {
     @Override
     public final long update() {
         Schema schema = getSchema();
-        session.getUser().checkSchemaOwner(schema);
+        sessionLocal.getUser().checkSchemaOwner(schema);
         return update(schema);
     }
 

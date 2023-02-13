@@ -92,11 +92,11 @@ public class ConditionLocalAndGlobal extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
         if (local != null) {
-            local.mapColumns(resolver, level, state);
+            local.mapColumns(columnResolver, level, state);
         }
-        global.mapColumns(resolver, level, state);
+        global.mapColumns(columnResolver, level, state);
     }
 
     @Override

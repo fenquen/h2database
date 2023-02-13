@@ -43,8 +43,8 @@ public final class Alias extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        expr.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        expr.mapColumns(columnResolver, level, state);
     }
 
     @Override

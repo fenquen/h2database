@@ -296,14 +296,18 @@ public final class TableView extends QueryExpressionTable {
     }
 
     @Override
-    public Index getScanIndex(SessionLocal session, int[] masks,
-            TableFilter[] filters, int filter, SortOrder sortOrder,
-            AllColumnsForPlan allColumnsSet) {
+    public Index getScanIndex(SessionLocal sessionLocal,
+                              int[] masks,
+                              TableFilter[] tableFilters,
+                              int tableFiltersIndex,
+                              SortOrder sortOrder,
+                              AllColumnsForPlan allColumnsSet) {
         if (createException != null) {
             String msg = createException.getMessage();
             throw DbException.get(ErrorCode.VIEW_IS_INVALID_2, createException, getTraceSQL(), msg);
         }
-        return super.getScanIndex(session, masks, filters, filter, sortOrder, allColumnsSet);
+
+        return super.getScanIndex(sessionLocal, masks, tableFilters, tableFiltersIndex, sortOrder, allColumnsSet);
     }
 
     @Override
@@ -416,7 +420,7 @@ public final class TableView extends QueryExpressionTable {
         try {
             Prepared withQuery = session.prepare(querySQL, false, false);
             if (!isTemporary) {
-                withQuery.setSession(session);
+                withQuery.setSessionLocal(session);
             }
             columnTemplateList = createQueryColumnTemplateList(columnNames.toArray(new String[1]),
                     (Query) withQuery, querySQLOutput);

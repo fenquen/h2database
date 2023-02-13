@@ -8,18 +8,14 @@ package org.h2.table;
 import org.h2.index.Index;
 
 /**
- * The plan item describes the index to be used, and the estimated cost when
- * using it.
+ * The plan item describes the index to be used, and the estimated cost when using it.
  */
 public class PlanItem {
 
-    /**
-     * The cost.
-     */
-    double cost;
+    public double cost;
 
     private int[] masks;
-    private Index index;
+    public Index index;
     private PlanItem joinPlan;
     private PlanItem nestedJoinPlan;
 

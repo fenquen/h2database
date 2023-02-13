@@ -8,6 +8,7 @@ package org.h2.command;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Set;
+
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
@@ -31,7 +32,7 @@ public abstract class Command implements CommandInterface {
     /**
      * The session.
      */
-    protected final SessionLocal session;
+    protected final SessionLocal sessionLocal;
 
     /**
      * The last start time.
@@ -52,10 +53,10 @@ public abstract class Command implements CommandInterface {
 
     private boolean canReuse;
 
-    Command(SessionLocal session, String sql) {
-        this.session = session;
+    Command(SessionLocal sessionLocal, String sql) {
+        this.sessionLocal = sessionLocal;
         this.sql = sql;
-        trace = session.getDatabase().getTrace(Trace.COMMAND);
+        trace = sessionLocal.database.getTrace(Trace.COMMAND);
     }
 
     /**
@@ -100,12 +101,11 @@ public abstract class Command implements CommandInterface {
      * Execute an updating statement (for example insert, delete, or update), if
      * this is possible.
      *
-     * @param generatedKeysRequest
-     *            {@code false} if generated keys are not needed, {@code true} if
-     *            generated keys should be configured automatically, {@code int[]}
-     *            to specify column indices to return generated keys from, or
-     *            {@code String[]} to specify column names to return generated keys
-     *            from
+     * @param generatedKeysRequest {@code false} if generated keys are not needed, {@code true} if
+     *                             generated keys should be configured automatically, {@code int[]}
+     *                             to specify column indices to return generated keys from, or
+     *                             {@code String[]} to specify column names to return generated keys
+     *                             from
      * @return the update count and generated keys, if any
      * @throws DbException if the command is not an updating statement
      */
@@ -129,13 +129,13 @@ public abstract class Command implements CommandInterface {
      * Start the stopwatch.
      */
     void start() {
-        if (trace.isInfoEnabled() || session.getDatabase().getQueryStatistics()) {
+        if (trace.isInfoEnabled() || sessionLocal.database.getQueryStatistics()) {
             startTimeNanos = Utils.currentNanoTime();
         }
     }
 
     void setProgress(int state) {
-        session.getDatabase().setProgress(state, sql, 0, 0);
+        sessionLocal.database.setProgress(state, sql, 0, 0);
     }
 
     /**
@@ -153,8 +153,8 @@ public abstract class Command implements CommandInterface {
     @Override
     public void stop() {
         commitIfNonTransactional();
-        if (isTransactional() && session.getAutoCommit()) {
-            session.commit(false);
+        if (isTransactional() && sessionLocal.getAutoCommit()) {
+            sessionLocal.commit(false);
         }
         if (trace.isInfoEnabled() && startTimeNanos != 0L) {
             long timeMillis = (System.nanoTime() - startTimeNanos) / 1_000_000L;
@@ -168,63 +168,71 @@ public abstract class Command implements CommandInterface {
      * Execute a query and return the result.
      * This method prepares everything and calls {@link #query(long)} finally.
      *
-     * @param maxrows the maximum number of rows to return
+     * @param maxRows    the maximum number of rows to return
      * @param scrollable if the result set must be scrollable (ignored)
      * @return the result set
      */
     @Override
-    public ResultInterface executeQuery(long maxrows, boolean scrollable) {
+    public ResultInterface executeQuery(long maxRows, boolean scrollable) {
         startTimeNanos = 0L;
         long start = 0L;
-        Database database = session.getDatabase();
-        session.waitIfExclusiveModeEnabled();
+
+        sessionLocal.waitIfExclusiveModeEnabled();
+
         boolean callStop = true;
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (session) {
-            session.startStatementWithinTransaction(this);
-            Session oldSession = session.setThreadLocalSession();
+
+        synchronized (sessionLocal) {
+            sessionLocal.startStatementWithinTransaction(this);
+
+            Session oldSession = sessionLocal.setThreadLocalSession();
+
             try {
                 while (true) {
-                    database.checkPowerOff();
+                    sessionLocal.database.checkPowerOff();
+
                     try {
-                        ResultInterface result = query(maxrows);
-                        callStop = !result.isLazy();
-                        if (database.getMode().charPadding == CharPadding.IN_RESULT_SETS) {
-                            return ResultWithPaddedStrings.get(result);
+                        ResultInterface resultInterface = query(maxRows);
+
+                        callStop = !resultInterface.isLazy();
+
+                        if (sessionLocal.database.getMode().charPadding == CharPadding.IN_RESULT_SETS) {
+                            return ResultWithPaddedStrings.get(resultInterface);
                         }
-                        return result;
+
+                        return resultInterface;
                     } catch (DbException e) {
                         // cannot retry DDL
                         if (isCurrentCommandADefineCommand()) {
                             throw e;
                         }
+
                         start = filterConcurrentUpdate(e, start);
                     } catch (OutOfMemoryError e) {
                         callStop = false;
-                        // there is a serious problem:
-                        // the transaction may be applied partially
-                        // in this case we need to panic:
-                        // close the database
-                        database.shutdownImmediately();
+
+                        // there is a serious problem: the transaction may be applied partially
+                        // in this case we need to panic: close the database
+                        sessionLocal.database.shutdownImmediately();
                         throw DbException.convert(e);
                     } catch (Throwable e) {
                         throw DbException.convert(e);
                     }
                 }
             } catch (DbException e) {
-                e = e.addSQL(sql);
-                SQLException s = e.getSQLException();
-                database.exceptionThrown(s, sql);
+                DbException dbException = e.addSQL(sql);
+                SQLException s = dbException.getSQLException();
+                sessionLocal.database.exceptionThrown(s, sql);
                 if (s.getErrorCode() == ErrorCode.OUT_OF_MEMORY) {
                     callStop = false;
-                    database.shutdownImmediately();
-                    throw e;
+                    sessionLocal.database.shutdownImmediately();
+                    throw dbException;
                 }
-                database.checkPowerOff();
-                throw e;
+
+                sessionLocal.database.checkPowerOff();
+                throw dbException;
             } finally {
-                session.resetThreadLocalSession(oldSession);
-                session.endStatement();
+                sessionLocal.resetThreadLocalSession(oldSession);
+                sessionLocal.endStatement();
                 if (callStop) {
                     stop();
                 }
@@ -235,16 +243,16 @@ public abstract class Command implements CommandInterface {
     @Override
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
         long start = 0;
-        Database database = session.getDatabase();
-        session.waitIfExclusiveModeEnabled();
+        Database database = sessionLocal.getDatabase();
+        sessionLocal.waitIfExclusiveModeEnabled();
         boolean callStop = true;
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (session) {
+        synchronized (sessionLocal) {
             commitIfNonTransactional();
-            SessionLocal.Savepoint rollback = session.setSavepoint();
-            session.startStatementWithinTransaction(this);
+            SessionLocal.Savepoint rollback = sessionLocal.setSavepoint();
+            sessionLocal.startStatementWithinTransaction(this);
             DbException ex = null;
-            Session oldSession = session.setThreadLocalSession();
+            Session oldSession = sessionLocal.setThreadLocalSession();
             try {
                 while (true) {
                     database.checkPowerOff();
@@ -276,9 +284,9 @@ public abstract class Command implements CommandInterface {
                 try {
                     database.checkPowerOff();
                     if (s.getErrorCode() == ErrorCode.DEADLOCK_1) {
-                        session.rollback();
+                        sessionLocal.rollback();
                     } else {
-                        session.rollbackTo(rollback);
+                        sessionLocal.rollbackTo(rollback);
                     }
                 } catch (Throwable nested) {
                     e.addSuppressed(nested);
@@ -286,9 +294,9 @@ public abstract class Command implements CommandInterface {
                 ex = e;
                 throw e;
             } finally {
-                session.resetThreadLocalSession(oldSession);
+                sessionLocal.resetThreadLocalSession(oldSession);
                 try {
-                    session.endStatement();
+                    sessionLocal.endStatement();
                     if (callStop) {
                         stop();
                     }
@@ -305,10 +313,10 @@ public abstract class Command implements CommandInterface {
 
     private void commitIfNonTransactional() {
         if (!isTransactional()) {
-            boolean autoCommit = session.getAutoCommit();
-            session.commit(true);
-            if (!autoCommit && session.getAutoCommit()) {
-                session.begin();
+            boolean autoCommit = sessionLocal.getAutoCommit();
+            sessionLocal.commit(true);
+            if (!autoCommit && sessionLocal.getAutoCommit()) {
+                sessionLocal.begin();
             }
         }
     }
@@ -320,7 +328,7 @@ public abstract class Command implements CommandInterface {
             throw e;
         }
         long now = Utils.currentNanoTime();
-        if (start != 0L && now - start > session.getLockTimeout() * 1_000_000L) {
+        if (start != 0L && now - start > sessionLocal.getLockTimeout() * 1_000_000L) {
             throw DbException.get(ErrorCode.LOCK_TIMEOUT_1, e);
         }
         return start == 0L ? now : start;

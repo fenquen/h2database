@@ -58,33 +58,33 @@ public class CreateIndex extends SchemaCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         boolean persistent = db.isPersistent();
-        Table table = getSchema().findTableOrView(session, tableName);
+        Table table = getSchema().findTableOrView(sessionLocal, tableName);
         if (table == null) {
             if (ifTableExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
         }
-        if (indexName != null && getSchema().findIndex(session, indexName) != null) {
+        if (indexName != null && getSchema().findIndex(sessionLocal, indexName) != null) {
             if (ifNotExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.INDEX_ALREADY_EXISTS_1, indexName);
         }
-        session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
-        table.lock(session, Table.EXCLUSIVE_LOCK);
+        sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+        table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
         if (!table.isPersistIndexes()) {
             persistent = false;
         }
         int id = getObjectId();
         if (indexName == null) {
             if (primaryKey) {
-                indexName = table.getSchema().getUniqueIndexName(session,
+                indexName = table.getSchema().getUniqueIndexName(sessionLocal,
                         table, Constants.PREFIX_PRIMARY_KEY);
             } else {
-                indexName = table.getSchema().getUniqueIndexName(session,
+                indexName = table.getSchema().getUniqueIndexName(sessionLocal,
                         table, Constants.PREFIX_INDEX);
             }
         }
@@ -100,7 +100,7 @@ public class CreateIndex extends SchemaCommand {
             indexType = IndexType.createNonUnique(persistent, hash, spatial);
         }
         IndexColumn.mapColumns(indexColumns, table);
-        table.addIndex(session, indexName, id, indexColumns, uniqueColumnCount, indexType, create, comment);
+        table.addIndex(sessionLocal, indexName, id, indexColumns, uniqueColumnCount, indexType, create, comment);
         return 0;
     }
 

@@ -21,7 +21,7 @@ public class ExistsPredicate extends PredicateWithSubquery {
 
     @Override
     public Value getValue(SessionLocal session) {
-        query.setSession(session);
+        query.setSessionLocal(session);
         return ValueBoolean.get(query.exists());
     }
 

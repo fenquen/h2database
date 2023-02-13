@@ -203,7 +203,7 @@ class TxDecisionMaker<K,V> extends MVMap.DecisionMaker<VersionedValue<V>> {
     final boolean isCommitted(int transactionId) {
         Transaction blockingTx;
         boolean result;
-        TransactionStore store = transaction.store;
+        TransactionStore store = transaction.transactionStore;
         do {
             blockingTx = store.getTransaction(transactionId);
             result = store.committingTransactions.get().get(transactionId);

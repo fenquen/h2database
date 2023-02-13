@@ -33,7 +33,7 @@ public class AlterDomainAddConstraint extends AlterDomain {
 
     private String generateConstraintName(Domain domain) {
         if (constraintName == null) {
-            constraintName = getSchema().getUniqueDomainConstraintName(session, domain);
+            constraintName = getSchema().getUniqueDomainConstraintName(sessionLocal, domain);
         }
         return constraintName;
     }
@@ -55,24 +55,24 @@ public class AlterDomainAddConstraint extends AlterDomain {
      * @return the update count
      */
     private int tryUpdate(Schema schema, Domain domain) {
-        if (constraintName != null && schema.findConstraint(session, constraintName) != null) {
+        if (constraintName != null && schema.findConstraint(sessionLocal, constraintName) != null) {
             if (ifNotExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, constraintName);
         }
-        Database db = session.getDatabase();
-        db.lockMeta(session);
+        Database db = sessionLocal.getDatabase();
+        db.lockMeta(sessionLocal);
 
         int id = getObjectId();
         String name = generateConstraintName(domain);
         ConstraintDomain constraint = new ConstraintDomain(schema, id, name, domain);
-        constraint.setExpression(session, checkExpression);
+        constraint.setExpression(sessionLocal, checkExpression);
         if (checkExisting) {
-            constraint.checkExistingData(session);
+            constraint.checkExistingData(sessionLocal);
         }
         constraint.setComment(comment);
-        db.addSchemaObject(session, constraint);
+        db.addSchemaObject(sessionLocal, constraint);
         domain.addConstraint(constraint);
         return 0;
     }

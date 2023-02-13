@@ -39,8 +39,8 @@ public class AlterDomainRename extends AlterDomain {
                 return 0;
             }
         }
-        session.getDatabase().renameSchemaObject(session, domain, newDomainName);
-        forAllDependencies(session, domain, null, null, false);
+        sessionLocal.getDatabase().renameSchemaObject(sessionLocal, domain, newDomainName);
+        forAllDependencies(sessionLocal, domain, null, null, false);
         return 0;
     }
 

@@ -187,8 +187,7 @@ public class DbSettings extends SettingsBase {
      * Insert into table from query directly bypassing temporary disk storage.
      * This also applies to create table as select.
      */
-    public final boolean optimizeInsertFromSelect = get(
-            "OPTIMIZE_INSERT_FROM_SELECT", true);
+    public final boolean optimizeInsertFromSelect = get("OPTIMIZE_INSERT_FROM_SELECT", true);
 
     /**
      * Database setting <code>OPTIMIZE_IN_LIST</code> (default: true).

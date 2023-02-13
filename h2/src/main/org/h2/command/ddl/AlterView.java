@@ -36,8 +36,8 @@ public class AlterView extends DefineCommand {
         if (view == null && ifExists) {
             return 0;
         }
-        session.getUser().checkSchemaOwner(view.getSchema());
-        DbException e = view.recompile(session, false, true);
+        sessionLocal.getUser().checkSchemaOwner(view.getSchema());
+        DbException e = view.recompile(sessionLocal, false, true);
         if (e != null) {
             throw e;
         }

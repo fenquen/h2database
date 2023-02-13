@@ -31,8 +31,8 @@ public class DropRole extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         Role role = db.findRole(roleName);
         if (role == null) {
             if (!ifExists) {
@@ -43,7 +43,7 @@ public class DropRole extends DefineCommand {
                 throw DbException.get(ErrorCode.ROLE_CAN_NOT_BE_DROPPED_1, roleName);
             }
             role.checkOwnsNoSchemas();
-            db.removeDatabaseObject(session, role);
+            db.removeDatabaseObject(sessionLocal, role);
         }
         return 0;
     }

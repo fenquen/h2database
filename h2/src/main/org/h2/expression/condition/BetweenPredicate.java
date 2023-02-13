@@ -169,10 +169,10 @@ public final class BetweenPredicate extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        left.mapColumns(resolver, level, state);
-        a.mapColumns(resolver, level, state);
-        b.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        left.mapColumns(columnResolver, level, state);
+        a.mapColumns(columnResolver, level, state);
+        b.mapColumns(columnResolver, level, state);
     }
 
     @Override

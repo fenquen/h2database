@@ -74,9 +74,11 @@ public abstract class LazyResult extends FetchedResult {
         if (closed || afterLast) {
             return false;
         }
+
         if (nextRow == null && (limit <= 0 || rowId + 1 < limit)) {
             nextRow = fetchNextRow();
         }
+
         return nextRow != null;
     }
 

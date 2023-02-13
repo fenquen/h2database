@@ -35,14 +35,14 @@ public abstract class AlterTable extends SchemaCommand {
 
     @Override
     public final long update() {
-        Table table = getSchema().findTableOrView(session, tableName);
+        Table table = getSchema().findTableOrView(sessionLocal, tableName);
         if (table == null) {
             if (ifTableExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
         }
-        session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+        sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
         return update(table);
     }
 

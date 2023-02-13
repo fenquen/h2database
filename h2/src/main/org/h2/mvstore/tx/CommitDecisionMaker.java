@@ -50,6 +50,7 @@ final class CommitDecisionMaker<V> extends MVMap.DecisionMaker<VersionedValue<V>
     public <T extends VersionedValue<V>> T selectValue(T existingValue, T providedValue) {
         assert decision == MVMap.Decision.PUT;
         assert existingValue != null;
+
         return (T) VersionedValueCommitted.getInstance(existingValue.getCurrentValue());
     }
 

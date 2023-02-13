@@ -6,19 +6,19 @@
 package org.h2.mvstore;
 
 /**
- * Class RootReference is an immutable structure to represent state of the MVMap as a whole
+ * represent state of the MVMap as a whole
  * (not related to a particular B-Tree node).
  * Single structure would allow for non-blocking atomic state change.
  * The most important part of it is a reference to the root node.
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-public final class RootReference<K,V> {
+public final class RootReference<K, V> {
 
     /**
      * The root page.
      */
-    public final Page<K,V> root;
+    public final Page<K, V> root;
     /**
      * The version used for writing.
      */
@@ -36,7 +36,7 @@ public final class RootReference<K,V> {
      * That is the last root of the previous version, which had any data changes.
      * Versions without any data changes are dropped from the chain, as it built.
      */
-    volatile RootReference<K,V> previous;
+    volatile RootReference<K, V> previous;
     /**
      * Counter for successful root updates.
      */
@@ -52,7 +52,7 @@ public final class RootReference<K,V> {
 
 
     // This one is used to set root initially and for r/o snapshots
-    RootReference(Page<K,V> root, long version) {
+    RootReference(Page<K, V> root, long version) {
         this.root = root;
         this.version = version;
         this.previous = null;
@@ -63,7 +63,7 @@ public final class RootReference<K,V> {
         this.appendCounter = 0;
     }
 
-    private RootReference(RootReference<K,V> r, Page<K,V> root, long updateAttemptCounter) {
+    private RootReference(RootReference<K, V> r, Page<K, V> root, long updateAttemptCounter) {
         this.root = root;
         this.version = r.version;
         this.previous = r.previous;
@@ -75,7 +75,7 @@ public final class RootReference<K,V> {
     }
 
     // This one is used for locking
-    private RootReference(RootReference<K,V> r, int attempt) {
+    private RootReference(RootReference<K, V> r, int attempt) {
         this.root = r.root;
         this.version = r.version;
         this.previous = r.previous;
@@ -83,13 +83,13 @@ public final class RootReference<K,V> {
         this.updateAttemptCounter = r.updateAttemptCounter + attempt;
         assert r.holdCount == 0 || r.ownerId == Thread.currentThread().getId() //
                 : Thread.currentThread().getId() + " " + r;
-        this.holdCount = (byte)(r.holdCount + 1);
+        this.holdCount = (byte) (r.holdCount + 1);
         this.ownerId = Thread.currentThread().getId();
         this.appendCounter = r.appendCounter;
     }
 
     // This one is used for unlocking
-    private RootReference(RootReference<K,V> r, Page<K,V> root, boolean keepLocked, int appendCounter) {
+    private RootReference(RootReference<K, V> r, Page<K, V> root, boolean keepLocked, int appendCounter) {
         this.root = root;
         this.version = r.version;
         this.previous = r.previous;
@@ -97,37 +97,37 @@ public final class RootReference<K,V> {
         this.updateAttemptCounter = r.updateAttemptCounter;
         assert r.holdCount > 0 && r.ownerId == Thread.currentThread().getId() //
                 : Thread.currentThread().getId() + " " + r;
-        this.holdCount = (byte)(r.holdCount - (keepLocked ? 0 : 1));
+        this.holdCount = (byte) (r.holdCount - (keepLocked ? 0 : 1));
         this.ownerId = this.holdCount == 0 ? 0 : Thread.currentThread().getId();
         this.appendCounter = (byte) appendCounter;
     }
 
     // This one is used for version change
-    private RootReference(RootReference<K,V> r, long version, int attempt) {
-        RootReference<K,V> previous = r;
-        RootReference<K,V> tmp;
-        while ((tmp = previous.previous) != null && tmp.root == r.root) {
+    private RootReference(RootReference<K, V> rootReference, long version, int attempt) {
+        RootReference<K, V> previous = rootReference;
+        RootReference<K, V> tmp;
+        while ((tmp = previous.previous) != null && tmp.root == rootReference.root) {
             previous = tmp;
         }
-        this.root = r.root;
+        this.root = rootReference.root;
         this.version = version;
         this.previous = previous;
-        this.updateCounter = r.updateCounter + 1;
-        this.updateAttemptCounter = r.updateAttemptCounter + attempt;
-        this.holdCount = r.holdCount == 0 ? 0 : (byte)(r.holdCount - 1);
-        this.ownerId = this.holdCount == 0 ? 0 : r.ownerId;
-        assert r.appendCounter == 0;
+        this.updateCounter = rootReference.updateCounter + 1;
+        this.updateAttemptCounter = rootReference.updateAttemptCounter + attempt;
+        this.holdCount = rootReference.holdCount == 0 ? 0 : (byte) (rootReference.holdCount - 1);
+        this.ownerId = this.holdCount == 0 ? 0 : rootReference.ownerId;
+        assert rootReference.appendCounter == 0;
         this.appendCounter = 0;
     }
 
     /**
      * Try to unlock.
      *
-     * @param newRootPage the new root page
+     * @param newRootPage    the new root page
      * @param attemptCounter the number of attempts so far
      * @return the new, unlocked, root reference, or null if not successful
      */
-    RootReference<K,V> updateRootPage(Page<K,V> newRootPage, long attemptCounter) {
+    RootReference<K, V> updateRootPage(Page<K, V> newRootPage, long attemptCounter) {
         return isFree() ? tryUpdate(new RootReference<>(this, newRootPage, attemptCounter)) : null;
     }
 
@@ -137,7 +137,7 @@ public final class RootReference<K,V> {
      * @param attemptCounter the number of attempts so far
      * @return the new, locked, root reference, or null if not successful
      */
-    RootReference<K,V> tryLock(int attemptCounter) {
+    RootReference<K, V> tryLock(int attemptCounter) {
         return canUpdate() ? tryUpdate(new RootReference<>(this, attemptCounter)) : null;
     }
 
@@ -148,19 +148,19 @@ public final class RootReference<K,V> {
      * @param attempt the number of attempts so far
      * @return the new, unlocked and updated, root reference, or null if not successful
      */
-    RootReference<K,V> tryUnlockAndUpdateVersion(long version, int attempt) {
+    RootReference<K, V> tryUnlockAndUpdateVersion(long version, int attempt) {
         return canUpdate() ? tryUpdate(new RootReference<>(this, version, attempt)) : null;
     }
 
     /**
      * Update the page, possibly keeping it locked.
      *
-     * @param page the page
-     * @param keepLocked whether to keep it locked
+     * @param page          the page
+     * @param keepLocked    whether to keep it locked
      * @param appendCounter number of items in append buffer
      * @return the new root reference, or null if not successful
      */
-    RootReference<K,V> updatePageAndLockedStatus(Page<K,V> page, boolean keepLocked, int appendCounter) {
+    RootReference<K, V> updatePageAndLockedStatus(Page<K, V> page, boolean keepLocked, int appendCounter) {
         return canUpdate() ? tryUpdate(new RootReference<>(this, page, keepLocked, appendCounter)) : null;
     }
 
@@ -175,9 +175,9 @@ public final class RootReference<K,V> {
         // we really need last root of the previous version.
         // Root labeled with version "X" is the LAST known root for that version
         // and therefore the FIRST known root for the version "X+1"
-        for(RootReference<K,V> rootRef = this; rootRef != null; rootRef = rootRef.previous) {
+        for (RootReference<K, V> rootRef = this; rootRef != null; rootRef = rootRef.previous) {
             if (rootRef.version < oldestVersionToKeep) {
-                RootReference<K,V> previous;
+                RootReference<K, V> previous;
                 assert (previous = rootRef.previous) == null || previous.getAppendCounter() == 0 //
                         : oldestVersionToKeep + " " + rootRef.previous;
                 rootRef.previous = null;
@@ -202,22 +202,21 @@ public final class RootReference<K,V> {
         return holdCount != 0 && ownerId == Thread.currentThread().getId();
     }
 
-    private RootReference<K,V> tryUpdate(RootReference<K,V> updatedRootReference) {
+    private RootReference<K, V> tryUpdate(RootReference<K, V> updatedRootReference) {
         assert canUpdate();
-        return root.map.compareAndSetRoot(this, updatedRootReference) ? updatedRootReference : null;
+        return root.mvMap.compareAndSetRoot(this, updatedRootReference) ? updatedRootReference : null;
     }
 
     long getVersion() {
-        RootReference<K,V> prev = previous;
-        return prev == null || prev.root != root ||
-                prev.appendCounter != appendCounter ?
-                    version : prev.getVersion();
+        RootReference<K, V> prev = previous;
+        return prev == null || prev.root != root || prev.appendCounter != appendCounter ?
+                version : prev.getVersion();
     }
 
     /**
      * Does the root have changes since the specified version?
      *
-     * @param version to check against
+     * @param version    to check against
      * @param persistent whether map is backed by persistent storage
      * @return true if this root has unsaved changes
      */

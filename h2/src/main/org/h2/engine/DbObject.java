@@ -117,7 +117,7 @@ public abstract class DbObject implements HasSQL {
 
     private int id;
 
-    private String objectName;
+    private String name;
 
     private long modificationId;
 
@@ -135,7 +135,7 @@ public abstract class DbObject implements HasSQL {
         this.database = db;
         this.trace = db.getTrace(traceModuleId);
         this.id = objectId;
-        this.objectName = name;
+        this.name = name;
         this.modificationId = db.getModificationMetaId();
     }
 
@@ -150,18 +150,18 @@ public abstract class DbObject implements HasSQL {
         return modificationId;
     }
 
-    protected final void setObjectName(String name) {
-        objectName = name;
+    protected final void setName(String name) {
+        this.name = name;
     }
 
     @Override
     public String getSQL(int sqlFlags) {
-        return Parser.quoteIdentifier(objectName, sqlFlags);
+        return Parser.quoteIdentifier(name, sqlFlags);
     }
 
     @Override
     public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
-        return ParserUtil.quoteIdentifier(builder, objectName, sqlFlags);
+        return ParserUtil.quoteIdentifier(builder, name, sqlFlags);
     }
 
     /**
@@ -198,7 +198,7 @@ public abstract class DbObject implements HasSQL {
      * @return the name
      */
     public final String getName() {
-        return objectName;
+        return name;
     }
 
     /**
@@ -213,7 +213,7 @@ public abstract class DbObject implements HasSQL {
         id = -1;
         database = null;
         trace = null;
-        objectName = null;
+        name = null;
     }
 
     public final boolean isValid() {
@@ -285,7 +285,7 @@ public abstract class DbObject implements HasSQL {
      */
     public void rename(String newName) {
         checkRename();
-        objectName = newName;
+        name = newName;
         setModified();
     }
 
@@ -327,7 +327,7 @@ public abstract class DbObject implements HasSQL {
 
     @Override
     public String toString() {
-        return objectName + ":" + id + ":" + super.toString();
+        return name + ":" + id + ":" + super.toString();
     }
 
 }

@@ -48,15 +48,15 @@ public class CreateSynonym extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
-        data.session = session;
-        db.lockMeta(session);
+        Database db = sessionLocal.getDatabase();
+        data.session = sessionLocal;
+        db.lockMeta(sessionLocal);
 
-        if (schema.findTableOrView(session, data.synonymName) != null) {
+        if (schema.findTableOrView(sessionLocal, data.synonymName) != null) {
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_ALREADY_EXISTS_1, data.synonymName);
         }
 
-        if (data.synonymForSchema.findTableOrView(session, data.synonymFor) != null) {
+        if (data.synonymForSchema.findTableOrView(sessionLocal, data.synonymFor) != null) {
             return createTableSynonym(db);
         }
 
@@ -85,12 +85,12 @@ public class CreateSynonym extends SchemaOwnerCommand {
             table.updateData(data);
             table.setComment(comment);
             table.setModified();
-            db.updateMeta(session, table);
+            db.updateMeta(sessionLocal, table);
         } else {
             data.id = getObjectId();
             table = getSchema().createSynonym(data);
             table.setComment(comment);
-            db.addSchemaObject(session, table);
+            db.addSchemaObject(sessionLocal, table);
         }
 
         table.updateSynonymFor();

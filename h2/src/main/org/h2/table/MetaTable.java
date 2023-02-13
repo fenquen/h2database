@@ -61,7 +61,7 @@ public abstract class MetaTable extends Table {
     }
 
     protected final void setMetaTableName(String upperName) {
-        setObjectName(database.sysIdentifier(upperName));
+        setName(database.sysIdentifier(upperName));
     }
 
     /**
@@ -248,7 +248,7 @@ public abstract class MetaTable extends Table {
     }
 
     @Override
-    public final ArrayList<Index> getIndexes() {
+    public final ArrayList<Index> getIndexList() {
         ArrayList<Index> list = new ArrayList<>(2);
         if (metaIndex == null) {
             return list;

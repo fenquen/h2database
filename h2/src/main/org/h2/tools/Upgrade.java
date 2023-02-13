@@ -148,7 +148,7 @@ public final class Upgrade {
         if (!ci.isPersistent() || ci.isRemote()) {
             return false;
         }
-        String name = ci.getName();
+        String name = ci.getDatabasePath();
         String script = name + ".script.sql";
         StringBuilder oldUrl = new StringBuilder("jdbc:h2:").append(name).append(";ACCESS_MODE_DATA=r");
         copyProperty(ci, oldUrl, "FILE_LOCK");

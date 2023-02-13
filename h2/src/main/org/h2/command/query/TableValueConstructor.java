@@ -123,13 +123,13 @@ public class TableValueConstructor extends Query {
     }
 
     @Override
-    protected ResultInterface queryWithoutCache(long limit, ResultTarget target) {
+    protected ResultInterface queryWithoutCache(long limit, ResultTarget resultTarget) {
         OffsetFetch offsetFetch = getOffsetFetch(limit);
         long offset = offsetFetch.offset;
         long fetch = offsetFetch.fetch;
         boolean fetchPercent = offsetFetch.fetchPercent;
         int visibleColumnCount = this.visibleColumnCount, resultColumnCount = this.resultColumnCount;
-        LocalResult result = new LocalResult(session, expressionArray, visibleColumnCount, resultColumnCount);
+        LocalResult result = new LocalResult(sessionLocal, expressionArray, visibleColumnCount, resultColumnCount);
         if (sort != null) {
             result.setSortOrder(sort);
         }
@@ -138,30 +138,30 @@ public class TableValueConstructor extends Query {
         }
         Column[] columns = table.getColumns();
         if (visibleColumnCount == resultColumnCount) {
-            getVisibleResult(session, result, columns, rows);
+            getVisibleResult(sessionLocal, result, columns, rows);
         } else {
             for (ArrayList<Expression> row : rows) {
                 Value[] values = new Value[resultColumnCount];
                 for (int i = 0; i < visibleColumnCount; i++) {
-                    values[i] = row.get(i).getValue(session).convertTo(columns[i].getType(), session);
+                    values[i] = row.get(i).getValue(sessionLocal).convertTo(columns[i].getType(), sessionLocal);
                 }
                 columnResolver.currentRow = values;
                 for (int i = visibleColumnCount; i < resultColumnCount; i++) {
-                    values[i] = expressionArray[i].getValue(session);
+                    values[i] = expressionArray[i].getValue(sessionLocal);
                 }
                 result.addRow(values);
             }
             columnResolver.currentRow = null;
         }
-        return finishResult(result, offset, fetch, fetchPercent, target);
+        return finishResult(result, offset, fetch, fetchPercent, resultTarget);
     }
 
     @Override
     public void init() {
-        if (checkInit) {
+        if (initialized) {
             throw DbException.getInternalError();
         }
-        checkInit = true;
+        initialized = true;
         if (withTies && !hasOrder()) {
             throw DbException.get(ErrorCode.WITH_TIES_WITHOUT_ORDER_BY);
         }
@@ -174,24 +174,24 @@ public class TableValueConstructor extends Query {
         }
         if (orderList != null) {
             ArrayList<String> expressionsSQL = new ArrayList<>();
-            for (Expression e : expressions) {
+            for (Expression e : expressionList) {
                 expressionsSQL.add(e.getSQL(DEFAULT_SQL_FLAGS, WITHOUT_PARENTHESES));
             }
             if (initOrder(expressionsSQL, false, null)) {
-                prepareOrder(orderList, expressions.size());
+                prepareOrder(orderList, expressionList.size());
             }
         }
-        resultColumnCount = expressions.size();
+        resultColumnCount = expressionList.size();
         for (int i = 0; i < resultColumnCount; i++) {
-            expressions.get(i).mapColumns(columnResolver, 0, Expression.MAP_INITIAL);
+            expressionList.get(i).mapColumns(columnResolver, 0, Expression.MAP_INITIAL);
         }
         for (int i = visibleColumnCount; i < resultColumnCount; i++) {
-            expressions.set(i, expressions.get(i).optimize(session));
+            expressionList.set(i, expressionList.get(i).optimize(sessionLocal));
         }
         if (sort != null) {
             cleanupOrder();
         }
-        expressionArray = expressions.toArray(new Expression[0]);
+        expressionArray = expressionList.toArray(new Expression[0]);
     }
 
     @Override
@@ -213,7 +213,7 @@ public class TableValueConstructor extends Query {
         int columnCount = row.size();
         TypeInfo[] types = new TypeInfo[columnCount];
         for (int c = 0; c < columnCount; c++) {
-            Expression e = row.get(c).optimize(session);
+            Expression e = row.get(c).optimize(sessionLocal);
             row.set(c, e);
             TypeInfo type = e.getType();
             if (type.getValueType() == Value.UNKNOWN) {
@@ -224,7 +224,7 @@ public class TableValueConstructor extends Query {
         for (int r = 1; r < rowCount; r++) {
             row = rows.get(r);
             for (int c = 0; c < columnCount; c++) {
-                Expression e = row.get(c).optimize(session);
+                Expression e = row.get(c).optimize(sessionLocal);
                 row.set(c, e);
                 types[c] = TypeInfo.getHigherType(types[c], e.getType());
             }
@@ -234,13 +234,13 @@ public class TableValueConstructor extends Query {
             TypeInfo type = types[c];
             columns[c] = new Column("C" + ++c, type);
         }
-        Database database = session.getDatabase();
+        Database database = sessionLocal.getDatabase();
         ArrayList<Expression> expressions = new ArrayList<>(columnCount);
         for (int i = 0; i < columnCount; i++) {
             expressions.add(new ExpressionColumn(database, null, null, columns[i].getName()));
         }
-        this.expressions = expressions;
-        table = new TableValueConstructorTable(session.getDatabase().getMainSchema(), session, columns, rows);
+        this.expressionList = expressions;
+        table = new TableValueConstructorTable(sessionLocal.getDatabase().getMainSchema(), sessionLocal, columns, rows);
         columnResolver = new TableValueColumnResolver();
     }
 
@@ -292,8 +292,8 @@ public class TableValueConstructor extends Query {
     }
 
     @Override
-    public boolean isEverything(ExpressionVisitor visitor) {
-        ExpressionVisitor v2 = visitor.incrementQueryLevel(1);
+    public boolean isEverything(ExpressionVisitor expressionVisitor) {
+        ExpressionVisitor v2 = expressionVisitor.incrementQueryLevel(1);
         for (Expression e : expressionArray) {
             if (!e.isEverything(v2)) {
                 return false;
@@ -389,7 +389,7 @@ public class TableValueConstructor extends Query {
 
         @Override
         public Expression optimize(ExpressionColumn expressionColumn, Column column) {
-            return expressions.get(column.getColumnId());
+            return expressionList.get(column.getColumnId());
         }
 
     }

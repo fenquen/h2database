@@ -948,7 +948,7 @@ public final class InformationSchemaTableLegacy extends MetaTable {
                 if (hideTable(table, session)) {
                     continue;
                 }
-                ArrayList<Index> indexes = table.getIndexes();
+                ArrayList<Index> indexes = table.getIndexList();
                 ArrayList<Constraint> constraints = table.getConstraints();
                 for (int j = 0; indexes != null && j < indexes.size(); j++) {
                     Index index = indexes.get(j);

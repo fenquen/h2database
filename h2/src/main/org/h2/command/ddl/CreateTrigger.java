@@ -86,8 +86,8 @@ public class CreateTrigger extends SchemaCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         if (getSchema().findTrigger(triggerName) != null) {
             if (ifNotExists) {
                 return 0;
@@ -110,7 +110,7 @@ public class CreateTrigger extends SchemaCommand {
             throw DbException.getInternalError();
         }
         int id = getObjectId();
-        Table table = getSchema().getTableOrView(session, tableName);
+        Table table = getSchema().getTableOrView(sessionLocal, tableName);
         TriggerObject trigger = new TriggerObject(getSchema(), id, triggerName, table);
         trigger.setInsteadOf(insteadOf);
         trigger.setBefore(before);
@@ -124,7 +124,7 @@ public class CreateTrigger extends SchemaCommand {
         } else {
             trigger.setTriggerSource(triggerSource, force);
         }
-        db.addSchemaObject(session, trigger);
+        db.addSchemaObject(sessionLocal, trigger);
         table.addTrigger(trigger);
         return 0;
     }

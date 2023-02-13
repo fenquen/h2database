@@ -7,6 +7,7 @@ package org.h2.command.query;
 
 import java.util.BitSet;
 import java.util.Random;
+
 import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.table.Plan;
@@ -15,8 +16,7 @@ import org.h2.table.TableFilter;
 import org.h2.util.Permutations;
 
 /**
- * The optimizer is responsible to find the best execution plan
- * for a given query.
+ * The optimizer is responsible to find the best execution plan for a given query.
  */
 class Optimizer {
 
@@ -37,19 +37,18 @@ class Optimizer {
     //  8 filters 40320 plan
     //  9 filters 362880 plans
     // 10 filters 3628800 filters
-
-    private final TableFilter[] filters;
+    private final TableFilter[] tableFilters;
     private final Expression condition;
     private final SessionLocal session;
 
     private Plan bestPlan;
-    private TableFilter topFilter;
-    private double cost;
+    public TableFilter topTableFilter;
+    public double cost;
     private Random random;
     private final AllColumnsForPlan allColumnsSet;
 
     Optimizer(TableFilter[] filters, Expression condition, SessionLocal session) {
-        this.filters = filters;
+        this.tableFilters = filters;
         this.condition = condition;
         this.session = session;
         allColumnsSet = new AllColumnsForPlan(filters);
@@ -77,11 +76,13 @@ class Optimizer {
 
     private void calculateBestPlan() {
         cost = -1;
-        if (filters.length == 1) {
-            testPlan(filters);
+
+        if (tableFilters.length == 1) {
+            testPlan(tableFilters);
         } else {
             startNs = System.nanoTime();
-            if (filters.length <= MAX_BRUTE_FORCE_FILTERS) {
+
+            if (tableFilters.length <= MAX_BRUTE_FORCE_FILTERS) {
                 calculateBruteForceAll();
             } else {
                 calculateBruteForceSome();
@@ -93,7 +94,7 @@ class Optimizer {
 
     private void calculateFakePlan() {
         cost = -1;
-        bestPlan = new Plan(filters, filters.length, condition);
+        bestPlan = new Plan(tableFilters, tableFilters.length, condition);
     }
 
     private boolean canStop(int x) {
@@ -105,37 +106,37 @@ class Optimizer {
     }
 
     private void calculateBruteForceAll() {
-        TableFilter[] list = new TableFilter[filters.length];
-        Permutations<TableFilter> p = Permutations.create(filters, list);
+        TableFilter[] list = new TableFilter[tableFilters.length];
+        Permutations<TableFilter> p = Permutations.create(tableFilters, list);
         for (int x = 0; !canStop(x) && p.next(); x++) {
             testPlan(list);
         }
     }
 
     private void calculateBruteForceSome() {
-        int bruteForce = getMaxBruteForceFilters(filters.length);
-        TableFilter[] list = new TableFilter[filters.length];
-        Permutations<TableFilter> p = Permutations.create(filters, list, bruteForce);
+        int bruteForce = getMaxBruteForceFilters(tableFilters.length);
+        TableFilter[] list = new TableFilter[tableFilters.length];
+        Permutations<TableFilter> p = Permutations.create(tableFilters, list, bruteForce);
         for (int x = 0; !canStop(x) && p.next(); x++) {
             // find out what filters are not used yet
-            for (TableFilter f : filters) {
+            for (TableFilter f : tableFilters) {
                 f.setUsed(false);
             }
             for (int i = 0; i < bruteForce; i++) {
                 list[i].setUsed(true);
             }
             // fill the remaining elements with the unused elements (greedy)
-            for (int i = bruteForce; i < filters.length; i++) {
+            for (int i = bruteForce; i < tableFilters.length; i++) {
                 double costPart = -1.0;
                 int bestPart = -1;
-                for (int j = 0; j < filters.length; j++) {
-                    if (!filters[j].isUsed()) {
-                        if (i == filters.length - 1) {
+                for (int j = 0; j < tableFilters.length; j++) {
+                    if (!tableFilters[j].isUsed()) {
+                        if (i == tableFilters.length - 1) {
                             bestPart = j;
                             break;
                         }
-                        list[i] = filters[j];
-                        Plan part = new Plan(list, i+1, condition);
+                        list[i] = tableFilters[j];
+                        Plan part = new Plan(list, i + 1, condition);
                         double costNow = part.calculateCost(session, allColumnsSet);
                         if (costPart < 0 || costNow < costPart) {
                             costPart = costNow;
@@ -143,48 +144,51 @@ class Optimizer {
                         }
                     }
                 }
-                filters[bestPart].setUsed(true);
-                list[i] = filters[bestPart];
+                tableFilters[bestPart].setUsed(true);
+                list[i] = tableFilters[bestPart];
             }
             testPlan(list);
         }
     }
 
     private void calculateGenetic() {
-        TableFilter[] best = new TableFilter[filters.length];
-        TableFilter[] list = new TableFilter[filters.length];
+        TableFilter[] best = new TableFilter[tableFilters.length];
+        TableFilter[] list = new TableFilter[tableFilters.length];
         for (int x = 0; x < MAX_GENETIC; x++) {
             if (canStop(x)) {
                 break;
             }
             boolean generateRandom = (x & 127) == 0;
             if (!generateRandom) {
-                System.arraycopy(best, 0, list, 0, filters.length);
+                System.arraycopy(best, 0, list, 0, tableFilters.length);
                 if (!shuffleTwo(list)) {
                     generateRandom = true;
                 }
             }
             if (generateRandom) {
                 switched = new BitSet();
-                System.arraycopy(filters, 0, best, 0, filters.length);
+                System.arraycopy(tableFilters, 0, best, 0, tableFilters.length);
                 shuffleAll(best);
-                System.arraycopy(best, 0, list, 0, filters.length);
+                System.arraycopy(best, 0, list, 0, tableFilters.length);
             }
             if (testPlan(list)) {
                 switched = new BitSet();
-                System.arraycopy(list, 0, best, 0, filters.length);
+                System.arraycopy(list, 0, best, 0, tableFilters.length);
             }
         }
     }
 
-    private boolean testPlan(TableFilter[] list) {
-        Plan p = new Plan(list, list.length, condition);
-        double costNow = p.calculateCost(session, allColumnsSet);
+    private boolean testPlan(TableFilter[] tableFilters) {
+        Plan plan = new Plan(tableFilters, tableFilters.length, condition);
+
+        double costNow = plan.calculateCost(session, allColumnsSet);
+
         if (cost < 0 || costNow < cost) {
             cost = costNow;
-            bestPlan = p;
+            bestPlan = plan;
             return true;
         }
+
         return false;
     }
 
@@ -222,6 +226,7 @@ class Optimizer {
         if (i == 20) {
             return false;
         }
+
         TableFilter temp = f[a];
         f[a] = f[b];
         f[b] = temp;
@@ -231,32 +236,34 @@ class Optimizer {
     /**
      * Calculate the best query plan to use.
      *
-     * @param parse If we do not need to really get the best plan because it is
-     *            a view parsing stage.
+     * @param parsingCreateView If we do not need to really get the best plan because it is a view parsing stage.
      */
-    void optimize(boolean parse) {
-        if (parse) {
+    void optimize(boolean parsingCreateView) {
+        if (parsingCreateView) {
             calculateFakePlan();
         } else {
             calculateBestPlan();
             bestPlan.removeUnusableIndexConditions();
         }
-        TableFilter[] f2 = bestPlan.getFilters();
-        topFilter = f2[0];
-        for (int i = 0; i < f2.length - 1; i++) {
-            f2[i].addJoin(f2[i + 1], false, null);
+
+        // TableFilter[] f2 = bestPlan.tableFilters;
+        topTableFilter = bestPlan.tableFilters[0];
+
+        for (int i = 0; i < bestPlan.tableFilters.length - 1; i++) {
+            bestPlan.tableFilters[i].addJoin(bestPlan.tableFilters[i + 1], false, null);
         }
-        if (parse) {
+
+        if (parsingCreateView) {
             return;
         }
-        for (TableFilter f : f2) {
-            PlanItem item = bestPlan.getItem(f);
-            f.setPlanItem(item);
+
+        for (TableFilter tableFilter : bestPlan.tableFilters) {
+            tableFilter.setPlanItem(bestPlan.tableFilter_planItem.get(tableFilter));
         }
     }
 
-    public TableFilter getTopFilter() {
-        return topFilter;
+    public TableFilter getTopTableFilter() {
+        return topTableFilter;
     }
 
     double getCost() {

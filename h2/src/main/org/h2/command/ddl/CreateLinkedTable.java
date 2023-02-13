@@ -83,9 +83,9 @@ public class CreateLinkedTable extends SchemaCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
-        if (getSchema().resolveTableOrView(session, tableName) != null) {
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
+        if (getSchema().resolveTableOrView(sessionLocal, tableName) != null) {
             if (ifNotExists) {
                 return 0;
             }
@@ -104,9 +104,9 @@ public class CreateLinkedTable extends SchemaCommand {
         }
         table.setAutoCommit(autocommit);
         if (temporary && !globalTemporary) {
-            session.addLocalTempTable(table);
+            sessionLocal.addLocalTempTable(table);
         } else {
-            db.addSchemaObject(session, table);
+            db.addSchemaObject(sessionLocal, table);
         }
         return 0;
     }

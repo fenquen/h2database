@@ -41,7 +41,7 @@ public final class DerivedTable extends QueryExpressionTable {
         query.prepareExpressions();
         try {
             this.querySQL = query.getPlanSQL(DEFAULT_SQL_FLAGS);
-            ArrayList<Parameter> params = query.getParameters();
+            ArrayList<Parameter> params = query.getParameterList();
             index = new QueryExpressionIndex(this, querySQL, params, false);
             tables = new ArrayList<>(query.getTables());
             setColumns(initColumns(session, columnTemplates, query, true));

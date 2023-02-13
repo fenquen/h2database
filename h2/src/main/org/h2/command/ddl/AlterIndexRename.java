@@ -47,8 +47,8 @@ public class AlterIndexRename extends DefineCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
-        Index oldIndex = oldSchema.findIndex(session, oldIndexName);
+        Database db = sessionLocal.getDatabase();
+        Index oldIndex = oldSchema.findIndex(sessionLocal, oldIndexName);
         if (oldIndex == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.INDEX_NOT_FOUND_1,
@@ -56,13 +56,13 @@ public class AlterIndexRename extends DefineCommand {
             }
             return 0;
         }
-        if (oldSchema.findIndex(session, newIndexName) != null ||
+        if (oldSchema.findIndex(sessionLocal, newIndexName) != null ||
                 newIndexName.equals(oldIndexName)) {
             throw DbException.get(ErrorCode.INDEX_ALREADY_EXISTS_1,
                     newIndexName);
         }
-        session.getUser().checkTableRight(oldIndex.getTable(), Right.SCHEMA_OWNER);
-        db.renameSchemaObject(session, oldIndex, newIndexName);
+        sessionLocal.getUser().checkTableRight(oldIndex.getTable(), Right.SCHEMA_OWNER);
+        db.renameSchemaObject(sessionLocal, oldIndex, newIndexName);
         return 0;
     }
 

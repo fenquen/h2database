@@ -67,7 +67,7 @@ final class Percentile {
             TableFilter filter = col.getTableFilter();
             if (filter != null) {
                 Table table = filter.getTable();
-                ArrayList<Index> indexes = table.getIndexes();
+                ArrayList<Index> indexes = table.getIndexList();
                 Index result = null;
                 if (indexes != null) {
                     boolean nullable = column.isNullable();

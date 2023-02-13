@@ -45,7 +45,7 @@ public class CreateSequence extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         if (schema.findSequence(sequenceName) != null) {
             if (ifNotExists) {
                 return 0;
@@ -53,8 +53,8 @@ public class CreateSequence extends SchemaOwnerCommand {
             throw DbException.get(ErrorCode.SEQUENCE_ALREADY_EXISTS_1, sequenceName);
         }
         int id = getObjectId();
-        Sequence sequence = new Sequence(session, schema, id, sequenceName, options, belongsToTable);
-        db.addSchemaObject(session, sequence);
+        Sequence sequence = new Sequence(sessionLocal, schema, id, sequenceName, options, belongsToTable);
+        db.addSchemaObject(sessionLocal, sequence);
         return 0;
     }
 

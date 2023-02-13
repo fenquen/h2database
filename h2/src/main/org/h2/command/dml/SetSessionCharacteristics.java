@@ -30,7 +30,7 @@ public class SetSessionCharacteristics extends Prepared {
 
     @Override
     public long update() {
-        session.setIsolationLevel(isolationLevel);
+        sessionLocal.setIsolationLevel(isolationLevel);
         return 0;
     }
 

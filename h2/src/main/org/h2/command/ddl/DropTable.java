@@ -58,13 +58,13 @@ public class DropTable extends DefineCommand {
         HashSet<Table> tablesToDrop = new HashSet<>();
         for (SchemaAndTable schemaAndTable : tables) {
             String tableName = schemaAndTable.tableName;
-            Table table = schemaAndTable.schema.findTableOrView(session, tableName);
+            Table table = schemaAndTable.schema.findTableOrView(sessionLocal, tableName);
             if (table == null) {
                 if (!ifExists) {
                     throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
                 }
             } else {
-                session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+                sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
                 if (!table.canDrop()) {
                     throw DbException.get(ErrorCode.CANNOT_DROP_TABLE_1, tableName);
                 }
@@ -97,7 +97,7 @@ public class DropTable extends DefineCommand {
                     throw DbException.get(ErrorCode.CANNOT_DROP_2, table.getName(), String.join(", ", dependencies));
                 }
             }
-            table.lock(session, Table.EXCLUSIVE_LOCK);
+            table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
         }
         return true;
     }
@@ -106,12 +106,12 @@ public class DropTable extends DefineCommand {
         for (SchemaAndTable schemaAndTable : tables) {
             // need to get the table again, because it may be dropped already
             // meanwhile (dependent object, or same object)
-            Table table = schemaAndTable.schema.findTableOrView(session, schemaAndTable.tableName);
+            Table table = schemaAndTable.schema.findTableOrView(sessionLocal, schemaAndTable.tableName);
             if (table != null) {
                 table.setModified();
-                Database db = session.getDatabase();
-                db.lockMeta(session);
-                db.removeSchemaObject(session, table);
+                Database db = sessionLocal.getDatabase();
+                db.lockMeta(sessionLocal);
+                db.removeSchemaObject(sessionLocal, table);
             }
         }
     }

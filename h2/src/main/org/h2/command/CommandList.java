@@ -50,7 +50,7 @@ class CommandList extends Command {
             }
         }
         if (remaining != null) {
-            remainingCommand = session.prepareLocal(remaining);
+            remainingCommand = sessionLocal.prepareLocal(remaining);
             remaining = null;
             if (remainingCommand.isQuery()) {
                 remainingCommand.query(0);
@@ -78,7 +78,7 @@ class CommandList extends Command {
     public void stop() {
         command.stop();
         for (Prepared prepared : commands) {
-            CommandContainer.clearCTE(session, prepared);
+            CommandContainer.clearCTE(sessionLocal, prepared);
         }
         if (remainingCommand != null) {
             remainingCommand.stop();

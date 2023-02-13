@@ -100,8 +100,8 @@ public abstract class QueryExpressionTable extends Table {
         // addition to
         // return value
         querySQLOutput[0] = StringUtils.cache(theQuery.getPlanSQL(ADD_PLAN_INFORMATION));
-        SessionLocal session = theQuery.getSession();
-        ArrayList<Expression> withExpressions = theQuery.getExpressions();
+        SessionLocal session = theQuery.getSessionLocal();
+        ArrayList<Expression> withExpressions = theQuery.getExpressionList();
         for (int i = 0; i < withExpressions.size(); ++i) {
             Expression columnExp = withExpressions.get(i);
             // use the passed in column name if supplied, otherwise use alias
@@ -138,7 +138,7 @@ public abstract class QueryExpressionTable extends Table {
     }
 
     Column[] initColumns(SessionLocal session, Column[] columnTemplates, Query query, boolean isDerivedTable) {
-        ArrayList<Expression> expressions = query.getExpressions();
+        ArrayList<Expression> expressions = query.getExpressionList();
         final int count = query.getColumnCount();
         ArrayList<Column> list = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -183,17 +183,17 @@ public abstract class QueryExpressionTable extends Table {
     }
 
     @Override
-    public final PlanItem getBestPlanItem(SessionLocal session, int[] masks, TableFilter[] filters, int filter,
-            SortOrder sortOrder, AllColumnsForPlan allColumnsSet) {
+    public final PlanItem getBestPlanItem(SessionLocal sessionLocal, int[] masks, TableFilter[] filters, int filter,
+                                          SortOrder sortOrder, AllColumnsForPlan allColumnsSet) {
         final CacheKey cacheKey = new CacheKey(masks, this);
-        Map<Object, QueryExpressionIndex> indexCache = session.getViewIndexCache(getTableType() == null);
+        Map<Object, QueryExpressionIndex> indexCache = sessionLocal.getViewIndexCache(getTableType() == null);
         QueryExpressionIndex i = indexCache.get(cacheKey);
         if (i == null || i.isExpired()) {
-            i = new QueryExpressionIndex(this, index, session, masks, filters, filter, sortOrder);
+            i = new QueryExpressionIndex(this, index, sessionLocal, masks, filters, filter, sortOrder);
             indexCache.put(cacheKey, i);
         }
         PlanItem item = new PlanItem();
-        item.cost = i.getCost(session, masks, filters, filter, sortOrder, allColumnsSet);
+        item.cost = i.getCost(sessionLocal, masks, filters, filter, sortOrder, allColumnsSet);
         item.setIndex(i);
         return item;
     }
@@ -258,7 +258,7 @@ public abstract class QueryExpressionTable extends Table {
      */
     public final int getParameterOffset(ArrayList<Parameter> additionalParameters) {
         Query topQuery = getTopQuery();
-        int result = topQuery == null ? -1 : getMaxParameterIndex(topQuery.getParameters());
+        int result = topQuery == null ? -1 : getMaxParameterIndex(topQuery.getParameterList());
         if (additionalParameters != null) {
             result = Math.max(result, getMaxParameterIndex(additionalParameters));
         }
@@ -271,7 +271,7 @@ public abstract class QueryExpressionTable extends Table {
     }
 
     @Override
-    public final ArrayList<Index> getIndexes() {
+    public final ArrayList<Index> getIndexList() {
         return null;
     }
 
@@ -294,9 +294,9 @@ public abstract class QueryExpressionTable extends Table {
     }
 
     @Override
-    public Index getScanIndex(SessionLocal session, int[] masks, TableFilter[] filters, int filter, //
-            SortOrder sortOrder, AllColumnsForPlan allColumnsSet) {
-        return getBestPlanItem(session, masks, filters, filter, sortOrder, allColumnsSet).getIndex();
+    public Index getScanIndex(SessionLocal sessionLocal, int[] masks, TableFilter[] tableFilters, int tableFiltersIndex, //
+                              SortOrder sortOrder, AllColumnsForPlan allColumnsSet) {
+        return getBestPlanItem(sessionLocal, masks, tableFilters, tableFiltersIndex, sortOrder, allColumnsSet).getIndex();
     }
 
     @Override

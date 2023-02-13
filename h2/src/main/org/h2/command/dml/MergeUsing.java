@@ -75,11 +75,11 @@ public final class MergeUsing extends DataChangeStatement {
         targetRowidsRemembered.clear();
         checkRights();
         setCurrentRowNumber(0);
-        sourceTableFilter.startQuery(session);
+        sourceTableFilter.startQuery(sessionLocal);
         sourceTableFilter.reset();
         Table table = targetTableFilter.getTable();
-        table.fire(session, evaluateTriggerMasks(), true);
-        table.lock(session, Table.WRITE_LOCK);
+        table.fire(sessionLocal, evaluateTriggerMasks(), true);
+        table.lock(sessionLocal, Table.WRITE_LOCK);
         setCurrentRowNumber(0);
         long count = 0;
         Row previousSource = null, missedSource = null;
@@ -103,7 +103,7 @@ public final class MergeUsing extends DataChangeStatement {
             if (!nullRow) {
                 Row targetRow = targetTableFilter.get();
                 if (table.isRowLockable()) {
-                    Row lockedRow = table.lockRow(session, targetRow);
+                    Row lockedRow = table.lockRow(sessionLocal, targetRow);
                     if (lockedRow == null) {
                         if (previousSource != source) {
                             missedSource = source;
@@ -113,7 +113,7 @@ public final class MergeUsing extends DataChangeStatement {
                     if (!targetRow.hasSharedData(lockedRow)) {
                         targetRow = lockedRow;
                         targetTableFilter.set(targetRow);
-                        if (!onCondition.getBooleanValue(session)) {
+                        if (!onCondition.getBooleanValue(sessionLocal)) {
                             if (previousSource != source) {
                                 missedSource = source;
                             }
@@ -142,7 +142,7 @@ public final class MergeUsing extends DataChangeStatement {
             countUpdatedRows += merge(true, deltaChangeCollector, deltaChangeCollectionMode);
         }
         targetRowidsRemembered.clear();
-        table.fire(session, evaluateTriggerMasks(), false);
+        table.fire(sessionLocal, evaluateTriggerMasks(), false);
         return countUpdatedRows;
     }
 
@@ -150,8 +150,8 @@ public final class MergeUsing extends DataChangeStatement {
         for (When w : when) {
             if (w.getClass() == WhenNotMatched.class == nullRow) {
                 Expression condition = w.andCondition;
-                if (condition == null || condition.getBooleanValue(session)) {
-                    w.merge(session, deltaChangeCollector, deltaChangeCollectionMode);
+                if (condition == null || condition.getBooleanValue(sessionLocal)) {
+                    w.merge(sessionLocal, deltaChangeCollector, deltaChangeCollectionMode);
                     return 1;
                 }
             }
@@ -171,8 +171,8 @@ public final class MergeUsing extends DataChangeStatement {
         for (When w : when) {
             w.checkRights();
         }
-        session.getUser().checkTableRight(targetTableFilter.getTable(), Right.SELECT);
-        session.getUser().checkTableRight(sourceTableFilter.getTable(), Right.SELECT);
+        sessionLocal.getUser().checkTableRight(targetTableFilter.getTable(), Right.SELECT);
+        sessionLocal.getUser().checkTableRight(sourceTableFilter.getTable(), Right.SELECT);
     }
 
     @Override
@@ -195,20 +195,20 @@ public final class MergeUsing extends DataChangeStatement {
         onCondition.mapColumns(sourceTableFilter, 0, Expression.MAP_INITIAL);
         onCondition.mapColumns(targetTableFilter, 0, Expression.MAP_INITIAL);
 
-        onCondition = onCondition.optimize(session);
+        onCondition = onCondition.optimize(sessionLocal);
         // Create conditions only for target table
-        onCondition.createIndexConditions(session, targetTableFilter);
+        onCondition.createIndexConditions(sessionLocal, targetTableFilter);
 
         TableFilter[] filters = new TableFilter[] { sourceTableFilter, targetTableFilter };
         sourceTableFilter.addJoin(targetTableFilter, true, onCondition);
-        PlanItem item = sourceTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters));
+        PlanItem item = sourceTableFilter.getBestPlanItem(sessionLocal, filters, 0, new AllColumnsForPlan(filters));
         sourceTableFilter.setPlanItem(item);
         sourceTableFilter.prepare();
 
         boolean hasFinalNotMatched = false, hasFinalMatched = false;
         for (Iterator<When> i = when.iterator(); i.hasNext();) {
             When w = i.next();
-            if (!w.prepare(session)) {
+            if (!w.prepare(sessionLocal)) {
                 i.remove();
             } else if (w.getClass() == WhenNotMatched.class) {
                 if (hasFinalNotMatched) {
@@ -410,7 +410,7 @@ public final class MergeUsing extends DataChangeStatement {
 
         @Override
         void checkRights() {
-            getSession().getUser().checkTableRight(targetTableFilter.getTable(), Right.DELETE);
+            getSessionLocal().getUser().checkTableRight(targetTableFilter.getTable(), Right.DELETE);
         }
 
         @Override
@@ -453,7 +453,7 @@ public final class MergeUsing extends DataChangeStatement {
 
         @Override
         void checkRights() {
-            getSession().getUser().checkTableRight(targetTableFilter.getTable(), Right.UPDATE);
+            getSessionLocal().getUser().checkTableRight(targetTableFilter.getTable(), Right.UPDATE);
         }
 
         @Override
@@ -547,7 +547,7 @@ public final class MergeUsing extends DataChangeStatement {
 
         @Override
         void checkRights() {
-            getSession().getUser().checkTableRight(targetTableFilter.getTable(), Right.INSERT);
+            getSessionLocal().getUser().checkTableRight(targetTableFilter.getTable(), Right.INSERT);
         }
 
         @Override

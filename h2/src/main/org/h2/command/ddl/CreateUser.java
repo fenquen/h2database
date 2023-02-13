@@ -92,8 +92,8 @@ public class CreateUser extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         RightOwner rightOwner = db.findUserOrRole(userName);
         if (rightOwner != null) {
             if (rightOwner instanceof User) {
@@ -109,13 +109,13 @@ public class CreateUser extends DefineCommand {
         user.setAdmin(admin);
         user.setComment(comment);
         if (hash != null && salt != null) {
-            setSaltAndHash(user, session, salt, hash);
+            setSaltAndHash(user, sessionLocal, salt, hash);
         } else if (password != null) {
-            setPassword(user, session, password);
+            setPassword(user, sessionLocal, password);
         } else {
             throw DbException.getInternalError();
         }
-        db.addDatabaseObject(session, user);
+        db.addDatabaseObject(sessionLocal, user);
         return 0;
     }
 

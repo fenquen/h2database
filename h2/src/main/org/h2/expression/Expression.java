@@ -123,12 +123,12 @@ public abstract class Expression implements HasSQL, Typed {
     /**
      * Map the columns of the resolver to expression columns.
      *
-     * @param resolver the column resolver
+     * @param columnResolver the column resolver
      * @param level the subquery nesting level
      * @param state current state for nesting checks, initial value is
      *              {@link #MAP_INITIAL}
      */
-    public abstract void mapColumns(ColumnResolver resolver, int level, int state);
+    public abstract void mapColumns(ColumnResolver columnResolver, int level, int state);
 
     /**
      * Try to optimize the expression.

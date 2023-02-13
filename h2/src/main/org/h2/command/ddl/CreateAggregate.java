@@ -30,8 +30,8 @@ public class CreateAggregate extends SchemaCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         Schema schema = getSchema();
         if (schema.findFunctionOrAggregate(name) != null) {
             if (!ifNotExists) {
@@ -40,7 +40,7 @@ public class CreateAggregate extends SchemaCommand {
         } else {
             int id = getObjectId();
             UserAggregate aggregate = new UserAggregate(schema, id, name, javaClassMethod, force);
-            db.addSchemaObject(session, aggregate);
+            db.addSchemaObject(sessionLocal, aggregate);
         }
         return 0;
     }

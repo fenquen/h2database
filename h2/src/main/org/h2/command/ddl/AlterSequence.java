@@ -81,19 +81,19 @@ public class AlterSequence extends SchemaOwnerCommand {
             }
         }
         if (column != null) {
-            session.getUser().checkTableRight(column.getTable(), Right.SCHEMA_OWNER);
+            sessionLocal.getUser().checkTableRight(column.getTable(), Right.SCHEMA_OWNER);
         }
         options.setDataType(sequence.getDataType());
-        Long startValue = options.getStartValue(session);
+        Long startValue = options.getStartValue(sessionLocal);
         sequence.modify(
-                options.getRestartValue(session, startValue != null ? startValue : sequence.getStartValue()),
+                options.getRestartValue(sessionLocal, startValue != null ? startValue : sequence.getStartValue()),
                 startValue,
-                options.getMinValue(sequence, session), options.getMaxValue(sequence, session),
-                options.getIncrement(session), options.getCycle(), options.getCacheSize(session));
-        sequence.flush(session);
+                options.getMinValue(sequence, sessionLocal), options.getMaxValue(sequence, sessionLocal),
+                options.getIncrement(sessionLocal), options.getCycle(), options.getCacheSize(sessionLocal));
+        sequence.flush(sessionLocal);
         if (column != null && always != null) {
             column.setSequence(sequence, always);
-            session.getDatabase().updateMeta(session, column.getTable());
+            sessionLocal.getDatabase().updateMeta(sessionLocal, column.getTable());
         }
         return 0;
     }

@@ -222,7 +222,7 @@ public class QueryExpressionIndex extends Index implements SpatialIndex {
      */
     public void setupQueryParameters(SessionLocal session, SearchRow first, SearchRow last,
             SearchRow intersection) {
-        ArrayList<Parameter> paramList = query.getParameters();
+        ArrayList<Parameter> paramList = query.getParameterList();
         if (originalParameters != null) {
             for (Parameter orig : originalParameters) {
                 if (orig != null) {

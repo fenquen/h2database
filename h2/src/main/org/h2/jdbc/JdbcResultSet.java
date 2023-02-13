@@ -79,7 +79,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     private final boolean scrollable;
     private final boolean updatable;
     private final boolean triggerUpdatable;
-    ResultInterface result;
+    ResultInterface resultInterface;
     private JdbcConnection conn;
     private JdbcStatement stat;
     private int columnCount;
@@ -91,23 +91,23 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     private JdbcPreparedStatement preparedStatement;
     private final CommandInterface command;
 
-    public JdbcResultSet(JdbcConnection conn, JdbcStatement stat, CommandInterface command, ResultInterface result,
+    public JdbcResultSet(JdbcConnection conn, JdbcStatement stat, CommandInterface command, ResultInterface resultInterface,
             int id, boolean scrollable, boolean updatable, boolean triggerUpdatable) {
         setTrace(conn.getSession().getTrace(), TraceObject.RESULT_SET, id);
         this.conn = conn;
         this.stat = stat;
         this.command = command;
-        this.result = result;
-        this.columnCount = result.getVisibleColumnCount();
+        this.resultInterface = resultInterface;
+        this.columnCount = resultInterface.getVisibleColumnCount();
         this.scrollable = scrollable;
         this.updatable = updatable;
         this.triggerUpdatable = triggerUpdatable;
     }
 
     JdbcResultSet(JdbcConnection conn, JdbcPreparedStatement preparedStatement, CommandInterface command,
-            ResultInterface result, int id, boolean scrollable, boolean updatable,
-            HashMap<String, Integer> columnLabelMap) {
-        this(conn, preparedStatement, command, result, id, scrollable, updatable, false);
+                  ResultInterface resultInterface, int id, boolean scrollable, boolean updatable,
+                  HashMap<String, Integer> columnLabelMap) {
+        this(conn, preparedStatement, command, resultInterface, id, scrollable, updatable, false);
         this.columnLabelMap = columnLabelMap;
         this.preparedStatement = preparedStatement;
     }
@@ -140,7 +140,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
             debugCodeAssign("ResultSetMetaData", TraceObject.RESULT_SET_META_DATA, id, "getMetaData()");
             checkClosed();
             String catalog = conn.getCatalog();
-            return new JdbcResultSetMetaData(this, null, result, catalog, conn.getSession().getTrace(), id);
+            return new JdbcResultSetMetaData(this, null, resultInterface, catalog, conn.getSession().getTrace(), id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -199,16 +199,16 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
      * @param fromStatement if true - close statement in the end
      */
     void closeInternal(boolean fromStatement) {
-        if (result != null) {
+        if (resultInterface != null) {
             try {
-                if (result.isLazy()) {
+                if (resultInterface.isLazy()) {
                     stat.onLazyResultSetClose(command, preparedStatement == null);
                 }
-                result.close();
+                resultInterface.close();
             } finally {
                 JdbcStatement s = stat;
                 columnCount = 0;
-                result = null;
+                resultInterface = null;
                 stat = null;
                 conn = null;
                 insertRow = null;
@@ -2865,10 +2865,10 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("getRow");
             checkClosed();
-            if (result.isAfterLast()) {
+            if (resultInterface.isAfterLast()) {
                 return 0;
             }
-            long rowNumber = result.getRowId() + 1;
+            long rowNumber = resultInterface.getRowId() + 1;
             return rowNumber <= Integer.MAX_VALUE ? (int) rowNumber : Statement.SUCCESS_NO_INFO;
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -2891,7 +2891,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
             if (!updatable) {
                 return ResultSet.CONCUR_READ_ONLY;
             }
-            UpdatableRow row = new UpdatableRow(conn, result);
+            UpdatableRow row = new UpdatableRow(conn, resultInterface);
             return row.isUpdatable() ? ResultSet.CONCUR_UPDATABLE
                     : ResultSet.CONCUR_READ_ONLY;
         } catch (Exception e) {
@@ -2925,7 +2925,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("getFetchSize");
             checkClosed();
-            return result.getFetchSize();
+            return resultInterface.getFetchSize();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -2957,7 +2957,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
             } else {
                 rows = SysProperties.SERVER_RESULT_SET_FETCH_SIZE;
             }
-            result.setFetchSize(rows);
+            resultInterface.setFetchSize(rows);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -3014,7 +3014,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("isBeforeFirst");
             checkClosed();
-            return result.getRowId() < 0 && result.hasNext();
+            return resultInterface.getRowId() < 0 && resultInterface.hasNext();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -3033,7 +3033,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("isAfterLast");
             checkClosed();
-            return result.getRowId() > 0 && result.isAfterLast();
+            return resultInterface.getRowId() > 0 && resultInterface.isAfterLast();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -3051,7 +3051,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("isFirst");
             checkClosed();
-            return result.getRowId() == 0 && !result.isAfterLast();
+            return resultInterface.getRowId() == 0 && !resultInterface.isAfterLast();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -3069,8 +3069,8 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("isLast");
             checkClosed();
-            long rowId = result.getRowId();
-            return rowId >= 0 && !result.isAfterLast() && !result.hasNext();
+            long rowId = resultInterface.getRowId();
+            return rowId >= 0 && !resultInterface.isAfterLast() && !resultInterface.hasNext();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -3087,7 +3087,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("beforeFirst");
             checkClosed();
-            if (result.getRowId() >= 0) {
+            if (resultInterface.getRowId() >= 0) {
                 resetResult();
             }
         } catch (Exception e) {
@@ -3126,7 +3126,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("first");
             checkClosed();
-            if (result.getRowId() >= 0) {
+            if (resultInterface.getRowId() >= 0) {
                 resetResult();
             }
             return nextRow();
@@ -3146,10 +3146,10 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("last");
             checkClosed();
-            if (result.isAfterLast()) {
+            if (resultInterface.isAfterLast()) {
                 resetResult();
             }
-            while (result.hasNext()) {
+            while (resultInterface.hasNext()) {
                 nextRow();
             }
             return isOnValidRow();
@@ -3174,11 +3174,11 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         try {
             debugCodeCall("absolute", rowNumber);
             checkClosed();
-            long longRowNumber = rowNumber >= 0 ? rowNumber : result.getRowCount() + rowNumber + 1;
-            if (--longRowNumber < result.getRowId()) {
+            long longRowNumber = rowNumber >= 0 ? rowNumber : resultInterface.getRowCount() + rowNumber + 1;
+            if (--longRowNumber < resultInterface.getRowId()) {
                 resetResult();
             }
-            while (result.getRowId() < longRowNumber) {
+            while (resultInterface.getRowId() < longRowNumber) {
                 if (!nextRow()) {
                     return false;
                 }
@@ -3206,7 +3206,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
             checkClosed();
             long longRowCount;
             if (rowCount < 0) {
-                longRowCount = result.getRowId() + rowCount + 1;
+                longRowCount = resultInterface.getRowId() + rowCount + 1;
                 resetResult();
             } else {
                 longRowCount = rowCount;
@@ -3392,7 +3392,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
                 throw DbException.get(ErrorCode.NOT_ON_UPDATABLE_ROW);
             }
             checkOnValidRow();
-            getUpdatableRow().deleteRow(result.currentRow());
+            getUpdatableRow().deleteRow(resultInterface.currentRow());
             updateRow = null;
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -3415,7 +3415,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
                 throw DbException.get(ErrorCode.NO_DATA_AVAILABLE);
             }
             checkOnValidRow();
-            patchCurrentRow(getUpdatableRow().readRow(result.currentRow()));
+            patchCurrentRow(getUpdatableRow().readRow(resultInterface.currentRow()));
             updateRow = null;
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -3445,7 +3445,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     // =============================================================
 
     private UpdatableRow getUpdatableRow() throws SQLException {
-        UpdatableRow row = new UpdatableRow(conn, result);
+        UpdatableRow row = new UpdatableRow(conn, resultInterface);
         if (!row.isUpdatable()) {
             throw DbException.get(ErrorCode.RESULT_SET_NOT_UPDATABLE);
         }
@@ -3463,17 +3463,17 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
                 HashMap<String, Integer> map = new HashMap<>();
                 // column labels have higher priority
                 for (int i = 0; i < columnCount; i++) {
-                    String c = StringUtils.toUpperEnglish(result.getAlias(i));
+                    String c = StringUtils.toUpperEnglish(resultInterface.getAlias(i));
                     // Don't override previous mapping
                     map.putIfAbsent(c, i);
                 }
                 for (int i = 0; i < columnCount; i++) {
-                    String colName = result.getColumnName(i);
+                    String colName = resultInterface.getColumnName(i);
                     if (colName != null) {
                         colName = StringUtils.toUpperEnglish(colName);
                         // Don't override previous mapping
                         map.putIfAbsent(colName, i);
-                        String tabName = result.getTableName(i);
+                        String tabName = resultInterface.getTableName(i);
                         if (tabName != null) {
                             colName = StringUtils.toUpperEnglish(tabName) + '.' + colName;
                             // Don't override previous mapping
@@ -3494,7 +3494,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
             return index + 1;
         }
         for (int i = 0; i < columnCount; i++) {
-            if (columnLabel.equalsIgnoreCase(result.getAlias(i))) {
+            if (columnLabel.equalsIgnoreCase(resultInterface.getAlias(i))) {
                 return i + 1;
             }
         }
@@ -3503,14 +3503,14 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
             String table = columnLabel.substring(0, idx);
             String col = columnLabel.substring(idx+1);
             for (int i = 0; i < columnCount; i++) {
-                if (table.equalsIgnoreCase(result.getTableName(i)) &&
-                        col.equalsIgnoreCase(result.getColumnName(i))) {
+                if (table.equalsIgnoreCase(resultInterface.getTableName(i)) &&
+                        col.equalsIgnoreCase(resultInterface.getColumnName(i))) {
                     return i + 1;
                 }
             }
         } else {
             for (int i = 0; i < columnCount; i++) {
-                if (columnLabel.equalsIgnoreCase(result.getColumnName(i))) {
+                if (columnLabel.equalsIgnoreCase(resultInterface.getColumnName(i))) {
                     return i + 1;
                 }
             }
@@ -3532,7 +3532,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
      * @throws DbException if it is closed
      */
     void checkClosed() {
-        if (result == null) {
+        if (resultInterface == null) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED);
         }
         if (stat != null) {
@@ -3544,7 +3544,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     }
 
     private boolean isOnValidRow() {
-        return result.getRowId() >= 0 && !result.isAfterLast();
+        return resultInterface.getRowId() >= 0 && !resultInterface.isAfterLast();
     }
 
     private void checkOnValidRow() {
@@ -3569,8 +3569,8 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     public Value getInternal(int columnIndex) {
         checkOnValidRow();
         Value[] list;
-        if (patchedRows == null || (list = patchedRows.get(result.getRowId())) == null) {
-            list = result.currentRow();
+        if (patchedRows == null || (list = patchedRows.get(resultInterface.getRowId())) == null) {
+            list = resultInterface.currentRow();
         }
         return list[columnIndex - 1];
     }
@@ -3590,9 +3590,9 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     }
 
     private boolean nextRow() {
-        boolean next = result.isLazy() ? nextLazyRow() : result.next();
+        boolean next = resultInterface.isLazy() ? nextLazyRow() : resultInterface.next();
         if (!next && !scrollable) {
-            result.close();
+            resultInterface.close();
         }
         return next;
     }
@@ -3605,7 +3605,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         Session oldSession = session.setThreadLocalSession();
         boolean next;
         try {
-            next = result.next();
+            next = resultInterface.next();
         } finally {
             session.resetThreadLocalSession(oldSession);
         }
@@ -3616,7 +3616,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         if (!scrollable) {
             throw DbException.get(ErrorCode.RESULT_SET_NOT_SCROLLABLE);
         }
-        result.reset();
+        resultInterface.reset();
     }
 
     /**
@@ -3687,7 +3687,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
     public boolean isClosed() throws SQLException {
         try {
             debugCodeCall("isClosed");
-            return result == null;
+            return resultInterface == null;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -4224,12 +4224,12 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
      */
     @Override
     public String toString() {
-        return getTraceObjectName() + ": " + result;
+        return getTraceObjectName() + ": " + resultInterface;
     }
 
     private void patchCurrentRow(Value[] row) {
         boolean changed = false;
-        Value[] current = result.currentRow();
+        Value[] current = resultInterface.currentRow();
         CompareMode compareMode = conn.getCompareMode();
         for (int i = 0; i < row.length; i++) {
             if (row[i].compareTo(current[i], conn, compareMode) != 0) {
@@ -4240,7 +4240,7 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
         if (patchedRows == null) {
             patchedRows = new HashMap<>();
         }
-        Long rowId = result.getRowId();
+        Long rowId = resultInterface.getRowId();
         if (!changed) {
             patchedRows.remove(rowId);
         } else {
@@ -4283,8 +4283,8 @@ public final class JdbcResultSet extends TraceObject implements ResultSet {
      *
      * @return result
      */
-    public ResultInterface getResult() {
-        return result;
+    public ResultInterface getResultInterface() {
+        return resultInterface;
     }
 
 }

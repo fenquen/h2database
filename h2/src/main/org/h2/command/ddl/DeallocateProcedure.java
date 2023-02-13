@@ -22,7 +22,7 @@ public class DeallocateProcedure extends DefineCommand {
 
     @Override
     public long update() {
-        session.removeProcedure(procedureName);
+        sessionLocal.removeProcedure(procedureName);
         return 0;
     }
 

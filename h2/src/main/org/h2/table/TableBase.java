@@ -60,9 +60,8 @@ public abstract class TableBase extends Table {
     }
 
     public TableBase(CreateTableData data) {
-        super(data.schema, data.id, data.tableName,
-                data.persistIndexes, data.persistData);
-        this.tableEngine = data.tableEngine;
+        super(data.schema, data.id, data.tableName, data.persistIndexes, data.persistData);
+        this.tableEngine = data.tableEngineName;
         this.globalTemporary = data.globalTemporary;
         if (data.tableEngineParams != null) {
             this.tableEngineParams = data.tableEngineParams;

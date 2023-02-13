@@ -28,11 +28,11 @@ public class ExecuteImmediate extends Prepared {
 
     @Override
     public long update() {
-        String sql = statement.getValue(session).getString();
+        String sql = statement.getValue(sessionLocal).getString();
         if (sql == null) {
             throw DbException.getInvalidValueException("SQL command", null);
         }
-        Prepared command = session.prepare(sql);
+        Prepared command = sessionLocal.prepare(sql);
         if (command.isQuery()) {
             throw DbException.get(ErrorCode.SYNTAX_ERROR_2, sql, "<not a query>");
         }

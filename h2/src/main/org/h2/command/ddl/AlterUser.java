@@ -63,33 +63,33 @@ public class AlterUser extends DefineCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         switch (type) {
         case CommandInterface.ALTER_USER_SET_PASSWORD:
-            if (user != session.getUser()) {
-                session.getUser().checkAdmin();
+            if (user != sessionLocal.getUser()) {
+                sessionLocal.getUser().checkAdmin();
             }
             if (hash != null && salt != null) {
-                CreateUser.setSaltAndHash(user, session, salt, hash);
+                CreateUser.setSaltAndHash(user, sessionLocal, salt, hash);
             } else {
-                CreateUser.setPassword(user, session, password);
+                CreateUser.setPassword(user, sessionLocal, password);
             }
             break;
         case CommandInterface.ALTER_USER_RENAME:
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             if (db.findUser(newName) != null || newName.equals(user.getName())) {
                 throw DbException.get(ErrorCode.USER_ALREADY_EXISTS_1, newName);
             }
-            db.renameDatabaseObject(session, user, newName);
+            db.renameDatabaseObject(sessionLocal, user, newName);
             break;
         case CommandInterface.ALTER_USER_ADMIN:
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             user.setAdmin(admin);
             break;
         default:
             throw DbException.getInternalError("type=" + type);
         }
-        db.updateMeta(session, user);
+        db.updateMeta(sessionLocal, user);
         return 0;
     }
 

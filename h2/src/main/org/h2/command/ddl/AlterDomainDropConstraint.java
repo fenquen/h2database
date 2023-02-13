@@ -34,14 +34,14 @@ public class AlterDomainDropConstraint extends AlterDomain {
 
     @Override
     long update(Schema schema, Domain domain) {
-        Constraint constraint = schema.findConstraint(session, constraintName);
+        Constraint constraint = schema.findConstraint(sessionLocal, constraintName);
         if (constraint == null || constraint.getConstraintType() != Type.DOMAIN
                 || ((ConstraintDomain) constraint).getDomain() != domain) {
             if (!ifConstraintExists) {
                 throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, constraintName);
             }
         } else {
-            session.getDatabase().removeSchemaObject(session, constraint);
+            sessionLocal.getDatabase().removeSchemaObject(sessionLocal, constraint);
         }
         return 0;
     }

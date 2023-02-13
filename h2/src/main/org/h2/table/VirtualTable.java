@@ -66,7 +66,7 @@ public abstract class VirtualTable extends Table {
     }
 
     @Override
-    public ArrayList<Index> getIndexes() {
+    public ArrayList<Index> getIndexList() {
         return null;
     }
 

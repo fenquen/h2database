@@ -83,10 +83,10 @@ public class UniquePredicate extends PredicateWithSubquery {
 
     @Override
     public Value getValue(SessionLocal session) {
-        query.setSession(session);
+        query.setSessionLocal(session);
         int columnCount = query.getColumnCount();
         LocalResult result = new LocalResult(session,
-                query.getExpressions().toArray(new Expression[0]), columnCount, columnCount);
+                query.getExpressionList().toArray(new Expression[0]), columnCount, columnCount);
         result.setDistinct();
         Target target = new Target(columnCount, result);
         query.query(Integer.MAX_VALUE, target);

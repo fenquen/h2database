@@ -37,7 +37,7 @@ public class Call extends Prepared {
     @Override
     public ResultInterface queryMeta() {
         int columnCount = expressions.length;
-        LocalResult result = new LocalResult(session, expressions, columnCount, columnCount);
+        LocalResult result = new LocalResult(sessionLocal, expressions, columnCount, columnCount);
         result.done();
         return result;
     }
@@ -49,7 +49,7 @@ public class Call extends Prepared {
             // methods returning a result set may not be called like this.
             return super.update();
         }
-        Value v = expression.getValue(session);
+        Value v = expression.getValue(sessionLocal);
         int type = v.getValueType();
         switch (type) {
         case Value.UNKNOWN:
@@ -64,10 +64,10 @@ public class Call extends Prepared {
     public ResultInterface query(long maxrows) {
         setCurrentRowNumber(1);
         if (tableFunction != null) {
-            return tableFunction.getValue(session);
+            return tableFunction.getValue(sessionLocal);
         }
-        LocalResult result = new LocalResult(session, expressions, 1, 1);
-        result.addRow(expression.getValue(session));
+        LocalResult result = new LocalResult(sessionLocal, expressions, 1, 1);
+        result.addRow(expression.getValue(sessionLocal));
         result.done();
         return result;
     }
@@ -76,21 +76,21 @@ public class Call extends Prepared {
     public void prepare() {
         if (tableFunction != null) {
             prepareAlways = true;
-            tableFunction.optimize(session);
-            ResultInterface result = tableFunction.getValueTemplate(session);
+            tableFunction.optimize(sessionLocal);
+            ResultInterface result = tableFunction.getValueTemplate(sessionLocal);
             int columnCount = result.getVisibleColumnCount();
             expressions = new Expression[columnCount];
             for (int i = 0; i < columnCount; i++) {
                 String name = result.getColumnName(i);
                 String alias = result.getAlias(i);
-                Expression e = new ExpressionColumn(session.getDatabase(), new Column(name, result.getColumnType(i)));
+                Expression e = new ExpressionColumn(sessionLocal.getDatabase(), new Column(name, result.getColumnType(i)));
                 if (!alias.equals(name)) {
                     e = new Alias(e, alias, false);
                 }
                 expressions[i] = e;
             }
         } else {
-            expressions = new Expression[] { expression = expression.optimize(session) };
+            expressions = new Expression[] { expression = expression.optimize(sessionLocal) };
         }
     }
 

@@ -84,7 +84,7 @@ abstract class ScriptBase extends Prepared {
 
     protected String getFileName() {
         if (fileNameExpr != null && fileName == null) {
-            fileName = fileNameExpr.optimize(session).getValue(session).getString();
+            fileName = fileNameExpr.optimize(sessionLocal).getValue(sessionLocal).getString();
             if (fileName == null || StringUtils.isWhitespaceOrEmpty(fileName)) {
                 fileName = "script.sql";
             }
@@ -111,11 +111,11 @@ abstract class ScriptBase extends Prepared {
     }
 
     private void initStore() {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         byte[] key = null;
         if (cipher != null && password != null) {
-            char[] pass = password.optimize(session).
-                    getValue(session).getString().toCharArray();
+            char[] pass = password.optimize(sessionLocal).
+                    getValue(sessionLocal).getString().toCharArray();
             key = SHA256.getKeyPasswordHash("script", pass);
         }
         String file = getFileName();

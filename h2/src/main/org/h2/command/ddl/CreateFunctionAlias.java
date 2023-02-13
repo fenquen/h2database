@@ -33,8 +33,8 @@ public class CreateFunctionAlias extends SchemaCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         Schema schema = getSchema();
         if (schema.findFunctionOrAggregate(aliasName) != null) {
             if (!ifNotExists) {
@@ -49,7 +49,7 @@ public class CreateFunctionAlias extends SchemaCommand {
                 functionAlias = FunctionAlias.newInstanceFromSource(schema, id, aliasName, source, force);
             }
             functionAlias.setDeterministic(deterministic);
-            db.addSchemaObject(session, functionAlias);
+            db.addSchemaObject(sessionLocal, functionAlias);
         }
         return 0;
     }

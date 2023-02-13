@@ -52,18 +52,18 @@ public class AlterTableSet extends SchemaCommand {
 
     @Override
     public long update() {
-        Table table = getSchema().resolveTableOrView(session, tableName);
+        Table table = getSchema().resolveTableOrView(sessionLocal, tableName);
         if (table == null) {
             if (ifTableExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
         }
-        session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
-        table.lock(session, Table.EXCLUSIVE_LOCK);
+        sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+        table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
         switch (type) {
         case CommandInterface.ALTER_TABLE_SET_REFERENTIAL_INTEGRITY:
-            table.setCheckForeignKeyConstraints(session, value, value ?
+            table.setCheckForeignKeyConstraints(sessionLocal, value, value ?
                     checkExisting : false);
             break;
         default:

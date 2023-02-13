@@ -36,8 +36,8 @@ public class CreateRole extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         RightOwner rightOwner = db.findUserOrRole(roleName);
         if (rightOwner != null) {
             if (rightOwner instanceof Role) {
@@ -50,7 +50,7 @@ public class CreateRole extends DefineCommand {
         }
         int id = getObjectId();
         Role role = new Role(db, id, roleName, false);
-        db.addDatabaseObject(session, role);
+        db.addDatabaseObject(sessionLocal, role);
         return 0;
     }
 

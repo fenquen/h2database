@@ -64,7 +64,7 @@ public final class ConditionInQuery extends PredicateWithSubquery {
     }
 
     private Value getValue(SessionLocal session, Value left) {
-        query.setSession(session);
+        query.setSessionLocal(session);
         LocalResult rows = (LocalResult) query.query(0);
         if (!rows.hasNext()) {
             return ValueBoolean.get(not ^ all);
@@ -150,9 +150,9 @@ public final class ConditionInQuery extends PredicateWithSubquery {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        left.mapColumns(resolver, level, state);
-        super.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        left.mapColumns(columnResolver, level, state);
+        super.mapColumns(columnResolver, level, state);
     }
 
     @Override
@@ -234,7 +234,7 @@ public final class ConditionInQuery extends PredicateWithSubquery {
             return;
         }
         TypeInfo colType = left.getType();
-        TypeInfo queryType = query.getExpressions().get(0).getType();
+        TypeInfo queryType = query.getExpressionList().get(0).getType();
         if (!TypeInfo.haveSameOrdering(colType, TypeInfo.getHigherType(colType, queryType))) {
             return;
         }

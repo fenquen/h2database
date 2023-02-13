@@ -71,25 +71,31 @@ public class CreateTable extends CommandWithColumns {
     public long update() {
         Schema schema = getSchema();
         boolean isSessionTemporary = data.temporary && !data.globalTemporary;
-        Database db = session.getDatabase();
-        String tableEngine = data.tableEngine;
+        Database db = sessionLocal.getDatabase();
+        String tableEngine = data.tableEngineName;
+
         if (tableEngine != null || db.getSettings().defaultTableEngine != null) {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
         } else if (!isSessionTemporary) {
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
         }
+
         if (!db.isPersistent()) {
             data.persistIndexes = false;
         }
+
         if (!isSessionTemporary) {
-            db.lockMeta(session);
+            db.lockMeta(sessionLocal);
         }
-        if (schema.resolveTableOrView(session, data.tableName) != null) {
+
+        if (schema.resolveTableOrView(sessionLocal, data.tableName) != null) {
             if (ifNotExists) {
                 return 0;
             }
+
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_ALREADY_EXISTS_1, data.tableName);
         }
+
         if (asQuery != null) {
             asQuery.prepare();
             if (data.columns.isEmpty()) {
@@ -101,36 +107,45 @@ public class CreateTable extends CommandWithColumns {
                 for (int i = 0; i < columns.size(); i++) {
                     Column column = columns.get(i);
                     if (column.getType().getValueType() == Value.UNKNOWN) {
-                        columns.set(i, new Column(column.getName(), asQuery.getExpressions().get(i).getType()));
+                        columns.set(i, new Column(column.getName(), asQuery.getExpressionList().get(i).getType()));
                     }
                 }
             }
         }
+
         changePrimaryKeysToNotNull(data.columns);
         data.id = getObjectId();
-        data.session = session;
+        data.session = sessionLocal;
+
         Table table = schema.createTable(data);
+
         ArrayList<Sequence> sequences = generateSequences(data.columns, data.temporary);
         table.setComment(comment);
+
         if (isSessionTemporary) {
             if (onCommitDrop) {
                 table.setOnCommitDrop(true);
             }
+
             if (onCommitTruncate) {
                 table.setOnCommitTruncate(true);
             }
-            session.addLocalTempTable(table);
+
+            sessionLocal.addLocalTempTable(table);
         } else {
-            db.lockMeta(session);
-            db.addSchemaObject(session, table);
+            db.lockMeta(sessionLocal);
+            db.addSchemaObject(sessionLocal, table);
         }
+
         try {
             for (Column c : data.columns) {
-                c.prepareExpressions(session);
+                c.prepareExpressions(sessionLocal);
             }
+
             for (Sequence sequence : sequences) {
                 table.addSequence(sequence);
             }
+
             createConstraints();
             HashSet<DbObject> set = new HashSet<>();
             table.addDependencies(set);
@@ -138,6 +153,7 @@ public class CreateTable extends CommandWithColumns {
                 if (obj == table) {
                     continue;
                 }
+
                 if (obj.getType() == DbObject.TABLE_OR_VIEW) {
                     if (obj instanceof Table) {
                         Table t = (Table) obj;
@@ -153,10 +169,11 @@ public class CreateTable extends CommandWithColumns {
                     }
                 }
             }
+
             if (asQuery != null && !withNoData) {
                 boolean flushSequences = false;
                 if (!isSessionTemporary) {
-                    db.unlockMeta(session);
+                    db.unlockMeta(sessionLocal);
                     for (Column c : table.getColumns()) {
                         Sequence s = c.getSequence();
                         if (s != null) {
@@ -165,24 +182,26 @@ public class CreateTable extends CommandWithColumns {
                         }
                     }
                 }
+
                 try {
-                    session.startStatementWithinTransaction(null);
-                    Insert insert = new Insert(session);
+                    sessionLocal.startStatementWithinTransaction(null);
+                    Insert insert = new Insert(sessionLocal);
                     insert.setQuery(asQuery);
                     insert.setTable(table);
                     insert.setInsertFromSelect(true);
                     insert.prepare();
                     insert.update();
                 } finally {
-                    session.endStatement();
+                    sessionLocal.endStatement();
                 }
+
                 if (flushSequences) {
-                    db.lockMeta(session);
+                    db.lockMeta(sessionLocal);
                     for (Column c : table.getColumns()) {
                         Sequence s = c.getSequence();
                         if (s != null) {
                             s.setTemporary(false);
-                            s.flush(session);
+                            s.flush(sessionLocal);
                         }
                     }
                 }
@@ -190,24 +209,26 @@ public class CreateTable extends CommandWithColumns {
         } catch (DbException e) {
             try {
                 db.checkPowerOff();
-                db.removeSchemaObject(session, table);
+                db.removeSchemaObject(sessionLocal, table);
                 if (!transactional) {
-                    session.commit(true);
+                    sessionLocal.commit(true);
                 }
             } catch (Throwable ex) {
                 e.addSuppressed(ex);
             }
+
             throw e;
         }
+
         return 0;
     }
 
     private void generateColumnsFromQuery() {
         int columnCount = asQuery.getColumnCount();
-        ArrayList<Expression> expressions = asQuery.getExpressions();
+        ArrayList<Expression> expressions = asQuery.getExpressionList();
         for (int i = 0; i < columnCount; i++) {
             Expression expr = expressions.get(i);
-            addColumn(new Column(expr.getColumnNameForView(session, i), expr.getType()));
+            addColumn(new Column(expr.getColumnNameForView(sessionLocal, i), expr.getType()));
         }
     }
 
@@ -249,7 +270,7 @@ public class CreateTable extends CommandWithColumns {
     }
 
     public void setTableEngine(String tableEngine) {
-        data.tableEngine = tableEngine;
+        data.tableEngineName = tableEngine;
     }
 
     public void setTableEngineParams(ArrayList<String> tableEngineParams) {

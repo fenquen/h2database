@@ -45,12 +45,12 @@ public class ExecuteProcedure extends Prepared {
 
     private void setParameters() {
         Prepared prepared = procedure.getPrepared();
-        ArrayList<Parameter> params = prepared.getParameters();
+        ArrayList<Parameter> params = prepared.getParameterList();
         for (int i = 0; params != null && i < params.size() &&
                 i < expressions.size(); i++) {
             Expression expr = expressions.get(i);
             Parameter p = params.get(i);
-            p.setValue(expr.getValue(session));
+            p.setValue(expr.getValue(sessionLocal));
         }
     }
 

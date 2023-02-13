@@ -77,7 +77,7 @@ public abstract class Table extends SchemaObject {
     /**
      * The columns of this table.
      */
-    protected Column[] columns;
+    public Column[] columns;
 
     /**
      * The compare mode used for this table.
@@ -101,7 +101,9 @@ public abstract class Table extends SchemaObject {
      */
     private final CopyOnWriteArrayList<TableView> dependentViews = new CopyOnWriteArrayList<>();
     private ArrayList<TableSynonym> synonyms;
-    /** Is foreign key constraint checking enabled for this table. */
+    /**
+     * Is foreign key constraint checking enabled for this table.
+     */
     private boolean checkForeignKeyConstraints = true;
     private boolean onCommitDrop, onCommitTruncate;
     private volatile Row nullRow;
@@ -134,7 +136,7 @@ public abstract class Table extends SchemaObject {
      * Lock the table for the given session.
      * This method waits until the lock is granted.
      *
-     * @param session the session
+     * @param session  the session
      * @param lockType the type of lock
      * @return true if the table was already exclusively locked by this session.
      * @throws DbException if a lock timeout occurred
@@ -161,24 +163,24 @@ public abstract class Table extends SchemaObject {
     /**
      * Create an index for this table
      *
-     * @param session the session
-     * @param indexName the name of the index
-     * @param indexId the id
-     * @param cols the index columns
+     * @param session           the session
+     * @param indexName         the name of the index
+     * @param indexId           the id
+     * @param cols              the index columns
      * @param uniqueColumnCount the count of unique columns
-     * @param indexType the index type
-     * @param create whether this is a new index
-     * @param indexComment the comment
+     * @param indexType         the index type
+     * @param create            whether this is a new index
+     * @param indexComment      the comment
      * @return the index
      */
     public abstract Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
-            int uniqueColumnCount, IndexType indexType, boolean create, String indexComment);
+                                   int uniqueColumnCount, IndexType indexType, boolean create, String indexComment);
 
     /**
      * Get the given row.
      *
      * @param session the session
-     * @param key the primary key
+     * @param key     the primary key
      * @return the row
      */
     @SuppressWarnings("unused")
@@ -199,7 +201,7 @@ public abstract class Table extends SchemaObject {
      * Remove a row from the table and all indexes.
      *
      * @param session the session
-     * @param row the row
+     * @param row     the row
      */
     public abstract void removeRow(SessionLocal session, Row row);
 
@@ -207,7 +209,7 @@ public abstract class Table extends SchemaObject {
      * Locks row, preventing any updated to it, except from the session specified.
      *
      * @param session the session
-     * @param row to lock
+     * @param row     to lock
      * @return locked row, or null if row does not exist anymore
      */
     public Row lockRow(SessionLocal session, Row row) {
@@ -226,7 +228,7 @@ public abstract class Table extends SchemaObject {
      * Add a row to the table and all indexes.
      *
      * @param session the session
-     * @param row the row
+     * @param row     the row
      * @throws DbException if a constraint was violated
      */
     public abstract void addRow(SessionLocal session, Row row);
@@ -235,8 +237,8 @@ public abstract class Table extends SchemaObject {
      * Update a row to the table and all indexes.
      *
      * @param session the session
-     * @param oldRow the row to update
-     * @param newRow the row with updated values (_rowid_ suppose to be the same)
+     * @param oldRow  the row to update
+     * @param newRow  the row with updated values (_rowid_ suppose to be the same)
      * @throws DbException if a constraint was violated
      */
     public void updateRow(SessionLocal session, Row oldRow, Row newRow) {
@@ -275,29 +277,21 @@ public abstract class Table extends SchemaObject {
     }
 
     /**
-     * Get the scan index to iterate through all rows.
-     *
-     * @param session the session
-     * @return the index
+     * scanIndex是表的原始物理的rowId之类 用来 table scan
      */
     public abstract Index getScanIndex(SessionLocal session);
 
     /**
-     * Get the scan index for this table.
-     *
-     * @param session the session
-     * @param masks the search mask
-     * @param filters the table filters
-     * @param filter the filter index
-     * @param sortOrder the sort order
-     * @param allColumnsSet all columns
-     * @return the scan index
+     * 为什么还有有tableFilters 应为这个table有可能是view由多个表构成的
      */
     @SuppressWarnings("unused")
-    public Index getScanIndex(SessionLocal session, int[] masks,
-            TableFilter[] filters, int filter, SortOrder sortOrder,
-            AllColumnsForPlan allColumnsSet) {
-        return getScanIndex(session);
+    public Index getScanIndex(SessionLocal sessionLocal,
+                              int[] masks,
+                              TableFilter[] tableFilters,
+                              int tableFiltersIndex,
+                              SortOrder sortOrder,
+                              AllColumnsForPlan allColumnsSet) {
+        return getScanIndex(sessionLocal);
     }
 
     /**
@@ -305,7 +299,7 @@ public abstract class Table extends SchemaObject {
      *
      * @return the list of indexes
      */
-    public abstract ArrayList<Index> getIndexes();
+    public abstract ArrayList<Index> getIndexList();
 
     /**
      * Get an index by name.
@@ -314,7 +308,7 @@ public abstract class Table extends SchemaObject {
      * @return the found index
      */
     public Index getIndex(String indexName) {
-        ArrayList<Index> indexes = getIndexes();
+        ArrayList<Index> indexes = getIndexList();
         if (indexes != null) {
             for (Index index : indexes) {
                 if (index.getName().equals(indexName)) {
@@ -418,30 +412,34 @@ public abstract class Table extends SchemaObject {
      * @param dependencies the current set of dependencies
      */
     public void addDependencies(HashSet<DbObject> dependencies) {
+        // avoid endless recursion
         if (dependencies.contains(this)) {
-            // avoid endless recursion
             return;
         }
+
         if (sequences != null) {
             dependencies.addAll(sequences);
         }
-        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(
-                dependencies);
+
+        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
+
         for (Column col : columns) {
             col.isEverything(visitor);
         }
+
         if (constraints != null) {
             for (Constraint c : constraints) {
                 c.isEverything(visitor);
             }
         }
+
         dependencies.add(this);
     }
 
     @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = Utils.newSmallArrayList();
-        ArrayList<Index> indexes = getIndexes();
+        ArrayList<Index> indexes = getIndexList();
         if (indexes != null) {
             children.addAll(indexes);
         }
@@ -494,7 +492,7 @@ public abstract class Table extends SchemaObject {
     /**
      * Rename a column of this table.
      *
-     * @param column the column to rename
+     * @param column  the column to rename
      * @param newName the new column name
      */
     public void renameColumn(Column column, String newName) {
@@ -527,9 +525,9 @@ public abstract class Table extends SchemaObject {
      * Update a list of rows in this table.
      *
      * @param prepared the prepared statement
-     * @param session the session
-     * @param rows a list of row pairs of the form old row, new row, old row,
-     *            new row,...
+     * @param session  the session
+     * @param rows     a list of row pairs of the form old row, new row, old row,
+     *                 new row,...
      */
     public void updateRows(Prepared prepared, SessionLocal session, LocalResult rows) {
         // in case we need to undo the update
@@ -617,13 +615,13 @@ public abstract class Table extends SchemaObject {
      * or multi-column index. If it is, an exception is thrown. Single-column
      * references and indexes are dropped.
      *
-     * @param session the session
+     * @param session       the session
      * @param columnsToDrop the columns to drop
      * @throws DbException if the column is referenced by multi-column
-     *             constraints or indexes
+     *                     constraints or indexes
      */
     public void dropMultipleColumnsConstraintsAndIndexes(SessionLocal session,
-            ArrayList<Column> columnsToDrop) {
+                                                         ArrayList<Column> columnsToDrop) {
         HashSet<Constraint> constraintsToDrop = new HashSet<>();
         if (constraints != null) {
             for (Column col : columnsToDrop) {
@@ -641,7 +639,7 @@ public abstract class Table extends SchemaObject {
             }
         }
         HashSet<Index> indexesToDrop = new HashSet<>();
-        ArrayList<Index> indexes = getIndexes();
+        ArrayList<Index> indexes = getIndexList();
         if (indexes != null) {
             for (Column col : columnsToDrop) {
                 for (Index index : indexes) {
@@ -667,7 +665,7 @@ public abstract class Table extends SchemaObject {
         for (Index i : indexesToDrop) {
             // the index may already have been dropped when dropping the
             // constraint
-            if (getIndexes().contains(i)) {
+            if (getIndexList().contains(i)) {
                 session.getDatabase().removeSchemaObject(session, i);
             }
         }
@@ -680,7 +678,7 @@ public abstract class Table extends SchemaObject {
     /**
      * Create a new row for this table.
      *
-     * @param data the values
+     * @param data   the values
      * @param memory the estimated memory usage in bytes
      * @return the created row
      */
@@ -755,7 +753,7 @@ public abstract class Table extends SchemaObject {
      * Get the column with the given name.
      *
      * @param columnName the column name
-     * @param ifExists if {@code true} return {@code null} if column does not exist
+     * @param ifExists   if {@code true} return {@code null} if column does not exist
      * @return the column
      * @throws DbException if the column was not found
      */
@@ -804,50 +802,57 @@ public abstract class Table extends SchemaObject {
     /**
      * Get the best plan for the given search mask.
      *
-     * @param session the session
-     * @param masks per-column comparison bit masks, null means 'always false',
-     *              see constants in IndexCondition
-     * @param filters all joined table filters
-     * @param filter the current table filter index
-     * @param sortOrder the sort order
+     * @param sessionLocal       the session
+     * @param masks         per-column comparison bit masks, null means 'always false',
+     *                      see constants in IndexCondition
+     * @param filters       all joined table filters
+     * @param filter        the current table filter index
+     * @param sortOrder     the sort order
      * @param allColumnsSet the set of all columns
      * @return the plan item
      */
-    public PlanItem getBestPlanItem(SessionLocal session, int[] masks,
-            TableFilter[] filters, int filter, SortOrder sortOrder,
-            AllColumnsForPlan allColumnsSet) {
-        PlanItem item = new PlanItem();
-        item.setIndex(getScanIndex(session));
-        item.cost = item.getIndex().getCost(session, null, filters, filter, null, allColumnsSet);
-        Trace t = session.getTrace();
+    public PlanItem getBestPlanItem(SessionLocal sessionLocal,
+                                    int[] masks,
+                                    TableFilter[] filters,
+                                    int filter,
+                                    SortOrder sortOrder,
+                                    AllColumnsForPlan allColumnsSet) {
+        PlanItem planItem = new PlanItem();
+
+        // 最烂的全表scan的cost
+        planItem.index = getScanIndex(sessionLocal);
+        planItem.cost = planItem.index.getCost(sessionLocal, null, filters, filter, null, allColumnsSet);
+
+        Trace t = sessionLocal.getTrace();
         if (t.isDebugEnabled()) {
-            t.debug("Table      :     potential plan item cost {0} index {1}",
-                    item.cost, item.getIndex().getPlanSQL());
+            t.debug("Table:potential plan item cost {0} index {1}", planItem.cost, planItem.getIndex().getPlanSQL());
         }
-        ArrayList<Index> indexes = getIndexes();
+
+        ArrayList<Index> indexList = getIndexList();
         IndexHints indexHints = getIndexHints(filters, filter);
 
-        if (indexes != null && masks != null) {
-            for (int i = 1, size = indexes.size(); i < size; i++) {
-                Index index = indexes.get(i);
+        if (indexList != null && masks != null) {
+            for (int i = 1, size = indexList.size(); i < size; i++) {
+                Index index = indexList.get(i);
 
                 if (isIndexExcludedByHints(indexHints, index)) {
                     continue;
                 }
 
-                double cost = index.getCost(session, masks, filters, filter,
-                        sortOrder, allColumnsSet);
+                double cost = index.getCost(sessionLocal, masks, filters, filter, sortOrder, allColumnsSet);
+
                 if (t.isDebugEnabled()) {
-                    t.debug("Table      :     potential plan item cost {0} index {1}",
-                            cost, index.getPlanSQL());
+                    t.debug("Table : potential plan item cost {0} index {1}", cost, index.getPlanSQL());
                 }
-                if (cost < item.cost) {
-                    item.cost = cost;
-                    item.setIndex(index);
+
+                if (cost < planItem.cost) {
+                    planItem.cost = cost;
+                    planItem.index = index;
                 }
             }
         }
-        return item;
+
+        return planItem;
     }
 
     private static boolean isIndexExcludedByHints(IndexHints indexHints, Index index) {
@@ -864,7 +869,7 @@ public abstract class Table extends SchemaObject {
      * @return the primary key index or null
      */
     public Index findPrimaryKey() {
-        ArrayList<Index> indexes = getIndexes();
+        ArrayList<Index> indexes = getIndexList();
         if (indexes != null) {
             for (Index idx : indexes) {
                 if (idx.getIndexType().isPrimaryKey()) {
@@ -886,17 +891,16 @@ public abstract class Table extends SchemaObject {
 
     /**
      * Prepares the specified row for INSERT operation.
-     *
+     * <p>
      * Identity, default, and generated values are evaluated, all values are
      * converted to target data types and validated. Base value of identity
      * column is updated when required by compatibility mode.
      *
-     * @param session the session
-     * @param overridingSystem
-     *            {@link Boolean#TRUE} for {@code OVERRIDING SYSTEM VALUES},
-     *            {@link Boolean#FALSE} for {@code OVERRIDING USER VALUES},
-     *            {@code null} if override clause is not specified
-     * @param row the row
+     * @param session          the session
+     * @param overridingSystem {@link Boolean#TRUE} for {@code OVERRIDING SYSTEM VALUES},
+     *                         {@link Boolean#FALSE} for {@code OVERRIDING USER VALUES},
+     *                         {@code null} if override clause is not specified
+     * @param row              the row
      */
     public void convertInsertRow(SessionLocal session, Row row, Boolean overridingSystem) {
         int length = columns.length, generated = 0;
@@ -940,13 +944,13 @@ public abstract class Table extends SchemaObject {
 
     /**
      * Prepares the specified row for UPDATE operation.
-     *
+     * <p>
      * Default and generated values are evaluated, all values are converted to
      * target data types and validated. Base value of identity column is updated
      * when required by compatibility mode.
      *
-     * @param session the session
-     * @param row the row
+     * @param session     the session
+     * @param row         the row
      * @param fromTrigger {@code true} if row was modified by INSERT or UPDATE trigger
      */
     public void convertUpdateRow(SessionLocal session, Row row, boolean fromTrigger) {
@@ -992,7 +996,7 @@ public abstract class Table extends SchemaObject {
      * @param index the index to remove
      */
     public void removeIndex(Index index) {
-        ArrayList<Index> indexes = getIndexes();
+        ArrayList<Index> indexes = getIndexList();
         if (indexes != null) {
             remove(indexes, index);
             if (index.getIndexType().isPrimaryKey()) {
@@ -1111,8 +1115,8 @@ public abstract class Table extends SchemaObject {
     /**
      * Fire the triggers for this table.
      *
-     * @param session the session
-     * @param type the trigger type
+     * @param session      the session
+     * @param type         the trigger type
      * @param beforeAction whether 'before' triggers should be called
      */
     public void fire(SessionLocal session, int type, boolean beforeAction) {
@@ -1143,7 +1147,7 @@ public abstract class Table extends SchemaObject {
      * Check if row based triggers or constraints are defined.
      * In this case the fire after and before row methods need to be called.
      *
-     *  @return if there are any triggers or rows defined
+     * @return if there are any triggers or rows defined
      */
     public boolean fireRow() {
         return (constraints != null && !constraints.isEmpty()) ||
@@ -1154,8 +1158,8 @@ public abstract class Table extends SchemaObject {
      * Fire all triggers that need to be called before a row is updated.
      *
      * @param session the session
-     * @param oldRow the old data or null for an insert
-     * @param newRow the new data or null for a delete
+     * @param oldRow  the old data or null for an insert
+     * @param newRow  the new data or null for a delete
      * @return true if no further action is required (for 'instead of' triggers)
      */
     public boolean fireBeforeRow(SessionLocal session, Row oldRow, Row newRow) {
@@ -1165,7 +1169,7 @@ public abstract class Table extends SchemaObject {
     }
 
     private void fireConstraints(SessionLocal session, Row oldRow, Row newRow,
-            boolean before) {
+                                 boolean before) {
         if (constraints != null) {
             for (Constraint constraint : constraints) {
                 if (constraint.isBefore() == before) {
@@ -1178,13 +1182,13 @@ public abstract class Table extends SchemaObject {
     /**
      * Fire all triggers that need to be called after a row is updated.
      *
-     *  @param session the session
-     *  @param oldRow the old data or null for an insert
-     *  @param newRow the new data or null for a delete
-     *  @param rollback when the operation occurred within a rollback
+     * @param session  the session
+     * @param oldRow   the old data or null for an insert
+     * @param newRow   the new data or null for a delete
+     * @param rollback when the operation occurred within a rollback
      */
     public void fireAfterRow(SessionLocal session, Row oldRow, Row newRow,
-            boolean rollback) {
+                             boolean rollback) {
         fireRow(session, oldRow, newRow, false, rollback);
         if (!rollback) {
             fireConstraints(session, oldRow, newRow, false);
@@ -1192,7 +1196,7 @@ public abstract class Table extends SchemaObject {
     }
 
     private boolean fireRow(SessionLocal session, Row oldRow, Row newRow,
-            boolean beforeAction, boolean rollback) {
+                            boolean beforeAction, boolean rollback) {
         if (triggers != null) {
             for (TriggerObject trigger : triggers) {
                 boolean done = trigger.fireRow(session, this, oldRow, newRow, beforeAction, rollback);
@@ -1220,10 +1224,10 @@ public abstract class Table extends SchemaObject {
     /**
      * Enable or disable foreign key constraint checking for this table.
      *
-     * @param session the session
-     * @param enabled true if checking should be enabled
+     * @param session       the session
+     * @param enabled       true if checking should be enabled
      * @param checkExisting true if existing rows must be checked during this
-     *            call
+     *                      call
      */
     public void setCheckForeignKeyConstraints(SessionLocal session, boolean enabled, boolean checkExisting) {
         if (enabled && checkExisting) {
@@ -1249,16 +1253,16 @@ public abstract class Table extends SchemaObject {
      * Get the index that has the given column as the first element.
      * This method returns null if no matching index is found.
      *
-     * @param column the column
+     * @param column             the column
      * @param needGetFirstOrLast if the returned index must be able
-     *          to do {@link Index#canGetFirstOrLast()}
-     * @param needFindNext if the returned index must be able to do
-     *          {@link Index#findNext(SessionLocal, SearchRow, SearchRow)}
+     *                           to do {@link Index#canGetFirstOrLast()}
+     * @param needFindNext       if the returned index must be able to do
+     *                           {@link Index#findNext(SessionLocal, SearchRow, SearchRow)}
      * @return the index or null
      */
     public Index getIndexForColumn(Column column,
-            boolean needGetFirstOrLast, boolean needFindNext) {
-        ArrayList<Index> indexes = getIndexes();
+                                   boolean needGetFirstOrLast, boolean needFindNext) {
+        ArrayList<Index> indexes = getIndexList();
         Index result = null;
         if (indexes != null) {
             for (int i = 1, size = indexes.size(); i < size; i++) {
@@ -1302,7 +1306,7 @@ public abstract class Table extends SchemaObject {
      * it. Otherwise, the index is removed.
      *
      * @param session the session
-     * @param index the index that is no longer required
+     * @param index   the index that is no longer required
      */
     public void removeIndexOrTransferOwnership(SessionLocal session, Index index) {
         boolean stillNeeded = false;
@@ -1342,16 +1346,16 @@ public abstract class Table extends SchemaObject {
      * the circle, or if no deadlock is detected, this method returns null.
      *
      * @param session the session to be tested for
-     * @param clash set with sessions already visited, and null when starting
-     *            verification
+     * @param clash   set with sessions already visited, and null when starting
+     *                verification
      * @param visited set with sessions already visited, and null when starting
-     *            verification
+     *                verification
      * @return an object array with the sessions involved in the deadlock, or
-     *         null
+     * null
      */
     @SuppressWarnings("unused")
     public ArrayList<SessionLocal> checkDeadlock(SessionLocal session, SessionLocal clash,
-            Set<SessionLocal> visited) {
+                                                 Set<SessionLocal> visited) {
         return null;
     }
 
@@ -1368,10 +1372,10 @@ public abstract class Table extends SchemaObject {
      * different type.
      *
      * @param provider the cast information provider
-     * @param a the first value
-     * @param b the second value
+     * @param a        the first value
+     * @param b        the second value
      * @return 0 if both values are equal, -1 if the first value is smaller, and
-     *         1 otherwise
+     * 1 otherwise
      */
     public int compareValues(CastDataProvider provider, Value a, Value b) {
         return a.compareTo(b, provider, compareMode);
@@ -1401,6 +1405,7 @@ public abstract class Table extends SchemaObject {
 
     /**
      * Views, function tables, links, etc. do not support locks
+     *
      * @return true if table supports row-level locks
      */
     public boolean isRowLockable() {

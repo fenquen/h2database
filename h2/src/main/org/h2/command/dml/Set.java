@@ -83,11 +83,11 @@ public class Set extends Prepared {
 
     @Override
     public long update() {
-        Database database = session.getDatabase();
+        Database database = sessionLocal.getDatabase();
         String name = SetTypes.getTypeName(type);
         switch (type) {
         case SetTypes.ALLOW_LITERALS: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0 || value > 2) {
                 throw DbException.getInvalidValueException("ALLOW_LITERALS", value);
@@ -99,7 +99,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.CACHE_SIZE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("CACHE_SIZE", value);
@@ -121,7 +121,7 @@ public class Set extends Prepared {
                 if (!value.equals(Constants.CLUSTERING_DISABLED)) {
                     // anybody can disable the cluster
                     // (if he can't access a cluster node)
-                    session.getUser().checkAdmin();
+                    sessionLocal.getUser().checkAdmin();
                 }
                 database.setCluster(value);
                 // use the system session so that the current transaction
@@ -137,7 +137,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.COLLATION: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             CompareMode compareMode;
             StringBuilder buff = new StringBuilder(stringValue);
             if (stringValue.equals(CompareMode.OFF)) {
@@ -171,7 +171,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.CREATE_BUILD: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             if (database.isStarting()) {
                 // just ignore the command if not starting
                 // this avoids problems when running recovery scripts
@@ -183,12 +183,12 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.DATABASE_EVENT_LISTENER: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             database.setEventListenerClass(stringValue);
             break;
         }
         case SetTypes.DB_CLOSE_DELAY: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value == -1) {
                 // -1 is a special value for in-memory databases,
@@ -204,7 +204,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.DEFAULT_LOCK_TIMEOUT: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("DEFAULT_LOCK_TIMEOUT", value);
@@ -215,7 +215,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.DEFAULT_TABLE_TYPE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             synchronized (database) {
                 database.setDefaultTableType(value);
@@ -224,21 +224,21 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.EXCLUSIVE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             switch (value) {
             case 0:
-                if (!database.unsetExclusiveSession(session)) {
+                if (!database.unsetExclusiveSession(sessionLocal)) {
                     throw DbException.get(ErrorCode.DATABASE_IS_IN_EXCLUSIVE_MODE);
                 }
                 break;
             case 1:
-                if (!database.setExclusiveSession(session, false)) {
+                if (!database.setExclusiveSession(sessionLocal, false)) {
                     throw DbException.get(ErrorCode.DATABASE_IS_IN_EXCLUSIVE_MODE);
                 }
                 break;
             case 2:
-                if (!database.setExclusiveSession(session, true)) {
+                if (!database.setExclusiveSession(sessionLocal, true)) {
                     throw DbException.get(ErrorCode.DATABASE_IS_IN_EXCLUSIVE_MODE);
                 }
                 break;
@@ -248,7 +248,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.JAVA_OBJECT_SERIALIZER: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             synchronized (database) {
                 Table table = database.getFirstUserTable();
                 if (table != null) {
@@ -261,7 +261,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.IGNORECASE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             synchronized (database) {
                 database.setIgnoreCase(value == 1);
@@ -270,7 +270,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.LOCK_MODE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             synchronized (database) {
                 database.setLockMode(value);
@@ -283,11 +283,11 @@ public class Set extends Prepared {
             if (value < 0) {
                 throw DbException.getInvalidValueException("LOCK_TIMEOUT", value);
             }
-            session.setLockTimeout(value);
+            sessionLocal.setLockTimeout(value);
             break;
         }
         case SetTypes.MAX_LENGTH_INPLACE_LOB: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("MAX_LENGTH_INPLACE_LOB", value);
@@ -299,7 +299,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.MAX_LOG_SIZE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("MAX_LOG_SIZE", value);
@@ -307,7 +307,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.MAX_MEMORY_ROWS: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("MAX_MEMORY_ROWS", value);
@@ -319,7 +319,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.MAX_MEMORY_UNDO: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("MAX_MEMORY_UNDO", value);
@@ -330,7 +330,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.MAX_OPERATION_MEMORY: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("MAX_OPERATION_MEMORY", value);
@@ -344,13 +344,13 @@ public class Set extends Prepared {
                 throw DbException.get(ErrorCode.UNKNOWN_MODE_1, stringValue);
             }
             if (database.getMode() != mode) {
-                session.getUser().checkAdmin();
+                sessionLocal.getUser().checkAdmin();
                 database.setMode(mode);
             }
             break;
         }
         case SetTypes.OPTIMIZE_REUSE_RESULTS: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             database.setOptimizeReuseResults(getIntValue() != 0);
             break;
         }
@@ -359,7 +359,7 @@ public class Set extends Prepared {
             if (value < 0) {
                 throw DbException.getInvalidValueException("QUERY_TIMEOUT", value);
             }
-            session.setQueryTimeout(value);
+            sessionLocal.setQueryTimeout(value);
             break;
         }
         case SetTypes.REDO_LOG_BINARY: {
@@ -367,7 +367,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.REFERENTIAL_INTEGRITY: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0 || value > 1) {
                 throw DbException.getInvalidValueException("REFERENTIAL_INTEGRITY", value);
@@ -376,7 +376,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.QUERY_STATISTICS: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0 || value > 1) {
                 throw DbException.getInvalidValueException("QUERY_STATISTICS", value);
@@ -385,7 +385,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.QUERY_STATISTICS_MAX_ENTRIES: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 1) {
                 throw DbException.getInvalidValueException("QUERY_STATISTICS_MAX_ENTRIES", value);
@@ -394,17 +394,17 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.SCHEMA: {
-            Schema schema = database.getSchema(expression.optimize(session).getValue(session).getString());
-            session.setCurrentSchema(schema);
+            Schema schema = database.getSchema(expression.optimize(sessionLocal).getValue(sessionLocal).getString());
+            sessionLocal.setCurrentSchema(schema);
             break;
         }
         case SetTypes.SCHEMA_SEARCH_PATH: {
-            session.setSchemaSearchPath(stringValueList);
+            sessionLocal.setSchemaSearchPath(stringValueList);
             break;
         }
         case SetTypes.CATALOG: {
             String shortName = database.getShortName();
-            String value = expression.optimize(session).getValue(session).getString();
+            String value = expression.optimize(sessionLocal).getValue(sessionLocal).getString();
             if (value == null || !database.equalsIdentifiers(shortName, value)
                     && !database.equalsIdentifiers(shortName, value.trim())) {
                 throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_1, stringValue);
@@ -412,7 +412,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.TRACE_LEVEL_FILE:
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             if (getPersistedObjectId() == 0) {
                 // don't set the property when opening the database
                 // this is for compatibility with older versions, because
@@ -421,7 +421,7 @@ public class Set extends Prepared {
             }
             break;
         case SetTypes.TRACE_LEVEL_SYSTEM_OUT:
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             if (getPersistedObjectId() == 0) {
                 // don't set the property when opening the database
                 // this is for compatibility with older versions, because
@@ -430,7 +430,7 @@ public class Set extends Prepared {
             }
             break;
         case SetTypes.TRACE_MAX_FILE_SIZE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("TRACE_MAX_FILE_SIZE", value);
@@ -447,16 +447,16 @@ public class Set extends Prepared {
             if (value < 0) {
                 throw DbException.getInvalidValueException("THROTTLE", value);
             }
-            session.setThrottle(value);
+            sessionLocal.setThrottle(value);
             break;
         }
         case SetTypes.VARIABLE: {
-            Expression expr = expression.optimize(session);
-            session.setVariable(stringValue, expr.getValue(session));
+            Expression expr = expression.optimize(sessionLocal);
+            sessionLocal.setVariable(stringValue, expr.getValue(sessionLocal));
             break;
         }
         case SetTypes.WRITE_DELAY: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("WRITE_DELAY", value);
@@ -468,7 +468,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.RETENTION_TIME: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value < 0) {
                 throw DbException.getInvalidValueException("RETENTION_TIME", value);
@@ -485,11 +485,11 @@ public class Set extends Prepared {
                 throw DbException.getInvalidValueException("LAZY_QUERY_EXECUTION",
                         value);
             }
-            session.setLazyQueryExecution(value == 1);
+            sessionLocal.setLazyQueryExecution(value == 1);
             break;
         }
         case SetTypes.BUILTIN_ALIAS_OVERRIDE: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             if (value != 0 && value != 1) {
                 throw DbException.getInvalidValueException("BUILTIN_ALIAS_OVERRIDE",
@@ -499,8 +499,8 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.AUTHENTICATOR: {
-            session.getUser().checkAdmin();
-            boolean value = expression.optimize(session).getBooleanValue(session);
+            sessionLocal.getUser().checkAdmin();
+            boolean value = expression.optimize(sessionLocal).getBooleanValue(sessionLocal);
             try {
                 synchronized (database) {
                     if (value) {
@@ -522,7 +522,7 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.IGNORE_CATALOGS: {
-            session.getUser().checkAdmin();
+            sessionLocal.getUser().checkAdmin();
             int value = getIntValue();
             synchronized (database) {
                 database.setIgnoreCatalogs(value == 1);
@@ -531,14 +531,14 @@ public class Set extends Prepared {
             break;
         }
         case SetTypes.NON_KEYWORDS:
-            session.setNonKeywords(Parser.parseNonKeywords(stringValueList));
+            sessionLocal.setNonKeywords(Parser.parseNonKeywords(stringValueList));
             break;
         case SetTypes.TIME_ZONE:
-            session.setTimeZone(expression == null ? DateTimeUtils.getTimeZone()
-                    : parseTimeZone(expression.getValue(session)));
+            sessionLocal.setTimeZone(expression == null ? DateTimeUtils.getTimeZone()
+                    : parseTimeZone(expression.getValue(sessionLocal)));
             break;
         case SetTypes.VARIABLE_BINARY:
-            session.setVariableBinary(expression.getBooleanValue(session));
+            sessionLocal.setVariableBinary(expression.getBooleanValue(sessionLocal));
             break;
         case SetTypes.DEFAULT_NULL_ORDERING: {
             DefaultNullOrdering defaultNullOrdering;
@@ -548,13 +548,13 @@ public class Set extends Prepared {
                 throw DbException.getInvalidValueException("DEFAULT_NULL_ORDERING", stringValue);
             }
             if (database.getDefaultNullOrdering() != defaultNullOrdering) {
-                session.getUser().checkAdmin();
+                sessionLocal.getUser().checkAdmin();
                 database.setDefaultNullOrdering(defaultNullOrdering);
             }
             break;
         }
         case SetTypes.TRUNCATE_LARGE_LENGTH:
-            session.setTruncateLargeLength(expression.getBooleanValue(session));
+            sessionLocal.setTruncateLargeLength(expression.getBooleanValue(sessionLocal));
             break;
         default:
             throw DbException.getInternalError("type="+type);
@@ -583,8 +583,8 @@ public class Set extends Prepared {
     }
 
     private int getIntValue() {
-        expression = expression.optimize(session);
-        return expression.getValue(session).getInt();
+        expression = expression.optimize(sessionLocal);
+        return expression.getValue(sessionLocal).getInt();
     }
 
     public void setInt(int value) {
@@ -596,7 +596,7 @@ public class Set extends Prepared {
     }
 
     private void addOrUpdateSetting(String name, String s, int v) {
-        addOrUpdateSetting(session, name, s, v);
+        addOrUpdateSetting(sessionLocal, name, s, v);
     }
 
     private void addOrUpdateSetting(SessionLocal session, String name, String s, int v) {

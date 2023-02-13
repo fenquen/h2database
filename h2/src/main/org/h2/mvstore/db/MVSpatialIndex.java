@@ -106,7 +106,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
         spatialMap = db.getStore().getMvStore().openMap(mapName, mapBuilder);
         Transaction t = mvTable.getTransactionBegin();
         dataMap = t.openMapX(spatialMap);
-        dataMap.map.setVolatile(!table.isPersistData() || !indexType.isPersistent());
+        dataMap.mvMap.setVolatile(!table.isPersistData() || !indexType.isPersistent());
         t.commit();
     }
 
@@ -367,7 +367,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
 
     @Override
     public MVMap<Spatial, VersionedValue<Value>> getMVMap() {
-        return dataMap.map;
+        return dataMap.mvMap;
     }
 
 

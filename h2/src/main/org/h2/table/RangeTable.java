@@ -101,7 +101,7 @@ public class RangeTable extends VirtualTable {
     }
 
     @Override
-    public ArrayList<Index> getIndexes() {
+    public ArrayList<Index> getIndexList() {
         ArrayList<Index> list = new ArrayList<>(2);
         // Scan index (ignored by MIN/MAX optimization)
         list.add(index);

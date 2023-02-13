@@ -1254,7 +1254,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
 
     private void getIndexInfo(Value catalogValue, Value schemaValue, Table table, boolean unique, boolean approximate,
             SimpleResult result, Database db) {
-        ArrayList<Index> indexes = table.getIndexes();
+        ArrayList<Index> indexes = table.getIndexList();
         if (indexes != null) {
             for (Index index : indexes) {
                 if (index.getCreateSQL() == null) {

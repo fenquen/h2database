@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
+
 import org.h2.engine.SysProperties;
 import org.h2.mvstore.db.MVTable;
 
@@ -65,8 +66,8 @@ public class ThreadDeadlockDetector {
         if (deadlockedThreadIds == null) {
             return;
         }
-        dumpThreadsAndLocks("ThreadDeadlockDetector - deadlock found :",
-                threadBean, deadlockedThreadIds, System.out);
+
+        dumpThreadsAndLocks("ThreadDeadlockDetector - deadlock found :", threadBean, deadlockedThreadIds, System.out);
     }
 
     /**
@@ -90,8 +91,10 @@ public class ThreadDeadlockDetector {
         dumpThreadsAndLocks(msg, threadBean, allThreadIds, out);
     }
 
-    private static void dumpThreadsAndLocks(String msg, ThreadMXBean threadBean,
-            long[] threadIds, PrintStream out) {
+    private static void dumpThreadsAndLocks(String msg,
+                                            ThreadMXBean threadBean,
+                                            long[] threadIds,
+                                            PrintStream out) {
         final StringWriter stringWriter = new StringWriter();
         final PrintWriter print = new PrintWriter(stringWriter);
 
@@ -113,9 +116,8 @@ public class ThreadDeadlockDetector {
             tableSharedLocksMap = new HashMap<>();
         }
 
-        final ThreadInfo[] infos = threadBean.getThreadInfo(threadIds, true,
-                true);
-        for (ThreadInfo ti : infos) {
+        final ThreadInfo[] threadInfos = threadBean.getThreadInfo(threadIds, true, true);
+        for (ThreadInfo ti : threadInfos) {
             printThreadInfo(print, ti);
             printLockInfo(print, ti.getLockedSynchronizers(),
                     tableWaitingForLockMap.get(ti.getThreadId()),
@@ -169,9 +171,9 @@ public class ThreadDeadlockDetector {
     }
 
     private static void printLockInfo(PrintWriter print, LockInfo[] locks,
-            String tableWaitingForLock,
-            ArrayList<String> tableExclusiveLocks,
-            ArrayList<String> tableSharedLocksMap) {
+                                      String tableWaitingForLock,
+                                      ArrayList<String> tableExclusiveLocks,
+                                      ArrayList<String> tableSharedLocksMap) {
         print.println(INDENT + "Locked synchronizers: count = " + locks.length);
         for (LockInfo li : locks) {
             print.println(INDENT + "  - " + li);

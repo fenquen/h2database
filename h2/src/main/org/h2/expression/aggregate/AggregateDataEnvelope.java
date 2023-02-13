@@ -41,7 +41,7 @@ final class AggregateDataEnvelope extends AggregateData {
             if (column.getType().getValueType() == Value.GEOMETRY) {
                 TableFilter filter = col.getTableFilter();
                 if (filter != null) {
-                    ArrayList<Index> indexes = filter.getTable().getIndexes();
+                    ArrayList<Index> indexes = filter.getTable().getIndexList();
                     if (indexes != null) {
                         for (int i = 1, size = indexes.size(); i < size; i++) {
                             Index index = indexes.get(i);

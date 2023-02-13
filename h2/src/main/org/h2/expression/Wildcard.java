@@ -74,10 +74,10 @@ public final class Wildcard extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
         if (exceptColumns != null) {
             for (ExpressionColumn column : exceptColumns) {
-                column.mapColumns(resolver, level, state);
+                column.mapColumns(columnResolver, level, state);
             }
         }
     }

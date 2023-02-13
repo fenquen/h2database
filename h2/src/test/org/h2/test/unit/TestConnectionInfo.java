@@ -78,7 +78,7 @@ public class TestConnectionInfo extends TestDb {
                 differentFileSeparator + "subDir");
         File file = new File("test" + File.separatorChar + "subDir");
         assertEquals(file.getCanonicalPath().replace('\\', '/'),
-                connectionInfo.getName());
+                connectionInfo.getDatabasePath());
     }
 
 }

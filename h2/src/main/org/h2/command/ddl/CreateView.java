@@ -79,9 +79,9 @@ public class CreateView extends SchemaOwnerCommand {
 
     @Override
     long update(Schema schema) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         TableView view = null;
-        Table old = schema.findTableOrView(session, viewName);
+        Table old = schema.findTableOrView(sessionLocal, viewName);
         if (old != null) {
             if (ifNotExists) {
                 return 0;
@@ -96,7 +96,7 @@ public class CreateView extends SchemaOwnerCommand {
         if (select == null) {
             querySQL = selectSQL;
         } else {
-            ArrayList<Parameter> params = select.getParameters();
+            ArrayList<Parameter> params = select.getParameterList();
             if (params != null && !params.isEmpty()) {
                 throw DbException.getUnsupportedException("parameters in views");
             }
@@ -117,25 +117,25 @@ public class CreateView extends SchemaOwnerCommand {
         if (view == null) {
             if (isTableExpression) {
                 view = TableView.createTableViewMaybeRecursive(schema, id, viewName, querySQL, null,
-                        columnTemplatesAsStrings, session, false /* literalsChecked */, isTableExpression,
+                        columnTemplatesAsStrings, sessionLocal, false /* literalsChecked */, isTableExpression,
                         false/*isTemporary*/, db);
             } else {
-                view = new TableView(schema, id, viewName, querySQL, null, columnTemplatesAsUnknowns, session,
+                view = new TableView(schema, id, viewName, querySQL, null, columnTemplatesAsUnknowns, sessionLocal,
                         false, false, isTableExpression, false);
             }
         } else {
             // TODO support isTableExpression in replace function...
-            view.replace(querySQL, columnTemplatesAsUnknowns, session, false, force, false);
+            view.replace(querySQL, columnTemplatesAsUnknowns, sessionLocal, false, force, false);
             view.setModified();
         }
         if (comment != null) {
             view.setComment(comment);
         }
         if (old == null) {
-            db.addSchemaObject(session, view);
-            db.unlockMeta(session);
+            db.addSchemaObject(sessionLocal, view);
+            db.unlockMeta(sessionLocal);
         } else {
-            db.updateMeta(session, view);
+            db.updateMeta(sessionLocal, view);
         }
 
         // TODO: if we added any table expressions that aren't used by this view, detect them

@@ -68,7 +68,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
      */
     public static void registerMBean(ConnectionInfo connectionInfo,
             Database database) throws JMException {
-        String path = connectionInfo.getName();
+        String path = connectionInfo.getDatabasePath();
         if (!MBEANS.containsKey(path)) {
             MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
             String name = database.getShortName();

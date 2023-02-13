@@ -18,7 +18,7 @@ public abstract class Operation0 extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
         // Nothing to do
     }
 

@@ -393,7 +393,7 @@ public class ConstraintReferential extends Constraint {
             } else {
                 Prepared updateCommand = getUpdate(session);
                 if (updateAction == ConstraintActionType.CASCADE) {
-                    ArrayList<Parameter> params = updateCommand.getParameters();
+                    ArrayList<Parameter> params = updateCommand.getParameterList();
                     for (int i = 0, len = columns.length; i < len; i++) {
                         Parameter param = params.get(i);
                         Column refCol = refColumns[i].column;
@@ -423,7 +423,7 @@ public class ConstraintReferential extends Constraint {
         for (int i = 0, len = refColumns.length; i < len; i++) {
             int idx = refColumns[i].column.getColumnId();
             Value v = row.getValue(idx);
-            ArrayList<Parameter> params = command.getParameters();
+            ArrayList<Parameter> params = command.getParameterList();
             Parameter param = params.get(pos + i);
             param.setValue(v);
         }
@@ -525,7 +525,7 @@ public class ConstraintReferential extends Constraint {
     private Prepared prepare(SessionLocal session, String sql, ConstraintActionType action) {
         Prepared command = session.prepare(sql);
         if (action != ConstraintActionType.CASCADE) {
-            ArrayList<Parameter> params = command.getParameters();
+            ArrayList<Parameter> params = command.getParameterList();
             for (int i = 0, len = columns.length; i < len; i++) {
                 Column column = columns[i].column;
                 Parameter param = params.get(i);

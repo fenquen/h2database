@@ -247,7 +247,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         Arrays.sort(array,
                 sortOrder != null
                         ? (v1, v2) -> sortOrder.compare(((ValueRow) v1).getList(), ((ValueRow) v2).getList())
-                        : select.getSession().getDatabase().getCompareMode());
+                        : select.getSessionLocal().getDatabase().getCompareMode());
     }
 
     @Override
@@ -1276,19 +1276,19 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 }
                 //$FALL-THROUGH$
             case COUNT_ALL:
-                return visitor.getTable().canGetRowCount(select.getSession());
+                return visitor.getTable().canGetRowCount(select.getSessionLocal());
             case MIN:
             case MAX:
                 return getMinMaxColumnIndex() != null;
             case PERCENTILE_CONT:
             case PERCENTILE_DISC:
-                return args[0].isConstant() && Percentile.getColumnIndex(select.getSession().getDatabase(),
+                return args[0].isConstant() && Percentile.getColumnIndex(select.getSessionLocal().getDatabase(),
                         orderByList.get(0).expression) != null;
             case MEDIAN:
                 if (distinct) {
                     return false;
                 }
-                return Percentile.getColumnIndex(select.getSession().getDatabase(), args[0]) != null;
+                return Percentile.getColumnIndex(select.getSessionLocal().getDatabase(), args[0]) != null;
             case ENVELOPE:
                 return AggregateDataEnvelope.getGeometryColumnIndex(args[0]) != null;
             default:

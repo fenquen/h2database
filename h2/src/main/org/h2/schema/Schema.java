@@ -61,14 +61,18 @@ public class Schema extends DbObject {
     /**
      * Create a new schema object.
      *
-     * @param database the database
-     * @param id the object id
+     * @param database   the database
+     * @param id         the object id
      * @param schemaName the schema name
-     * @param owner the owner of the schema
-     * @param system if this is a system schema (such a schema can not be
-     *            dropped)
+     * @param owner      the owner of the schema
+     * @param system     if this is a system schema (such a schema can not be
+     *                   dropped)
      */
-    public Schema(Database database, int id, String schemaName, RightOwner owner, boolean system) {
+    public Schema(Database database,
+                  int id,
+                  String schemaName,
+                  RightOwner owner,
+                  boolean system) {
         super(database, id, schemaName, Trace.SCHEMA);
         tablesAndViews = database.newConcurrentStringMap();
         domains = database.newConcurrentStringMap();
@@ -212,6 +216,7 @@ public class Schema extends DbObject {
 
     /**
      * Set table engine params of this schema.
+     *
      * @param tableEngineParams default table engine params
      */
     public void setTableEngineParams(ArrayList<String> tableEngineParams) {
@@ -222,36 +227,36 @@ public class Schema extends DbObject {
     private Map<String, SchemaObject> getMap(int type) {
         Map<String, ? extends SchemaObject> result;
         switch (type) {
-        case DbObject.TABLE_OR_VIEW:
-            result = tablesAndViews;
-            break;
-        case DbObject.DOMAIN:
-            result = domains;
-            break;
-        case DbObject.SYNONYM:
-            result = synonyms;
-            break;
-        case DbObject.SEQUENCE:
-            result = sequences;
-            break;
-        case DbObject.INDEX:
-            result = indexes;
-            break;
-        case DbObject.TRIGGER:
-            result = triggers;
-            break;
-        case DbObject.CONSTRAINT:
-            result = constraints;
-            break;
-        case DbObject.CONSTANT:
-            result = constants;
-            break;
-        case DbObject.FUNCTION_ALIAS:
-        case DbObject.AGGREGATE:
-            result = functionsAndAggregates;
-            break;
-        default:
-            throw DbException.getInternalError("type=" + type);
+            case DbObject.TABLE_OR_VIEW:
+                result = tablesAndViews;
+                break;
+            case DbObject.DOMAIN:
+                result = domains;
+                break;
+            case DbObject.SYNONYM:
+                result = synonyms;
+                break;
+            case DbObject.SEQUENCE:
+                result = sequences;
+                break;
+            case DbObject.INDEX:
+                result = indexes;
+                break;
+            case DbObject.TRIGGER:
+                result = triggers;
+                break;
+            case DbObject.CONSTRAINT:
+                result = constraints;
+                break;
+            case DbObject.CONSTANT:
+                result = constants;
+                break;
+            case DbObject.FUNCTION_ALIAS:
+            case DbObject.AGGREGATE:
+                result = functionsAndAggregates;
+                break;
+            default:
+                throw DbException.getInternalError("type=" + type);
         }
         return (Map<String, SchemaObject>) result;
     }
@@ -278,7 +283,7 @@ public class Schema extends DbObject {
     /**
      * Rename an object.
      *
-     * @param obj the object to rename
+     * @param obj     the object to rename
      * @param newName the new name
      */
     public void rename(SchemaObject obj, String newName) {
@@ -305,15 +310,16 @@ public class Schema extends DbObject {
      * no object with this name exists. Local temporary tables are also
      * returned. Synonyms are not returned or resolved.
      *
-     * @param session the session
-     * @param name the object name
+     * @param sessionLocal the session
+     * @param name         the object name
      * @return the object or null
      */
-    public Table findTableOrView(SessionLocal session, String name) {
+    public Table findTableOrView(SessionLocal sessionLocal, String name) {
         Table table = tablesAndViews.get(name);
-        if (table == null && session != null) {
-            table = session.findLocalTempTable(name);
+        if (table == null && sessionLocal != null) {
+            table = sessionLocal.findLocalTempTable(name);
         }
+
         return table;
     }
 
@@ -323,18 +329,19 @@ public class Schema extends DbObject {
      * returned. If a synonym with this name exists, the backing table of the
      * synonym is returned
      *
-     * @param session the session
-     * @param name the object name
+     * @param sessionLocal the session
+     * @param name         the object name
      * @return the object or null
      */
-    public Table resolveTableOrView(SessionLocal session, String name) {
-        Table table = findTableOrView(session, name);
+    public Table resolveTableOrView(SessionLocal sessionLocal, String name) {
+        Table table = findTableOrView(sessionLocal, name); // mvTable
         if (table == null) {
             TableSynonym synonym = synonyms.get(name);
             if (synonym != null) {
                 return synonym.getSynonymFor();
             }
         }
+
         return table;
     }
 
@@ -364,7 +371,7 @@ public class Schema extends DbObject {
      * no object with this name exists.
      *
      * @param session the session
-     * @param name the object name
+     * @param name    the object name
      * @return the object or null
      */
     public Index findIndex(SessionLocal session, String name) {
@@ -402,7 +409,7 @@ public class Schema extends DbObject {
      * object with this name exists.
      *
      * @param session the session
-     * @param name the object name
+     * @param name    the object name
      * @return the object or null
      */
     public Constraint findConstraint(SessionLocal session, String name) {
@@ -453,8 +460,7 @@ public class Schema extends DbObject {
      * specified name. This method returns null if no object with this name
      * exists.
      *
-     * @param name
-     *            the object name
+     * @param name the object name
      * @return the object or null
      */
     public UserDefinedFunction findFunctionOrAggregate(String name) {
@@ -499,7 +505,7 @@ public class Schema extends DbObject {
                 }
             }
             int nameLength = nameBuilder.append('_').length();
-            for (int i = 0;; i++) {
+            for (int i = 0; ; i++) {
                 String name = nameBuilder.append(i).toString();
                 if (!map.containsKey(name) && temporaryUniqueNames.add(name)) {
                     return name;
@@ -513,7 +519,7 @@ public class Schema extends DbObject {
      * Create a unique constraint name.
      *
      * @param session the session
-     * @param table the constraint table
+     * @param table   the constraint table
      * @return the unique name
      */
     public String getUniqueConstraintName(SessionLocal session, Table table) {
@@ -530,7 +536,7 @@ public class Schema extends DbObject {
      * Create a unique constraint name.
      *
      * @param session the session
-     * @param domain the constraint domain
+     * @param domain  the constraint domain
      * @return the unique name
      */
     public String getUniqueDomainConstraintName(SessionLocal session, Domain domain) {
@@ -541,8 +547,8 @@ public class Schema extends DbObject {
      * Create a unique index name.
      *
      * @param session the session
-     * @param table the indexed table
-     * @param prefix the index name prefix
+     * @param table   the indexed table
+     * @param prefix  the index name prefix
      * @return the unique name
      */
     public String getUniqueIndexName(SessionLocal session, Table table, String prefix) {
@@ -560,7 +566,7 @@ public class Schema extends DbObject {
      * Local temporary tables are also returned.
      *
      * @param session the session
-     * @param name the table or view name
+     * @param name    the table or view name
      * @return the table or view
      * @throws DbException if no such object exists
      */
@@ -655,11 +661,10 @@ public class Schema extends DbObject {
     /**
      * Get all objects.
      *
-     * @param addTo
-     *                  list to add objects to, or {@code null} to allocate a new
-     *                  list
+     * @param addTo list to add objects to, or {@code null} to allocate a new
+     *              list
      * @return the specified list with added objects, or a new (possibly empty) list
-     *         with all objects
+     * with all objects
      */
     public ArrayList<SchemaObject> getAll(ArrayList<SchemaObject> addTo) {
         if (addTo == null) {
@@ -680,10 +685,8 @@ public class Schema extends DbObject {
     /**
      * Get all objects of the given type.
      *
-     * @param type
-     *                  the object type
-     * @param addTo
-     *                  list to add objects to
+     * @param type  the object type
+     * @param addTo list to add objects to
      */
     public void getAll(int type, ArrayList<SchemaObject> addTo) {
         addTo.addAll(getMap(type).values());
@@ -735,7 +738,7 @@ public class Schema extends DbObject {
      * Get the table with the given name, if any.
      *
      * @param session the session
-     * @param name the table name
+     * @param name    the table name
      * @return the table or null if not found
      */
     public Table getTableOrViewByName(SessionLocal session, String name) {
@@ -759,28 +762,32 @@ public class Schema extends DbObject {
     /**
      * Add a table to the schema.
      *
-     * @param data the create table information
+     * @param createTableData the create table information
      * @return the created {@link Table} object
      */
-    public Table createTable(CreateTableData data) {
+    public Table createTable(CreateTableData createTableData) {
         synchronized (database) {
-            if (!data.temporary || data.globalTemporary) {
-                database.lockMeta(data.session);
+            if (!createTableData.temporary || createTableData.globalTemporary) {
+                database.lockMeta(createTableData.session);
             }
-            data.schema = this;
-            String tableEngine = data.tableEngine;
-            if (tableEngine == null) {
-                DbSettings s = database.getSettings();
-                tableEngine = s.defaultTableEngine;
-                if (tableEngine == null) {
-                    return database.getStore().createTable(data);
+
+            createTableData.schema = this;
+
+            String tableEngineName = createTableData.tableEngineName;
+            if (tableEngineName == null) {
+                tableEngineName = database.dbSettings.defaultTableEngine;
+                if (tableEngineName == null) {
+                    return database.store.createTable(createTableData);
                 }
-                data.tableEngine = tableEngine;
+
+                createTableData.tableEngineName = tableEngineName;
             }
-            if (data.tableEngineParams == null) {
-                data.tableEngineParams = this.tableEngineParams;
+
+            if (createTableData.tableEngineParams == null) {
+                createTableData.tableEngineParams = this.tableEngineParams;
             }
-            return database.getTableEngine(tableEngine).createTable(data);
+
+            return database.getTableEngine(tableEngineName).createTable(createTableData);
         }
     }
 
@@ -801,21 +808,21 @@ public class Schema extends DbObject {
     /**
      * Add a linked table to the schema.
      *
-     * @param id the object id
-     * @param tableName the table name of the alias
-     * @param driver the driver class name
-     * @param url the database URL
-     * @param user the user name
-     * @param password the password
+     * @param id             the object id
+     * @param tableName      the table name of the alias
+     * @param driver         the driver class name
+     * @param url            the database URL
+     * @param user           the user name
+     * @param password       the password
      * @param originalSchema the schema name of the target table
-     * @param originalTable the table name of the target table
-     * @param emitUpdates if updates should be emitted instead of delete/insert
-     * @param force create the object even if the database can not be accessed
+     * @param originalTable  the table name of the target table
+     * @param emitUpdates    if updates should be emitted instead of delete/insert
+     * @param force          create the object even if the database can not be accessed
      * @return the {@link TableLink} object
      */
     public TableLink createTableLink(int id, String tableName, String driver,
-            String url, String user, String password, String originalSchema,
-            String originalTable, boolean emitUpdates, boolean force) {
+                                     String url, String user, String password, String originalSchema,
+                                     String originalTable, boolean emitUpdates, boolean force) {
         synchronized (database) {
             return new TableLink(this, id, tableName,
                     driver, url, user, password,

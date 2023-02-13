@@ -17,8 +17,7 @@ import org.h2.mvstore.RootReference;
 import org.h2.mvstore.type.DataType;
 
 /**
- * An r-tree implementation. It supports both the linear and the quadratic split
- * algorithm.
+ * An r-tree implementation. It supports both the linear and the quadratic split algorithm.
  *
  * @param <V> the value class
  */

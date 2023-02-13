@@ -126,7 +126,7 @@ public abstract class DataAnalysisOperation extends Expression {
     }
 
     @Override
-    public final void mapColumns(ColumnResolver resolver, int level, int state) {
+    public final void mapColumns(ColumnResolver columnResolver, int level, int state) {
         if (over != null) {
             if (state != MAP_INITIAL) {
                 throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getTraceSQL());
@@ -138,7 +138,7 @@ public abstract class DataAnalysisOperation extends Expression {
             }
             state = MAP_IN_AGGREGATE;
         }
-        mapColumnsAnalysis(resolver, level, state);
+        mapColumnsAnalysis(columnResolver, level, state);
     }
 
     /**

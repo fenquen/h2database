@@ -46,9 +46,9 @@ public final class JavaFunction extends Expression implements NamedExpression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
         for (Expression e : args) {
-            e.mapColumns(resolver, level, state);
+            e.mapColumns(columnResolver, level, state);
         }
     }
 

@@ -54,8 +54,7 @@ public interface HasSQL {
      * Get the SQL statement of this expression. This may not always be the
      * original SQL statement, specially after optimization.
      *
-     * @param sqlFlags
-     *            formatting flags
+     * @param sqlFlags formatting flags
      * @return the SQL statement
      */
     default String getSQL(int sqlFlags) {
@@ -65,10 +64,8 @@ public interface HasSQL {
     /**
      * Appends the SQL statement of this object to the specified builder.
      *
-     * @param builder
-     *            string builder
-     * @param sqlFlags
-     *            formatting flags
+     * @param builder  string builder
+     * @param sqlFlags formatting flags
      * @return the specified string builder
      */
     StringBuilder getSQL(StringBuilder builder, int sqlFlags);

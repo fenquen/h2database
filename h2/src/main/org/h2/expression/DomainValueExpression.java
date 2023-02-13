@@ -35,9 +35,9 @@ public final class DomainValueExpression extends Operation0 {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        if (resolver instanceof DomainColumnResolver) {
-            columnResolver = (DomainColumnResolver) resolver;
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        if (columnResolver instanceof DomainColumnResolver) {
+            this.columnResolver = (DomainColumnResolver) columnResolver;
         }
     }
 

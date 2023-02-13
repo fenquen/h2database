@@ -36,15 +36,15 @@ public class DropUser extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        Database db = session.getDatabase();
+        sessionLocal.getUser().checkAdmin();
+        Database db = sessionLocal.getDatabase();
         User user = db.findUser(userName);
         if (user == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.USER_NOT_FOUND_1, userName);
             }
         } else {
-            if (user == session.getUser()) {
+            if (user == sessionLocal.getUser()) {
                 int adminUserCount = 0;
                 for (RightOwner rightOwner : db.getAllUsersAndRoles()) {
                     if (rightOwner instanceof User && ((User) rightOwner).isAdmin()) {
@@ -56,7 +56,7 @@ public class DropUser extends DefineCommand {
                 }
             }
             user.checkOwnsNoSchemas();
-            db.removeDatabaseObject(session, user);
+            db.removeDatabaseObject(sessionLocal, user);
         }
         return 0;
     }

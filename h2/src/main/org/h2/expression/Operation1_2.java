@@ -41,10 +41,10 @@ public abstract class Operation1_2 extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        left.mapColumns(resolver, level, state);
+    public void mapColumns(ColumnResolver columnResolver, int level, int state) {
+        left.mapColumns(columnResolver, level, state);
         if (right != null) {
-            right.mapColumns(resolver, level, state);
+            right.mapColumns(columnResolver, level, state);
         }
     }
 

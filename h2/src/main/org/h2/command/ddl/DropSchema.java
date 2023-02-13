@@ -37,14 +37,14 @@ public class DropSchema extends DefineCommand {
 
     @Override
     public long update() {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         Schema schema = db.findSchema(schemaName);
         if (schema == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.SCHEMA_NOT_FOUND_1, schemaName);
             }
         } else {
-            session.getUser().checkSchemaOwner(schema);
+            sessionLocal.getUser().checkSchemaOwner(schema);
             if (!schema.canDrop()) {
                 throw DbException.get(ErrorCode.SCHEMA_CAN_NOT_BE_DROPPED_1, schemaName);
             }
@@ -62,7 +62,7 @@ public class DropSchema extends DefineCommand {
                     throw DbException.get(ErrorCode.CANNOT_DROP_2, schemaName, builder.toString());
                 }
             }
-            db.removeDatabaseObject(session, schema);
+            db.removeDatabaseObject(sessionLocal, schema);
         }
         return 0;
     }

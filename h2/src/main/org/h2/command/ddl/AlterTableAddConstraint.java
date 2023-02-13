@@ -61,7 +61,7 @@ public class AlterTableAddConstraint extends AlterTable {
 
     private String generateConstraintName(Table table) {
         if (constraintName == null) {
-            constraintName = getSchema().getUniqueConstraintName(session, table);
+            constraintName = getSchema().getUniqueConstraintName(sessionLocal, table);
         }
         return constraintName;
     }
@@ -74,11 +74,11 @@ public class AlterTableAddConstraint extends AlterTable {
             try {
                 if (createdUniqueConstraint != null) {
                     Index index = createdUniqueConstraint.getIndex();
-                    session.getDatabase().removeSchemaObject(session, createdUniqueConstraint);
+                    sessionLocal.getDatabase().removeSchemaObject(sessionLocal, createdUniqueConstraint);
                     createdIndexes.remove(index);
                 }
                 for (Index index : createdIndexes) {
-                    session.getDatabase().removeSchemaObject(session, index);
+                    sessionLocal.getDatabase().removeSchemaObject(sessionLocal, index);
                 }
             } catch (Throwable ex) {
                 e.addSuppressed(ex);
@@ -95,7 +95,7 @@ public class AlterTableAddConstraint extends AlterTable {
      * @return the update count
      */
     private int tryUpdate(Table table) {
-        if (constraintName != null && getSchema().findConstraint(session, constraintName) != null) {
+        if (constraintName != null && getSchema().findConstraint(sessionLocal, constraintName) != null) {
             if (ifNotExists) {
                 return 0;
             }
@@ -105,14 +105,14 @@ public class AlterTableAddConstraint extends AlterTable {
              * and they may use the same generated name as some other not yet
              * initialized constraint that may lead to a name conflict.
              */
-            if (!session.isQuirksMode()) {
+            if (!sessionLocal.isQuirksMode()) {
                 throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, constraintName);
             }
             constraintName = null;
         }
-        Database db = session.getDatabase();
-        db.lockMeta(session);
-        table.lock(session, Table.EXCLUSIVE_LOCK);
+        Database db = sessionLocal.getDatabase();
+        db.lockMeta(sessionLocal);
+        table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
         Constraint constraint;
         switch (type) {
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY: {
@@ -141,10 +141,10 @@ public class AlterTableAddConstraint extends AlterTable {
                 IndexType indexType = IndexType.createPrimaryKey(
                         table.isPersistIndexes(), primaryKeyHash);
                 String indexName = table.getSchema().getUniqueIndexName(
-                        session, table, Constants.PREFIX_PRIMARY_KEY);
-                int indexId = session.getDatabase().allocateObjectId();
+                        sessionLocal, table, Constants.PREFIX_PRIMARY_KEY);
+                int indexId = sessionLocal.getDatabase().allocateObjectId();
                 try {
-                    index = table.addIndex(session, indexName, indexId, indexColumns, indexColumns.length, indexType,
+                    index = table.addIndex(sessionLocal, indexName, indexId, indexColumns, indexColumns.length, indexType,
                             true, null);
                 } finally {
                     getSchema().freeUniqueName(indexName);
@@ -186,24 +186,24 @@ public class AlterTableAddConstraint extends AlterTable {
             int id = getObjectId();
             String name = generateConstraintName(table);
             ConstraintCheck check = new ConstraintCheck(getSchema(), id, name, table);
-            TableFilter filter = new TableFilter(session, table, null, false, null, 0, null);
+            TableFilter filter = new TableFilter(sessionLocal, table, null, false, null, 0, null);
             checkExpression.mapColumns(filter, 0, Expression.MAP_INITIAL);
-            checkExpression = checkExpression.optimize(session);
+            checkExpression = checkExpression.optimize(sessionLocal);
             check.setExpression(checkExpression);
             check.setTableFilter(filter);
             constraint = check;
             if (checkExisting) {
-                check.checkExistingData(session);
+                check.checkExistingData(sessionLocal);
             }
             break;
         }
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_REFERENTIAL: {
-            Table refTable = refSchema.resolveTableOrView(session, refTableName);
+            Table refTable = refSchema.resolveTableOrView(sessionLocal, refTableName);
             if (refTable == null) {
                 throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, refTableName);
             }
             if (refTable != table) {
-                session.getUser().checkTableRight(refTable, Right.SCHEMA_OWNER);
+                sessionLocal.getUser().checkTableRight(refTable, Right.SCHEMA_OWNER);
             }
             if (!refTable.canReference()) {
                 StringBuilder builder = new StringBuilder("Reference ");
@@ -253,8 +253,8 @@ public class AlterTableAddConstraint extends AlterTable {
                 }
             }
             ConstraintUnique unique = getUniqueConstraint(refTable, refIndexColumns);
-            if (unique == null && !session.isQuirksMode()
-                    && !session.getMode().createUniqueConstraintForReferencedColumns) {
+            if (unique == null && !sessionLocal.isQuirksMode()
+                    && !sessionLocal.getMode().createUniqueConstraintForReferencedColumns) {
                 throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, IndexColumn.writeColumns(
                         new StringBuilder("PRIMARY KEY | UNIQUE ("), refIndexColumns, HasSQL.TRACE_SQL_FLAGS)
                         .append(')').toString());
@@ -284,7 +284,7 @@ public class AlterTableAddConstraint extends AlterTable {
             }
             refConstraint.setRefConstraint(unique);
             if (checkExisting) {
-                refConstraint.checkExistingData(session);
+                refConstraint.checkExistingData(sessionLocal);
             }
             refTable.addConstraint(refConstraint);
             refConstraint.setDeleteAction(deleteAction);
@@ -318,10 +318,10 @@ public class AlterTableAddConstraint extends AlterTable {
         String name;
         Schema tableSchema = table.getSchema();
         if (forForeignKey) {
-            id = session.getDatabase().allocateObjectId();
+            id = sessionLocal.getDatabase().allocateObjectId();
             try {
                 tableSchema.reserveUniqueName(constraintName);
-                name = tableSchema.getUniqueConstraintName(session, table);
+                name = tableSchema.getUniqueConstraintName(sessionLocal, table);
             } finally {
                 tableSchema.freeUniqueName(constraintName);
             }
@@ -337,15 +337,15 @@ public class AlterTableAddConstraint extends AlterTable {
 
     private void addConstraintToTable(Database db, Table table, Constraint constraint) {
         if (table.isTemporary() && !table.isGlobalTemporary()) {
-            session.addLocalTempTableConstraint(constraint);
+            sessionLocal.addLocalTempTableConstraint(constraint);
         } else {
-            db.addSchemaObject(session, constraint);
+            db.addSchemaObject(sessionLocal, constraint);
         }
         table.addConstraint(constraint);
     }
 
     private Index createIndex(Table t, IndexColumn[] cols, boolean unique) {
-        int indexId = session.getDatabase().allocateObjectId();
+        int indexId = sessionLocal.getDatabase().allocateObjectId();
         IndexType indexType;
         if (unique) {
             // for unique constraints
@@ -356,10 +356,10 @@ public class AlterTableAddConstraint extends AlterTable {
         }
         indexType.setBelongsToConstraint(true);
         String prefix = constraintName == null ? "CONSTRAINT" : constraintName;
-        String indexName = t.getSchema().getUniqueIndexName(session, t,
+        String indexName = t.getSchema().getUniqueIndexName(sessionLocal, t,
                 prefix + "_INDEX_");
         try {
-            Index index = t.addIndex(session, indexName, indexId, cols, unique ? cols.length : 0, indexType, true,
+            Index index = t.addIndex(sessionLocal, indexName, indexId, cols, unique ? cols.length : 0, indexType, true,
                     null);
             createdIndexes.add(index);
             return index;
@@ -394,7 +394,7 @@ public class AlterTableAddConstraint extends AlterTable {
     }
 
     private static Index getIndex(Table t, IndexColumn[] cols, boolean unique) {
-        ArrayList<Index> indexes = t.getIndexes();
+        ArrayList<Index> indexes = t.getIndexList();
         Index index = null;
         if (indexes != null) {
             for (Index idx : indexes) {

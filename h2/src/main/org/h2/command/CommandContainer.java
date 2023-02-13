@@ -110,15 +110,15 @@ public class CommandContainer extends Command {
         }
     }
 
-    public CommandContainer(SessionLocal session, String sql, Prepared prepared) {
-        super(session, sql);
+    public CommandContainer(SessionLocal sessionLocal, String sql, Prepared prepared) {
+        super(sessionLocal, sql);
         prepared.setCommand(this);
         this.prepared = prepared;
     }
 
     @Override
     public ArrayList<? extends ParameterInterface> getParameters() {
-        ArrayList<Parameter> parameters = prepared.getParameters();
+        ArrayList<Parameter> parameters = prepared.getParameterList();
         if (parameters.size() > 0 && prepared.isWithParamValues()) {
             parameters = new ArrayList<>();
         }
@@ -141,8 +141,8 @@ public class CommandContainer extends Command {
             prepared.setModificationMetaId(0);
             String sql = prepared.getSQL();
             ArrayList<Token> tokens = prepared.getSQLTokens();
-            Parser parser = new Parser(session);
-            parser.setSuppliedParameters(prepared.getParameters());
+            Parser parser = new Parser(sessionLocal);
+            parser.setSuppliedParameters(prepared.getParameterList());
             prepared = parser.parse(sql, tokens);
             long mod = prepared.getModificationMetaId();
             prepared.setModificationMetaId(0);
@@ -175,7 +175,7 @@ public class CommandContainer extends Command {
 
     private ResultWithGeneratedKeys executeUpdateWithGeneratedKeys(DataChangeStatement statement,
             Object generatedKeysRequest) {
-        Database db = session.getDatabase();
+        Database db = sessionLocal.getDatabase();
         Table table = statement.getTable();
         ArrayList<ExpressionColumn> expressionColumns;
         if (Boolean.TRUE.equals(generatedKeysRequest)) {
@@ -237,20 +237,27 @@ public class CommandContainer extends Command {
         for (int i = 0; i < columnCount; i++) {
             indexes[i] = expressions[i].getColumn().getColumnId();
         }
-        LocalResult result = new LocalResult(session, expressions, columnCount, columnCount);
+        LocalResult result = new LocalResult(sessionLocal, expressions, columnCount, columnCount);
         return new ResultWithGeneratedKeys.WithKeys(
                 statement.update(new GeneratedKeysCollector(indexes, result), ResultOption.FINAL), result);
     }
 
     @Override
-    public ResultInterface query(long maxrows) {
+    public ResultInterface query(long maxRows) {
         recompileIfRequired();
+
         setProgress(DatabaseEventListener.STATE_STATEMENT_START);
+
         start();
+
         prepared.checkParameters();
-        ResultInterface result = prepared.query(maxrows);
+
+        ResultInterface result = prepared.query(maxRows);
+
         prepared.trace(startTimeNanos, result.isLazy() ? 0 : result.getRowCount());
+
         setProgress(DatabaseEventListener.STATE_STATEMENT_END);
+
         return result;
     }
 
@@ -259,7 +266,7 @@ public class CommandContainer extends Command {
         super.stop();
         // Clean up after the command was run in the session.
         // Must restart query (and dependency construction) to reuse.
-        clearCTE(session, prepared);
+        clearCTE(sessionLocal, prepared);
     }
 
     @Override
@@ -295,7 +302,7 @@ public class CommandContainer extends Command {
      * Clean up any associated CTE.
      */
     void clearCTE() {
-        clearCTE(session, prepared);
+        clearCTE(sessionLocal, prepared);
     }
 
     @Override

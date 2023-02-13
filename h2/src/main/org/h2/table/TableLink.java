@@ -182,7 +182,7 @@ public class TableLink extends Table {
         try (Statement stat = conn.getConnection().createStatement();
                 ResultSet rs = stat.executeQuery("SELECT * FROM " + qualifiedTableName + " T WHERE 1=0")) {
             if (rs instanceof JdbcResultSet) {
-                ResultInterface result = ((JdbcResultSet) rs).getResult();
+                ResultInterface result = ((JdbcResultSet) rs).getResultInterface();
                 columnList.clear();
                 columnMap.clear();
                 for (int i = 0, l = result.getVisibleColumnCount(); i < l;) {
@@ -614,7 +614,7 @@ public class TableLink extends Table {
     }
 
     @Override
-    public ArrayList<Index> getIndexes() {
+    public ArrayList<Index> getIndexList() {
         return indexes;
     }
 

@@ -32,13 +32,13 @@ public class AlterTableRename extends AlterTable {
 
     @Override
     public long update(Table table) {
-        Database db = session.getDatabase();
-        Table t = getSchema().findTableOrView(session, newTableName);
+        Database db = sessionLocal.getDatabase();
+        Table t = getSchema().findTableOrView(sessionLocal, newTableName);
         if (t != null && hidden && newTableName.equals(table.getName())) {
             if (!t.isHidden()) {
                 t.setHidden(hidden);
                 table.setHidden(true);
-                db.updateMeta(session, table);
+                db.updateMeta(sessionLocal, table);
             }
             return 0;
         }
@@ -48,7 +48,7 @@ public class AlterTableRename extends AlterTable {
         if (table.isTemporary()) {
             throw DbException.getUnsupportedException("temp table");
         }
-        db.renameSchemaObject(session, table, newTableName);
+        db.renameSchemaObject(sessionLocal, table, newTableName);
         return 0;
     }
 

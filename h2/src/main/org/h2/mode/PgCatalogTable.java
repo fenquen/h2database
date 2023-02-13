@@ -590,7 +590,7 @@ public final class PgCatalogTable extends MetaTable {
             Column column = cols[i++];
             addAttribute(session, rows, tableId * 10_000 + i, tableId, column, i);
         }
-        for (Index index : table.getIndexes()) {
+        for (Index index : table.getIndexList()) {
             if (index.getCreateSQL() == null) {
                 continue;
             }
@@ -607,7 +607,7 @@ public final class PgCatalogTable extends MetaTable {
         ArrayList<TriggerObject> triggers = table.getTriggers();
         addClass(session, rows, table.getId(), table.getName(), table.getSchema().getId(),
                 table.isView() ? "v" : "r", false, triggers != null ? triggers.size() : 0);
-        ArrayList<Index> indexes = table.getIndexes();
+        ArrayList<Index> indexes = table.getIndexList();
         if (indexes != null) {
             for (Index index : indexes) {
                 if (index.getCreateSQL() == null) {

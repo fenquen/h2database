@@ -89,7 +89,7 @@ public final class JdbcCallableStatement extends JdbcPreparedStatement implement
     public int executeUpdate() throws SQLException {
         try {
             checkClosed();
-            if (command.isQuery()) {
+            if (cmdInterface.isQuery()) {
                 super.executeQuery();
                 return 0;
             }
@@ -119,7 +119,7 @@ public final class JdbcCallableStatement extends JdbcPreparedStatement implement
     public long executeLargeUpdate() throws SQLException {
         try {
             checkClosed();
-            if (command.isQuery()) {
+            if (cmdInterface.isQuery()) {
                 super.executeQuery();
                 return 0;
             }
@@ -1801,7 +1801,7 @@ public final class JdbcCallableStatement extends JdbcPreparedStatement implement
                 outParameters = new BitSet();
             }
             checkIndexBounds(parameterIndex);
-            ParameterInterface param = command.getParameters().get(--parameterIndex);
+            ParameterInterface param = cmdInterface.getParameters().get(--parameterIndex);
             if (!param.isValueSet()) {
                 param.setValue(ValueNull.INSTANCE, false);
             }

@@ -48,7 +48,7 @@ public class DropView extends SchemaCommand {
 
     @Override
     public long update() {
-        Table view = getSchema().findTableOrView(session, viewName);
+        Table view = getSchema().findTableOrView(sessionLocal, viewName);
         if (view == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.VIEW_NOT_FOUND_1, viewName);
@@ -57,7 +57,7 @@ public class DropView extends SchemaCommand {
             if (TableType.VIEW != view.getTableType()) {
                 throw DbException.get(ErrorCode.VIEW_NOT_FOUND_1, viewName);
             }
-            session.getUser().checkSchemaOwner(view.getSchema());
+            sessionLocal.getUser().checkSchemaOwner(view.getSchema());
 
             if (dropAction == ConstraintActionType.RESTRICT) {
                 for (DbObject child : view.getChildren()) {
@@ -73,20 +73,20 @@ public class DropView extends SchemaCommand {
             TableView tableView = (TableView) view;
             ArrayList<Table> copyOfDependencies = new ArrayList<>(tableView.getTables());
 
-            view.lock(session, Table.EXCLUSIVE_LOCK);
-            session.getDatabase().removeSchemaObject(session, view);
+            view.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
+            sessionLocal.getDatabase().removeSchemaObject(sessionLocal, view);
 
             // remove dependent table expressions
             for (Table childTable: copyOfDependencies) {
                 if (TableType.VIEW == childTable.getTableType()) {
                     TableView childTableView = (TableView) childTable;
                     if (childTableView.isTableExpression() && childTableView.getName() != null) {
-                        session.getDatabase().removeSchemaObject(session, childTableView);
+                        sessionLocal.getDatabase().removeSchemaObject(sessionLocal, childTableView);
                     }
                 }
             }
             // make sure its all unlocked
-            session.getDatabase().unlockMeta(session);
+            sessionLocal.getDatabase().unlockMeta(sessionLocal);
         }
         return 0;
     }
