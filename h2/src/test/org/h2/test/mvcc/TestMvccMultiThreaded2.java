@@ -176,7 +176,7 @@ public class TestMvccMultiThreaded2 extends TestDb {
             } catch (InterruptedException ignore) {
             } catch (SQLException e) {
                 TestBase.logError("SQL error from thread "+getName(), e);
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             } catch (Exception e) {
                 TestBase.logError("General error from thread "+getName(), e);
                 throw e;

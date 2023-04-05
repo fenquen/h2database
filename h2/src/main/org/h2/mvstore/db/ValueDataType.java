@@ -137,7 +137,10 @@ public final class ValueDataType extends BasicDataType<Value> implements Statefu
         this(database, database.getCompareMode(), database, sortTypes);
     }
 
-    public ValueDataType(CastDataProvider provider, CompareMode compareMode, DataHandler handler, int[] sortTypes) {
+    public ValueDataType(CastDataProvider provider,
+                         CompareMode compareMode,
+                         DataHandler handler,
+                         int[] sortTypes) {
         this.provider = provider;
         this.compareMode = compareMode;
         this.handler = handler;
@@ -162,9 +165,12 @@ public final class ValueDataType extends BasicDataType<Value> implements Statefu
         if (a == b) {
             return 0;
         }
+
         if (a instanceof SearchRow && b instanceof SearchRow) {
             return compare((SearchRow)a, (SearchRow)b);
-        } else if (a instanceof ValueCollectionBase && b instanceof ValueCollectionBase) {
+        }
+
+        if (a instanceof ValueCollectionBase && b instanceof ValueCollectionBase) {
             Value[] ax = ((ValueCollectionBase) a).getList();
             Value[] bx = ((ValueCollectionBase) b).getList();
             int al = ax.length;
@@ -190,6 +196,7 @@ public final class ValueDataType extends BasicDataType<Value> implements Statefu
             }
             return 0;
         }
+
         return compareValues(a, b, SortOrder.ASCENDING);
     }
 

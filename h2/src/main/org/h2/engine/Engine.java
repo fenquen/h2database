@@ -26,178 +26,24 @@ import org.h2.util.ThreadDeadlockDetector;
 import org.h2.util.TimeZoneProvider;
 import org.h2.util.Utils;
 
+import static org.h2.api.ErrorCode.FILE_VERSION_ERROR_1;
+
 /**
  * The engine contains a map of all open databases.
  * It is also responsible for opening and creating new databases.
  * This is a singleton class.
  */
 public final class Engine {
-
     private static final Map<String, DatabaseHolder> DATABASE_PATH_DATABASE_HOLDER = new HashMap<>();
-
     private static volatile long WRONG_PASSWORD_DELAY = SysProperties.DELAY_WRONG_PASSWORD_MIN;
 
     private static boolean JMX;
 
     static {
+        // todo rust略过
         if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
             ThreadDeadlockDetector.init();
         }
-    }
-
-    private static SessionLocal openSession(ConnectionInfo connectionInfo,
-                                            boolean ifExists,
-                                            boolean forbidCreation,
-                                            String cipher) {
-        connectionInfo.removeProperty("NO_UPGRADE", false);
-        boolean openNew = connectionInfo.getProperty("OPEN_NEW", false);
-        boolean opened = false;
-        User user = null;
-        String databasePath = connectionInfo.getDatabasePath();
-
-        DatabaseHolder databaseHolder;
-
-        if (!connectionInfo.isUnnamedInMemory()) {
-            synchronized (DATABASE_PATH_DATABASE_HOLDER) {
-                databaseHolder = DATABASE_PATH_DATABASE_HOLDER.computeIfAbsent(databasePath, (key) -> new DatabaseHolder());
-            }
-        } else {
-            databaseHolder = new DatabaseHolder();
-        }
-
-        Database database;
-        synchronized (databaseHolder) {
-            database = databaseHolder.database;
-            if (database == null || openNew) {
-                if (connectionInfo.isPersistent()) {
-                    String p = connectionInfo.getProperty("MV_STORE");
-                    String fileName = databasePath + Constants.SUFFIX_MV_FILE;
-
-                    if (p == null) {
-                        if (!FileUtils.exists(fileName)) {
-                            throwNotFound(ifExists, forbidCreation, databasePath);
-
-                            fileName = databasePath + Constants.SUFFIX_OLD_DATABASE_FILE;
-
-                            if (FileUtils.exists(fileName)) {
-                                throw DbException.getFileVersionError(fileName);
-                            }
-
-                            fileName = null;
-                        }
-                    } else {
-                        if (!FileUtils.exists(fileName)) {
-                            throwNotFound(ifExists, forbidCreation, databasePath);
-                            fileName = null;
-                        }
-                    }
-
-                    if (fileName != null && !FileUtils.canWrite(fileName)) {
-                        connectionInfo.setProperty("ACCESS_MODE_DATA", "r");
-                    }
-                } else {
-                    throwNotFound(ifExists, forbidCreation, databasePath);
-                }
-
-                database = new Database(connectionInfo, cipher);
-                opened = true;
-                boolean found = false;
-
-                for (RightOwner rightOwner : database.getAllUsersAndRoles()) {
-                    if (rightOwner instanceof User) {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    // users is the last thing we add, so if no user is around,
-                    // the database is new (or not initialized correctly)
-                    user = new User(database, database.allocateObjectId(), connectionInfo.getUserName(), false);
-                    user.setAdmin(true);
-                    user.setUserPasswordHash(connectionInfo.getUserPasswordHash());
-                    database.setMasterUser(user);
-                }
-
-                databaseHolder.database = database;
-            }
-        }
-
-        if (opened) {
-            // start the thread when already synchronizing on the database
-            // otherwise a deadlock can occur when the writer thread opens a new database (as in recovery testing)
-            database.opened();
-        }
-
-        if (database.isClosing()) {
-            return null;
-        }
-
-        if (user == null) {
-            if (database.validateFilePasswordHash(cipher, connectionInfo.getFilePasswordHash())) {
-
-                if (connectionInfo.getProperty("AUTHREALM") == null) {
-                    user = database.findUser(connectionInfo.getUserName());
-                    if (user != null) {
-                        if (!user.validateUserPasswordHash(connectionInfo.getUserPasswordHash())) {
-                            user = null;
-                        }
-                    }
-                } else {
-                    Authenticator authenticator = database.getAuthenticator();
-                    if (authenticator == null) {
-                        throw DbException.get(ErrorCode.AUTHENTICATOR_NOT_AVAILABLE, databasePath);
-                    }
-
-                    try {
-                        AuthenticationInfo authenticationInfo = new AuthenticationInfo(connectionInfo);
-                        user = database.getAuthenticator().authenticate(authenticationInfo, database);
-                    } catch (AuthenticationException authenticationError) {
-                        database.getTrace(Trace.DATABASE).error(authenticationError,
-                                "an error occurred during authentication; user: \"" + connectionInfo.getUserName() + "\"");
-                    }
-                }
-            }
-
-            if (opened && (user == null || !user.isAdmin())) {
-                // reset - because the user is not an admin, and has no right to listen to exceptions
-                database.setEventListener(null);
-            }
-        }
-
-        if (user == null) {
-            DbException er = DbException.get(ErrorCode.WRONG_USER_OR_PASSWORD);
-            database.getTrace(Trace.DATABASE).error(er, "wrong user or password; user: \"" + connectionInfo.getUserName() + "\"");
-            database.removeSession(null);
-            throw er;
-        }
-
-        // Prevent to set _PASSWORD
-        connectionInfo.cleanAuthenticationInfo();
-
-        checkClustering(connectionInfo, database);
-
-        SessionLocal sessionLocal = database.createSession(user, connectionInfo.networkConnectionInfo);
-        if (sessionLocal == null) {   // concurrently closing
-            return null;
-        }
-
-        if (connectionInfo.getProperty("OLD_INFORMATION_SCHEMA", false)) {
-            sessionLocal.setOldInformationSchema(true);
-        }
-
-        if (connectionInfo.getProperty("JMX", false)) {
-            try {
-                Utils.callStaticMethod("org.h2.jmx.DatabaseInfo.registerMBean", connectionInfo, database);
-            } catch (Exception e) {
-                database.removeSession(sessionLocal);
-                throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, e, "JMX");
-            }
-
-            JMX = true;
-        }
-
-        return sessionLocal;
     }
 
     private static void throwNotFound(boolean ifExists, boolean forbidCreation, String name) {
@@ -211,10 +57,7 @@ public final class Engine {
     }
 
     /**
-     * Open a database connection with the given connection information.
-     *
-     * @param connectionInfo the connection information
-     * @return the session
+     * open a database connection with the given connection information.
      */
     public static SessionLocal createSession(ConnectionInfo connectionInfo) {
         try {
@@ -325,24 +168,177 @@ public final class Engine {
         return sessionLocal;
     }
 
+    private static SessionLocal openSession(ConnectionInfo connectionInfo,
+                                            boolean ifExists,
+                                            boolean forbidCreation,
+                                            String cipher) {
+        connectionInfo.removeProperty("NO_UPGRADE", false);
+
+        boolean openNew = connectionInfo.getPropertyBoolean("OPEN_NEW", false);
+        boolean opened = false;
+        User user = null;
+        String databasePath = connectionInfo.getDatabasePath();
+
+        DatabaseHolder databaseHolder;
+
+        if (!connectionInfo.unnamedInMemory) {
+            synchronized (DATABASE_PATH_DATABASE_HOLDER) {
+                databaseHolder = DATABASE_PATH_DATABASE_HOLDER.computeIfAbsent(databasePath, (key) -> new DatabaseHolder());
+            }
+        } else {
+            databaseHolder = new DatabaseHolder();
+        }
+
+        Database database;
+        synchronized (databaseHolder) {
+            database = databaseHolder.database;
+            if (database == null || openNew) {
+                if (connectionInfo.persistent) {
+                    String value = connectionInfo.getProperty("MV_STORE");
+                    String fileName = databasePath + Constants.SUFFIX_MV_FILE;
+
+                    if (value == null) {
+                        if (!FileUtils.exists(fileName)) {
+                            throwNotFound(ifExists, forbidCreation, databasePath);
+
+                            fileName = databasePath + Constants.SUFFIX_OLD_DATABASE_FILE;
+
+                            if (FileUtils.exists(fileName)) {
+                                throw DbException.get(FILE_VERSION_ERROR_1, "old database: " + fileName + " - please convert the database to a SQL script and re-create it.");
+                            }
+
+                            fileName = null;
+                        }
+                    } else {
+                        if (!FileUtils.exists(fileName)) {
+                            throwNotFound(ifExists, forbidCreation, databasePath);
+                            fileName = null;
+                        }
+                    }
+
+                    // 不是null说明对应的文件已然存在
+                    if (fileName != null && !FileUtils.canWrite(fileName)) {
+                        connectionInfo.setProperty("ACCESS_MODE_DATA", "r");
+                    }
+                } else {
+                    throwNotFound(ifExists, forbidCreation, databasePath);
+                }
+
+                database = new Database(connectionInfo, cipher); // 参数connectionInfo只是为了提供信息不是委身
+                opened = true;
+                boolean found = false;
+
+                for (RightOwner rightOwner : database.getAllUsersAndRoles()) {
+                    if (rightOwner instanceof User) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    // users is the last thing we add, so if no user is around,
+                    // the database is new (or not initialized correctly)
+                    user = new User(database, database.allocateObjectId(), connectionInfo.getUserName(), false);
+                    user.admin = true;
+                    user.setUserPasswordHash(connectionInfo.getUserPasswordHash());
+                    database.setMasterUser(user);
+                }
+
+                databaseHolder.database = database;
+            }
+        }
+
+        if (opened) {
+            // start the thread when already synchronizing on the database
+            // otherwise a deadlock can occur when the writer thread opens a new database (as in recovery testing)
+            database.opened();
+        }
+
+        if (database.isClosing()) {
+            return null;
+        }
+
+        if (user == null) {
+            if (database.validateFilePasswordHash(cipher, connectionInfo.filePasswordHash)) {
+
+                if (connectionInfo.getProperty("AUTHREALM") == null) {
+                    user = database.findUser(connectionInfo.getUserName());
+                    if (user != null) {
+                        if (!user.validateUserPasswordHash(connectionInfo.getUserPasswordHash())) {
+                            user = null;
+                        }
+                    }
+                } else {
+                    Authenticator authenticator = database.getAuthenticator();
+                    if (authenticator == null) {
+                        throw DbException.get(ErrorCode.AUTHENTICATOR_NOT_AVAILABLE, databasePath);
+                    }
+
+                    try {
+                        AuthenticationInfo authenticationInfo = new AuthenticationInfo(connectionInfo);
+                        user = database.getAuthenticator().authenticate(authenticationInfo, database);
+                    } catch (AuthenticationException authenticationError) {
+                        database.getTrace(Trace.DATABASE).error(authenticationError,
+                                "an error occurred during authentication; user: \"" + connectionInfo.getUserName() + "\"");
+                    }
+                }
+            }
+
+            if (opened && (user == null || !user.isAdmin())) {
+                // reset - because the user is not an admin, and has no right to listen to exceptions
+                database.setDatabaseEventListener(null);
+            }
+        }
+
+        if (user == null) {
+            DbException er = DbException.get(ErrorCode.WRONG_USER_OR_PASSWORD);
+            database.getTrace(Trace.DATABASE).error(er, "wrong user or password; user: \"" + connectionInfo.getUserName() + "\"");
+            database.removeSession(null);
+            throw er;
+        }
+
+        // Prevent to set _PASSWORD
+        connectionInfo.cleanAuthenticationInfo();
+
+        checkClustering(connectionInfo, database);
+
+        SessionLocal sessionLocal = database.createSession(user, connectionInfo.networkConnectionInfo);
+        if (sessionLocal == null) {   // concurrently closing
+            return null;
+        }
+
+        if (connectionInfo.getPropertyBoolean("OLD_INFORMATION_SCHEMA", false)) {
+            sessionLocal.setOldInformationSchema(true);
+        }
+
+        // todo rust略过
+        if (connectionInfo.getPropertyBoolean("JMX", false)) {
+            try {
+                Utils.callStaticMethod("org.h2.jmx.DatabaseInfo.registerMBean", connectionInfo, database);
+            } catch (Exception e) {
+                database.removeSession(sessionLocal);
+                throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, e, "JMX");
+            }
+
+            JMX = true;
+        }
+
+        return sessionLocal;
+    }
+
     private static void checkClustering(ConnectionInfo ci, Database database) {
-        String clusterSession = ci.getProperty(SetTypes.CLUSTER, null);
+        String clusterSession = ci.getPropertyString(SetTypes.CLUSTER, null);
         if (Constants.CLUSTERING_DISABLED.equals(clusterSession)) {
             // in this case, no checking is made
             // (so that a connection can be made to disable/change clustering)
             return;
         }
+
         String clusterDb = database.getCluster();
         if (!Constants.CLUSTERING_DISABLED.equals(clusterDb)) {
             if (!Constants.CLUSTERING_ENABLED.equals(clusterSession)) {
                 if (!Objects.equals(clusterSession, clusterDb)) {
-                    if (clusterDb.equals(Constants.CLUSTERING_DISABLED)) {
-                        throw DbException.get(
-                                ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_ALONE);
-                    }
-                    throw DbException.get(
-                            ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1,
-                            clusterDb);
+                    throw DbException.get(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1, clusterDb);
                 }
             }
         }
@@ -438,10 +434,6 @@ public final class Engine {
     }
 
     private static final class DatabaseHolder {
-
-        DatabaseHolder() {
-        }
-
         volatile Database database;
     }
 }

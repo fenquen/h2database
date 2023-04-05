@@ -50,7 +50,7 @@ public final class UserAggregate extends UserDefinedFunction {
             }
             return agg;
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 

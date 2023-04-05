@@ -251,10 +251,10 @@ public class TcpServer implements Service {
         String threadName = listenerThread.getName();
         try {
             while (!stop) {
-                Socket s = serverSocket.accept();
-                Utils10.setTcpQuickack(s, true);
+                Socket socket = serverSocket.accept();
+                Utils10.setTcpQuickack(socket, true);
                 int id = nextThreadId++;
-                TcpServerThread c = new TcpServerThread(s, this, id);
+                TcpServerThread c = new TcpServerThread(socket, this, id);
                 running.add(c);
                 Thread thread = new Thread(c, threadName + " thread-" + id);
                 thread.setDaemon(isDaemon);

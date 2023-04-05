@@ -153,7 +153,7 @@ public class MVTable extends TableBase {
         nextAnalyze = database.getSettings().analyzeAuto;
         changesUntilAnalyze = nextAnalyze <= 0 ? null : new AtomicInteger(nextAnalyze);
         this.store = store;
-        this.transactionStore = store.getTransactionStore();
+        this.transactionStore = store.transactionStore;
         traceLock = database.getTrace(Trace.LOCK);
 
         mvPrimaryIndex = new MVPrimaryIndex(
@@ -518,7 +518,7 @@ public class MVTable extends TableBase {
             } catch (Throwable nested) {
                 e.addSuppressed(nested);
             }
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         analyzeIfRequired(session);
     }
@@ -552,7 +552,7 @@ public class MVTable extends TableBase {
             } catch (Throwable nested) {
                 e.addSuppressed(nested);
             }
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         analyzeIfRequired(session);
     }
@@ -573,7 +573,7 @@ public class MVTable extends TableBase {
             } catch (Throwable nested) {
                 e.addSuppressed(nested);
             }
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         analyzeIfRequired(session);
     }

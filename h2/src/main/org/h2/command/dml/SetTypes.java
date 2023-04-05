@@ -10,7 +10,7 @@ import java.util.ArrayList;
 /**
  * The list of setting for a SET statement.
  */
-public class SetTypes {
+public abstract class SetTypes {
 
     /**
      * The type of a SET IGNORECASE statement.
@@ -244,70 +244,62 @@ public class SetTypes {
 
     private static final int COUNT = TRUNCATE_LARGE_LENGTH + 1;
 
-    private static final ArrayList<String> TYPES;
+    public static final ArrayList<String> TYPES;
 
     private SetTypes() {
         // utility class
     }
 
     static {
-        ArrayList<String> list = new ArrayList<>(COUNT);
-        list.add("IGNORECASE");
-        list.add("MAX_LOG_SIZE");
-        list.add("MODE");
-        list.add("READONLY");
-        list.add("LOCK_TIMEOUT");
-        list.add("DEFAULT_LOCK_TIMEOUT");
-        list.add("DEFAULT_TABLE_TYPE");
-        list.add("CACHE_SIZE");
-        list.add("TRACE_LEVEL_SYSTEM_OUT");
-        list.add("TRACE_LEVEL_FILE");
-        list.add("TRACE_MAX_FILE_SIZE");
-        list.add("COLLATION");
-        list.add("CLUSTER");
-        list.add("WRITE_DELAY");
-        list.add("DATABASE_EVENT_LISTENER");
-        list.add("MAX_MEMORY_ROWS");
-        list.add("LOCK_MODE");
-        list.add("DB_CLOSE_DELAY");
-        list.add("THROTTLE");
-        list.add("MAX_MEMORY_UNDO");
-        list.add("MAX_LENGTH_INPLACE_LOB");
-        list.add("ALLOW_LITERALS");
-        list.add("SCHEMA");
-        list.add("OPTIMIZE_REUSE_RESULTS");
-        list.add("SCHEMA_SEARCH_PATH");
-        list.add("REFERENTIAL_INTEGRITY");
-        list.add("MAX_OPERATION_MEMORY");
-        list.add("EXCLUSIVE");
-        list.add("CREATE_BUILD");
-        list.add("@");
-        list.add("QUERY_TIMEOUT");
-        list.add("REDO_LOG_BINARY");
-        list.add("JAVA_OBJECT_SERIALIZER");
-        list.add("RETENTION_TIME");
-        list.add("QUERY_STATISTICS");
-        list.add("QUERY_STATISTICS_MAX_ENTRIES");
-        list.add("LAZY_QUERY_EXECUTION");
-        list.add("BUILTIN_ALIAS_OVERRIDE");
-        list.add("AUTHENTICATOR");
-        list.add("IGNORE_CATALOGS");
-        list.add("CATALOG");
-        list.add("NON_KEYWORDS");
-        list.add("TIME ZONE");
-        list.add("VARIABLE_BINARY");
-        list.add("DEFAULT_NULL_ORDERING");
-        list.add("TRUNCATE_LARGE_LENGTH");
-        TYPES = list;
-        assert(list.size() == COUNT);
+        TYPES = new ArrayList<>(COUNT);
+        TYPES.add("IGNORECASE");
+        TYPES.add("MAX_LOG_SIZE");
+        TYPES.add("MODE");
+        TYPES.add("READONLY");
+        TYPES.add("LOCK_TIMEOUT");
+        TYPES.add("DEFAULT_LOCK_TIMEOUT");
+        TYPES.add("DEFAULT_TABLE_TYPE");
+        TYPES.add("CACHE_SIZE");
+        TYPES.add("TRACE_LEVEL_SYSTEM_OUT");
+        TYPES.add("TRACE_LEVEL_FILE");
+        TYPES.add("TRACE_MAX_FILE_SIZE");
+        TYPES.add("COLLATION");
+        TYPES.add("CLUSTER");
+        TYPES.add("WRITE_DELAY");
+        TYPES.add("DATABASE_EVENT_LISTENER");
+        TYPES.add("MAX_MEMORY_ROWS");
+        TYPES.add("LOCK_MODE");
+        TYPES.add("DB_CLOSE_DELAY");
+        TYPES.add("THROTTLE");
+        TYPES.add("MAX_MEMORY_UNDO");
+        TYPES.add("MAX_LENGTH_INPLACE_LOB");
+        TYPES.add("ALLOW_LITERALS");
+        TYPES.add("SCHEMA");
+        TYPES.add("OPTIMIZE_REUSE_RESULTS");
+        TYPES.add("SCHEMA_SEARCH_PATH");
+        TYPES.add("REFERENTIAL_INTEGRITY");
+        TYPES.add("MAX_OPERATION_MEMORY");
+        TYPES.add("EXCLUSIVE");
+        TYPES.add("CREATE_BUILD");
+        TYPES.add("@");
+        TYPES.add("QUERY_TIMEOUT");
+        TYPES.add("REDO_LOG_BINARY");
+        TYPES.add("JAVA_OBJECT_SERIALIZER");
+        TYPES.add("RETENTION_TIME");
+        TYPES.add("QUERY_STATISTICS");
+        TYPES.add("QUERY_STATISTICS_MAX_ENTRIES");
+        TYPES.add("LAZY_QUERY_EXECUTION");
+        TYPES.add("BUILTIN_ALIAS_OVERRIDE");
+        TYPES.add("AUTHENTICATOR");
+        TYPES.add("IGNORE_CATALOGS");
+        TYPES.add("CATALOG");
+        TYPES.add("NON_KEYWORDS");
+        TYPES.add("TIME ZONE");
+        TYPES.add("VARIABLE_BINARY");
+        TYPES.add("DEFAULT_NULL_ORDERING");
+        TYPES.add("TRUNCATE_LARGE_LENGTH");
     }
 
-    /**
-     * Get the set type number.
-     *
-     * @param name the set type name
-     * @return the number
-     */
     public static int getType(String name) {
         return TYPES.indexOf(name);
     }
@@ -316,12 +308,6 @@ public class SetTypes {
         return TYPES;
     }
 
-    /**
-     * Get the set type name.
-     *
-     * @param type the type number
-     * @return the name
-     */
     public static String getTypeName(int type) {
         return TYPES.get(type);
     }

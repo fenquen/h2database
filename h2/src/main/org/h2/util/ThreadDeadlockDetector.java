@@ -48,9 +48,6 @@ public class ThreadDeadlockDetector {
         }, 10, 10_000);
     }
 
-    /**
-     * Initialize the detector.
-     */
     public static synchronized void init() {
         if (detector == null) {
             detector = new ThreadDeadlockDetector();

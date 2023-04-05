@@ -419,7 +419,7 @@ public final class FunctionAlias extends UserDefinedFunction {
                 result.done();
                 return result;
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
 
@@ -483,8 +483,7 @@ public final class FunctionAlias extends UserDefinedFunction {
             }
             boolean old = session.getAutoCommit();
             Value identity = session.getLastIdentity();
-            boolean defaultConnection = session.getDatabase().
-                    getSettings().defaultConnection;
+            boolean defaultConnection = session.getDatabase().getSettings().defaultConnection;
             try {
                 session.setAutoCommit(false);
                 Object returnValue;
@@ -507,7 +506,7 @@ public final class FunctionAlias extends UserDefinedFunction {
                     builder.append(')');
                     throw DbException.convertInvocation(e, builder.toString());
                 } catch (Exception e) {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
                 return returnValue;
             } finally {

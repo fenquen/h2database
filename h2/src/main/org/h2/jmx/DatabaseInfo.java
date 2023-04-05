@@ -49,8 +49,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
      * @return a new ObjectName instance
      * @throws JMException if the ObjectName could not be created
      */
-    private static ObjectName getObjectName(String name, String path)
-            throws JMException {
+    private static ObjectName getObjectName(String name, String path) throws JMException {
         name = name.replace(':', '_');
         path = path.replace(':', '_');
         Hashtable<String, String> map = new Hashtable<>();
@@ -66,16 +65,18 @@ public class DatabaseInfo implements DatabaseInfoMBean {
      * @param database database
      * @throws JMException on failure
      */
-    public static void registerMBean(ConnectionInfo connectionInfo,
-            Database database) throws JMException {
+    public static void registerMBean(ConnectionInfo connectionInfo, Database database) throws JMException {
         String path = connectionInfo.getDatabasePath();
         if (!MBEANS.containsKey(path)) {
             MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
+
             String name = database.getShortName();
             ObjectName mbeanObjectName = getObjectName(name, path);
             MBEANS.put(path, mbeanObjectName);
+
             DatabaseInfo info = new DatabaseInfo(database);
             Object mbean = new DocumentedMBean(info, DatabaseInfoMBean.class);
+
             mbeanServer.registerMBean(mbean, mbeanObjectName);
         }
     }
@@ -106,7 +107,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
 
     @Override
     public String getMode() {
-        return database.getMode().getName();
+        return database.getMode().name;
     }
 
     @Override

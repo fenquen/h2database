@@ -141,7 +141,7 @@ public final class ValueToObjectConverter2 extends TraceObject {
             try {
                 v = readValueOther(session, rs, columnIndex, type);
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
         return v;
@@ -339,7 +339,7 @@ public final class ValueToObjectConverter2 extends TraceObject {
                     Object o = rs.getObject(columnIndex);
                     buff = o != null ? JdbcUtils.serialize(o, session.getJavaObjectSerializer()) : null;
                 } catch (Exception e) {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
             }
             v = buff == null ? ValueNull.INSTANCE : ValueJavaObject.getNoCopy(buff);

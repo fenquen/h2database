@@ -2954,7 +2954,7 @@ public final class InformationSchemaTable extends MetaTable {
         }
         add(session, rows, "DEFAULT_NULL_ORDERING", database.getDefaultNullOrdering().name());
         add(session, rows, "EXCLUSIVE", database.getExclusiveSession() == null ? "FALSE" : "TRUE");
-        add(session, rows, "MODE", database.getMode().getName());
+        add(session, rows, "MODE", database.getMode().name);
         add(session, rows, "QUERY_TIMEOUT", Integer.toString(session.getQueryTimeout()));
         add(session, rows, "TIME ZONE", session.currentTimeZone().getId());
         add(session, rows, "TRUNCATE_LARGE_LENGTH", session.isTruncateLargeLength() ? "TRUE" : "FALSE");
@@ -2976,11 +2976,11 @@ public final class InformationSchemaTable extends MetaTable {
             add(session, rows,
                     "info.FILE_WRITE", Long.toString(fs.getWriteCount()));
             add(session, rows,
-                    "info.FILE_WRITE_BYTES", Long.toString(fs.getWriteBytes()));
+                    "info.FILE_WRITE_BYTES", Long.toString(fs.getWriteByteCount()));
             add(session, rows,
                     "info.FILE_READ", Long.toString(fs.getReadCount()));
             add(session, rows,
-                    "info.FILE_READ_BYTES", Long.toString(fs.getReadBytes()));
+                    "info.FILE_READ_BYTES", Long.toString(fs.getReadByteCount()));
             add(session, rows,
                     "info.UPDATE_FAILURE_PERCENT",
                     String.format(Locale.ENGLISH, "%.2f%%", 100 * mvStore.getUpdateFailureRatio()));

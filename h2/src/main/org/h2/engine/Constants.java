@@ -10,7 +10,7 @@ import java.sql.ResultSet;
 /**
  * Constants are fixed values that are used in the whole database code.
  */
-public class Constants {
+public abstract class Constants {
 
     /**
      * The build date is updated for each public release.
@@ -38,24 +38,28 @@ public class Constants {
 
     /**
      * The TCP protocol version number 17.
+     *
      * @since 1.4.197 (2018-03-18)
      */
     public static final int TCP_PROTOCOL_VERSION_17 = 17;
 
     /**
      * The TCP protocol version number 18.
+     *
      * @since 1.4.198 (2019-02-22)
      */
     public static final int TCP_PROTOCOL_VERSION_18 = 18;
 
     /**
      * The TCP protocol version number 19.
+     *
      * @since 1.4.200 (2019-10-14)
      */
     public static final int TCP_PROTOCOL_VERSION_19 = 19;
 
     /**
      * The TCP protocol version number 20.
+     *
      * @since 2.0.202 (2021-11-25)
      */
     public static final int TCP_PROTOCOL_VERSION_20 = 20;
@@ -207,8 +211,7 @@ public class Constants {
      * The default result set concurrency for statements created with
      * Connection.createStatement() or prepareStatement(String sql).
      */
-    public static final int DEFAULT_RESULT_SET_CONCURRENCY =
-            ResultSet.CONCUR_READ_ONLY;
+    public static final int DEFAULT_RESULT_SET_CONCURRENCY = ResultSet.CONCUR_READ_ONLY;
 
     /**
      * The default port of the TCP server.
@@ -475,7 +478,7 @@ public class Constants {
     /**
      * Announced version for PgServer.
      */
-    public static final String PG_VERSION = "8.2.23";
+    public static final String PG_VERSION = "8.2.24";
 
     /**
      * The version of this product, consisting of major version, minor
@@ -491,18 +494,11 @@ public class Constants {
 
     static {
         String version = VERSION_MAJOR + "." + VERSION_MINOR + '.' + BUILD_ID;
-        if (BUILD_VENDOR_AND_VERSION != null) {
-            version += '_' + BUILD_VENDOR_AND_VERSION;
-        }
         if (BUILD_SNAPSHOT) {
             version += "-SNAPSHOT";
         }
+
         VERSION = version;
         FULL_VERSION = version + (" (" + BUILD_DATE + ')');
     }
-
-    private Constants() {
-        // utility class
-    }
-
 }

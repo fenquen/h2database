@@ -53,20 +53,20 @@ public class TestGeometryUtils extends TestBase {
 
     private static final byte[][] NON_FINITE = { //
             // XY
-            StringUtils.convertHexToBytes("0000000001" //
+            StringUtils.convertHex2ByteArr("0000000001" //
                     + "0000000000000000" //
                     + "7ff8000000000000"), //
             // XY
-            StringUtils.convertHexToBytes("0000000001" //
+            StringUtils.convertHex2ByteArr("0000000001" //
                     + "7ff8000000000000" //
                     + "0000000000000000"), //
             // XYZ
-            StringUtils.convertHexToBytes("0080000001" //
+            StringUtils.convertHex2ByteArr("0080000001" //
                     + "0000000000000000" //
                     + "0000000000000000" //
                     + "7ff8000000000000"), //
             // XYM
-            StringUtils.convertHexToBytes("0040000001" //
+            StringUtils.convertHex2ByteArr("0040000001" //
                     + "0000000000000000" //
                     + "0000000000000000" //
                     + "7ff8000000000000") };
@@ -79,7 +79,7 @@ public class TestGeometryUtils extends TestBase {
 
     private static final String MIXED_WKT = "LINESTRING (1 2, 3 4 5)";
 
-    private static final byte[] MIXED_WKB = StringUtils.convertHexToBytes(""
+    private static final byte[] MIXED_WKB = StringUtils.convertHex2ByteArr(""
             // BOM (BigEndian)
             + "00"
             // Z | LINESTRING
@@ -256,7 +256,7 @@ public class TestGeometryUtils extends TestBase {
     private void testEmptyPoint() {
         String ewkt = "POINT EMPTY";
         byte[] ewkb = EWKTUtils.ewkt2ewkb(ewkt);
-        assertEquals(StringUtils.convertHexToBytes("00000000017ff80000000000007ff8000000000000"), ewkb);
+        assertEquals(StringUtils.convertHex2ByteArr("00000000017ff80000000000007ff8000000000000"), ewkb);
         assertEquals(ewkt, EWKTUtils.ewkb2ewkt(ewkb));
         assertNull(GeometryUtils.getEnvelope(ewkb));
         Point p = (Point) JTSUtils.ewkb2geometry(ewkb);
@@ -433,7 +433,7 @@ public class TestGeometryUtils extends TestBase {
 
     private void testSRID() throws Exception {
         byte[] ewkb = EWKTUtils.ewkt2ewkb("SRID=10;GEOMETRYCOLLECTION (POINT (1 2))");
-        assertEquals(StringUtils.convertHexToBytes(""
+        assertEquals(StringUtils.convertHex2ByteArr(""
                 // ******** Geometry collection ********
                 // BOM (BigEndian)
                 + "00"

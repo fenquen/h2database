@@ -1781,7 +1781,7 @@ public class WebApp {
         }
         ResultSetMetaData meta = rs.getMetaData();
         if (DataType.isBinaryColumn(meta, columnIndex)) {
-            rs.updateBytes(columnIndex, StringUtils.convertHexToBytes(x));
+            rs.updateBytes(columnIndex, StringUtils.convertHex2ByteArr(x));
             return;
         }
         int type = meta.getColumnType(columnIndex);

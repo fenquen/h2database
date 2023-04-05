@@ -133,13 +133,6 @@ public class FileUtils {
         return p == null ? null : p.toString();
     }
 
-    /**
-     * Check if the file name includes a path. This method is similar to Java 7
-     * <code>java.nio.file.Path.isAbsolute</code>.
-     *
-     * @param fileName the file name
-     * @return if the file name is absolute
-     */
     public static boolean isAbsolute(String fileName) {
         return FilePath.get(fileName).isAbsolute()
                 // Allows Windows to recognize "/path" as absolute.

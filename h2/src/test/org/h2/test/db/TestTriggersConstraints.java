@@ -727,7 +727,7 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
                             prep.executeUpdate();
                         }
                     } catch (SQLException e) {
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     }
                 }
             };

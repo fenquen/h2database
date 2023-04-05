@@ -928,7 +928,7 @@ public class WebServer implements Service {
         }
         if (password.length() == 128) {
             try {
-                adminPassword = StringUtils.convertHexToBytes(password);
+                adminPassword = StringUtils.convertHex2ByteArr(password);
                 return;
             } catch (Exception ex) {}
         }

@@ -57,7 +57,7 @@ public class LinkedCursor implements Cursor {
                 return false;
             }
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         current = tableLink.getTemplateRow();
         for (int i = 0; i < current.getColumnCount(); i++) {

@@ -147,7 +147,7 @@ public final class ValueGeometry extends ValueBytesBase {
             try {
                 geometry = JTSUtils.ewkb2geometry(value, getDimensionSystem());
             } catch (RuntimeException ex) {
-                throw DbException.convert(ex);
+                throw DbException.convert2DbException(ex);
             }
         }
         return ((Geometry) geometry).copy();

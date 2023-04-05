@@ -165,7 +165,7 @@ public final class StringFunction1 extends Function1 {
 
     private static Value hexToRaw(String s, SessionLocal session) {
         if (session.getMode().getEnum() == ModeEnum.Oracle) {
-            return ValueVarbinary.get(StringUtils.convertHexToBytes(s));
+            return ValueVarbinary.get(StringUtils.convertHex2ByteArr(s));
         }
         int len = s.length();
         if (len % 4 != 0) {

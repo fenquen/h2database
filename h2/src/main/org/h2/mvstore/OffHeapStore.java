@@ -11,13 +11,11 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 /**
- * A storage mechanism that "persists" data in the off-heap area of the main
- * memory.
+ * A storage mechanism that "persists" data in the off-heap area of the main memory.
  */
 public class OffHeapStore extends FileStore {
 
-    private final TreeMap<Long, ByteBuffer> memory =
-            new TreeMap<>();
+    private final TreeMap<Long, ByteBuffer> memory = new TreeMap<>();
 
     @Override
     public void open(String fileName, boolean readOnly, char[] encryptionKey) {
@@ -33,12 +31,10 @@ public class OffHeapStore extends FileStore {
     public ByteBuffer readFully(long pos, int len) {
         Entry<Long, ByteBuffer> memEntry = memory.floorEntry(pos);
         if (memEntry == null) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_READING_FAILED,
-                    "Could not read from position {0}", pos);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED, "Could not read from position {0}", pos);
         }
         readCount.incrementAndGet();
-        readBytes.addAndGet(len);
+        readByteCount.addAndGet(len);
         ByteBuffer buff = memEntry.getValue();
         ByteBuffer read = buff.duplicate();
         int offset = (int) (pos - memEntry.getKey());
@@ -49,13 +45,12 @@ public class OffHeapStore extends FileStore {
 
     @Override
     public void free(long pos, int length) {
-        freeSpace.free(pos, length);
+        freeSpaceBitSet.free(pos, length);
         ByteBuffer buff = memory.remove(pos);
         if (buff == null) {
             // nothing was written (just allocated)
         } else if (buff.remaining() != length) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_READING_FAILED,
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED,
                     "Partial remove is not supported at position {0}", pos);
         }
     }
@@ -75,22 +70,18 @@ public class OffHeapStore extends FileStore {
         int length = src.remaining();
         if (prevPos == pos) {
             if (prevLength != length) {
-                throw DataUtils.newMVStoreException(
-                        DataUtils.ERROR_READING_FAILED,
-                        "Could not write to position {0}; " +
-                        "partial overwrite is not supported", pos);
+                throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED,
+                        "Could not write to position {0}; partial overwrite is not supported", pos);
             }
             writeCount.incrementAndGet();
-            writeBytes.addAndGet(length);
+            writeByteCount.addAndGet(length);
             buff.rewind();
             buff.put(src);
             return;
         }
         if (prevPos + prevLength > pos) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_READING_FAILED,
-                    "Could not write to position {0}; " +
-                    "partial overwrite is not supported", pos);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED,
+                    "Could not write to position {0}; partial overwrite is not supported", pos);
         }
         writeNewEntry(pos, src);
     }
@@ -98,7 +89,7 @@ public class OffHeapStore extends FileStore {
     private void writeNewEntry(long pos, ByteBuffer src) {
         int length = src.remaining();
         writeCount.incrementAndGet();
-        writeBytes.addAndGet(length);
+        writeByteCount.addAndGet(length);
         ByteBuffer buff = ByteBuffer.allocateDirect(length);
         buff.put(src);
         buff.rewind();
@@ -114,17 +105,15 @@ public class OffHeapStore extends FileStore {
             return;
         }
         fileSize = size;
-        for (Iterator<Long> it = memory.keySet().iterator(); it.hasNext();) {
+        for (Iterator<Long> it = memory.keySet().iterator(); it.hasNext(); ) {
             long pos = it.next();
             if (pos < size) {
                 break;
             }
             ByteBuffer buff = memory.get(pos);
             if (buff.capacity() > size) {
-                throw DataUtils.newMVStoreException(
-                        DataUtils.ERROR_READING_FAILED,
-                        "Could not truncate to {0}; " +
-                        "partial truncate is not supported", pos);
+                throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED,
+                        "Could not truncate to {0}; partial truncate is not supported", pos);
             }
             it.remove();
         }
@@ -144,5 +133,4 @@ public class OffHeapStore extends FileStore {
     public int getDefaultRetentionTime() {
         return 0;
     }
-
 }

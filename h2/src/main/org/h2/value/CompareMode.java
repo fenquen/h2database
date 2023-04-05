@@ -20,20 +20,17 @@ import org.h2.util.StringUtils;
 public class CompareMode implements Comparator<Value> {
 
     /**
-     * This constant means there is no collator set, and the default string
-     * comparison is to be used.
+     * This constant means there is no collator set, and the default string comparison is to be used.
      */
     public static final String OFF = "OFF";
 
     /**
-     * This constant means the default collator should be used, even if ICU4J is
-     * in the classpath.
+     * This constant means the default collator should be used, even if ICU4J is in the classpath.
      */
     public static final String DEFAULT = "DEFAULT_";
 
     /**
-     * This constant means ICU4J should be used (this will fail if it is not in
-     * the classpath).
+     * This constant means ICU4J should be used (this will fail if it is not in the classpath).
      */
     public static final String ICU4J = "ICU4J_";
 
@@ -141,10 +138,8 @@ public class CompareMode implements Comparator<Value> {
             return true;
         }
         if (ignoreCase) {
-            if (Character.toUpperCase(ca) == Character.toUpperCase(cb)
-                    || Character.toLowerCase(ca) == Character.toLowerCase(cb)) {
-                return true;
-            }
+            return Character.toUpperCase(ca) == Character.toUpperCase(cb)
+                    || Character.toLowerCase(ca) == Character.toLowerCase(cb);
         }
         return false;
     }
@@ -254,17 +249,16 @@ public class CompareMode implements Comparator<Value> {
     public boolean equals(Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof CompareMode)) {
+        }
+
+        if (!(obj instanceof CompareMode)) {
             return false;
         }
         CompareMode o = (CompareMode) obj;
         if (!getName().equals(o.getName())) {
             return false;
         }
-        if (strength != o.strength) {
-            return false;
-        }
-        return true;
+        return strength == o.strength;
     }
 
     @Override

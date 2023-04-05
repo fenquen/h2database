@@ -26,8 +26,7 @@ public class Mode {
     }
 
     /**
-     * Determines how rows with {@code NULL} values in indexed columns are handled
-     * in unique indexes.
+     * Determines how rows with {@code NULL} values in indexed columns are handled in unique indexes.
      */
     public enum UniqueIndexNullsHandling {
         /**
@@ -455,11 +454,12 @@ public class Mode {
      */
     public boolean numericWithBooleanComparison;
 
-    private final String name;
+    public final String name;
 
-    private final ModeEnum modeEnum;
+    public final ModeEnum modeEnum;
 
     static {
+        // todo rust暂时只干regular
         Mode mode = new Mode(ModeEnum.REGULAR);
         mode.allowEmptyInPredicate = true;
         mode.dateTimeValueWithinTransaction = true;
@@ -646,8 +646,7 @@ public class Mode {
         mode.supportPoundSymbolForColumnNames = true;
         // Oracle accepts keys of the form <namespace>.*. See
         // https://docs.oracle.com/database/121/JJDBC/jdbcvers.htm#JJDBC29006
-        mode.supportedClientInfoPropertiesRegEx =
-                Pattern.compile(".*\\..*");
+        mode.supportedClientInfoPropertiesRegEx = Pattern.compile(".*\\..*");
         mode.alterTableModifyColumn = true;
         mode.decimalSequences = true;
         mode.charAndByteLengthUnits = true;
@@ -670,8 +669,7 @@ public class Mode {
         // PostgreSQL only supports the ApplicationName property. See
         // https://github.com/hhru/postgres-jdbc/blob/master/postgresql-jdbc-9.2-1002.src/
         //     org/postgresql/jdbc4/AbstractJdbc4Connection.java
-        mode.supportedClientInfoPropertiesRegEx =
-                Pattern.compile("ApplicationName");
+        mode.supportedClientInfoPropertiesRegEx = Pattern.compile("ApplicationName");
         mode.charPadding = CharPadding.IN_RESULT_SETS;
         mode.nextValueReturnsDifferentValues = true;
         mode.takeGeneratedSequenceValue = true;
@@ -710,26 +708,16 @@ public class Mode {
         MODES.put(StringUtils.toUpperEnglish(mode.name), mode);
     }
 
-    /**
-     * Get the mode with the given name.
-     *
-     * @param name the name of the mode
-     * @return the mode object
-     */
-    public static Mode getInstance(String name) {
-        return MODES.get(StringUtils.toUpperEnglish(name));
-    }
-
     public static Mode getRegular() {
         return getInstance(ModeEnum.REGULAR.name());
     }
 
-    public String getName() {
-        return name;
+    public static Mode getInstance(String name) {
+        return MODES.get(StringUtils.toUpperEnglish(name));
     }
 
     public ModeEnum getEnum() {
-        return this.modeEnum;
+        return modeEnum;
     }
 
     @Override

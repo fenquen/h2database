@@ -30,15 +30,11 @@ public final class User extends RightOwner {
     private final boolean systemUser;
     private byte[] salt;
     private byte[] passwordHash;
-    private boolean admin;
+    public boolean admin;
 
     public User(Database database, int id, String userName, boolean systemUser) {
         super(database, id, userName, Trace.USER);
         this.systemUser = systemUser;
-    }
-
-    public void setAdmin(boolean admin) {
-        this.admin = admin;
     }
 
     public boolean isAdmin() {
@@ -82,29 +78,31 @@ public final class User extends RightOwner {
     /**
      * Get the CREATE SQL statement for this object.
      *
-     * @param password true if the password (actually the salt and hash) should
-     *            be returned
+     * @param password true if the password (actually the salt and hash) should be returned
      * @return the SQL statement
      */
     public String getCreateSQL(boolean password) {
         StringBuilder buff = new StringBuilder("CREATE USER IF NOT EXISTS ");
+
         getSQL(buff, DEFAULT_SQL_FLAGS);
+
         if (comment != null) {
             buff.append(" COMMENT ");
             StringUtils.quoteStringSQL(buff, comment);
         }
+
         if (password) {
             buff.append(" SALT '");
-            StringUtils.convertBytesToHex(buff, salt).
-                append("' HASH '");
-            StringUtils.convertBytesToHex(buff, passwordHash).
-                append('\'');
+            StringUtils.convertBytesToHex(buff, salt).append("' HASH '");
+            StringUtils.convertBytesToHex(buff, passwordHash).append('\'');
         } else {
             buff.append(" PASSWORD ''");
         }
+
         if (admin) {
             buff.append(" ADMIN");
         }
+
         return buff.toString();
     }
 
@@ -182,7 +180,7 @@ public final class User extends RightOwner {
     /**
      * Checks that this user has the given rights for the specified table.
      *
-     * @param table the table
+     * @param table     the table
      * @param rightMask the rights required
      * @throws DbException if this user does not have the required rights
      */
@@ -195,7 +193,7 @@ public final class User extends RightOwner {
     /**
      * See if this user has the given rights for this database object.
      *
-     * @param table the database object, or null for schema-only check
+     * @param table     the database object, or null for schema-only check
      * @param rightMask the rights required
      * @return true if the user has the rights
      */

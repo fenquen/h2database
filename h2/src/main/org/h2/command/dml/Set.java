@@ -166,7 +166,7 @@ public class Set extends Prepared {
                     throw DbException.get(ErrorCode.COLLATION_CHANGE_WITH_DATA_TABLE_1, table.getTraceSQL());
                 }
                 addOrUpdateSetting(name, buff.toString(), 0);
-                database.setCompareMode(compareMode);
+                database.compareMode = compareMode;
             }
             break;
         }
@@ -516,7 +516,7 @@ public class Set extends Prepared {
                     database.getTrace(Trace.DATABASE).error(e,
                             "{0}: failed to set authenticator during database start ", expression.toString());
                 } else {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
             }
             break;

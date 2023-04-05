@@ -145,7 +145,7 @@ public final class Upgrade {
             oldInfo.put("password", ((char[]) password).clone());
         }
         ConnectionInfo ci = new ConnectionInfo(url, info, null, null);
-        if (!ci.isPersistent() || ci.isRemote()) {
+        if (!ci.persistent || ci.remote) {
             return false;
         }
         String name = ci.getDatabasePath();
@@ -200,7 +200,7 @@ public final class Upgrade {
 
     private static String copyProperty(ConnectionInfo ci, StringBuilder oldUrl, String name) {
         try {
-            String value = ci.getProperty(name, null);
+            String value = ci.getPropertyString(name, null);
             if (value != null) {
                 oldUrl.append(';').append(name).append('=').append(value);
             }

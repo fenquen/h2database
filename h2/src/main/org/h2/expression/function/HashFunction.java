@@ -134,7 +134,7 @@ public final class HashFunction extends FunctionN {
         try {
             md = MessageDigest.getInstance(algorithm);
         } catch (Exception ex) {
-            throw DbException.convert(ex);
+            throw DbException.convert2DbException(ex);
         }
         return hashImpl(value, md);
     }
@@ -162,7 +162,7 @@ public final class HashFunction extends FunctionN {
             }
             return md;
         } catch (Exception ex) {
-            throw DbException.convert(ex);
+            throw DbException.convert2DbException(ex);
         }
     }
 

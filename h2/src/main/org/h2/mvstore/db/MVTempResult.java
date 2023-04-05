@@ -188,7 +188,7 @@ public abstract class MVTempResult implements ResultExternal {
             closeable = new CloseImpl(store, fileName);
             fileRef = tempFileDeleter.addFile(closeable, this);
         } catch (IOException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         parent = null;
     }

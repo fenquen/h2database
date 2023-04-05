@@ -168,7 +168,7 @@ public class Recover extends Tool implements DataHandler {
                         }
                         return null;
                     } catch (SQLException e) {
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     }
                 }
 

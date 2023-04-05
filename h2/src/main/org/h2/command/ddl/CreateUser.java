@@ -67,7 +67,7 @@ public class CreateUser extends DefineCommand {
             return b == null ? new byte[0] : b;
         }
         String s = value.getString();
-        return s == null ? new byte[0] : StringUtils.convertHexToBytes(s);
+        return s == null ? new byte[0] : StringUtils.convertHex2ByteArr(s);
     }
 
     /**
@@ -106,7 +106,7 @@ public class CreateUser extends DefineCommand {
         }
         int id = getObjectId();
         User user = new User(db, id, userName, false);
-        user.setAdmin(admin);
+        user.admin = admin;
         user.setComment(comment);
         if (hash != null && salt != null) {
             setSaltAndHash(user, sessionLocal, salt, hash);

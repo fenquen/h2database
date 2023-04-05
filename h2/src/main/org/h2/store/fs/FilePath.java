@@ -12,6 +12,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.h2.store.fs.disk.FilePathDisk;
 import org.h2.util.MathUtils;
 
@@ -25,7 +26,7 @@ public abstract class FilePath {
 
     private static final FilePath defaultProvider;
 
-    private static final ConcurrentHashMap<String, FilePath> providers;
+    private static final ConcurrentHashMap<String, FilePath> SCHEMA_FILEPATH;
 
     /**
      * The prefix for temporary files.
@@ -34,15 +35,14 @@ public abstract class FilePath {
     private static long tempSequence;
 
     /**
-     * The complete path (which may be absolute or relative, depending on the
-     * file system).
+     * The complete path (which may be absolute or relative, depending on the file system).
      */
     public String name;
 
     static {
         FilePath def = null;
         ConcurrentHashMap<String, FilePath> map = new ConcurrentHashMap<>();
-        for (String c : new String[] {
+        for (String c : new String[]{
                 "org.h2.store.fs.disk.FilePathDisk",
                 "org.h2.store.fs.mem.FilePathMem",
                 "org.h2.store.fs.mem.FilePathMemLZF",
@@ -52,8 +52,7 @@ public abstract class FilePath {
                 "org.h2.store.fs.niomapped.FilePathNioMapped",
                 "org.h2.store.fs.async.FilePathAsync",
                 "org.h2.store.fs.zip.FilePathZip",
-                "org.h2.store.fs.retry.FilePathRetryOnInterrupt"
-        }) {
+                "org.h2.store.fs.retry.FilePathRetryOnInterrupt"}) {
             try {
                 FilePath p = (FilePath) Class.forName(c).getDeclaredConstructor().newInstance();
                 map.put(p.getScheme(), p);
@@ -68,7 +67,7 @@ public abstract class FilePath {
             }
         }
         defaultProvider = def;
-        providers = map;
+        SCHEMA_FILEPATH = map;
     }
 
     /**
@@ -82,12 +81,11 @@ public abstract class FilePath {
         path = path.replace('\\', '/');
         int index = path.indexOf(':');
         if (index < 2) {
-            // use the default provider if no prefix or
-            // only a single character (drive name)
+            // use the default provider if no prefix or only a single character (drive name)
             return defaultProvider.getPath(path);
         }
         String scheme = path.substring(0, index);
-        FilePath p = providers.get(scheme);
+        FilePath p = SCHEMA_FILEPATH.get(scheme);
         if (p == null) {
             // provider not found - use the default
             p = defaultProvider;
@@ -101,7 +99,7 @@ public abstract class FilePath {
      * @param provider the file provider
      */
     public static void register(FilePath provider) {
-        providers.put(provider.getScheme(), provider);
+        SCHEMA_FILEPATH.put(provider.getScheme(), provider);
     }
 
     /**
@@ -110,7 +108,7 @@ public abstract class FilePath {
      * @param provider the file provider
      */
     public static void unregister(FilePath provider) {
-        providers.remove(provider.getScheme());
+        SCHEMA_FILEPATH.remove(provider.getScheme());
     }
 
     /**
@@ -123,9 +121,9 @@ public abstract class FilePath {
     /**
      * Rename a file if this is allowed.
      *
-     * @param newName the new fully qualified file name
+     * @param newName       the new fully qualified file name
      * @param atomicReplace whether the move should be atomic, and the target
-     *            file should be replaced if it exists and replacing is possible
+     *                      file should be replaced if it exists and replacing is possible
      */
     public abstract void moveTo(FilePath newName, boolean atomicReplace);
 
@@ -223,8 +221,7 @@ public abstract class FilePath {
     /**
      * Create an output stream to write into the file.
      *
-     * @param append if true, the file will grow, if false, the file will be
-     *            truncated first
+     * @param append if true, the file will grow, if false, the file will be truncated first
      * @return the output stream
      * @throws IOException If an I/O error occurs
      */
@@ -236,7 +233,7 @@ public abstract class FilePath {
      * Create a new output stream from the channel.
      *
      * @param channel the file channel
-     * @param append true for append mode, false for truncate and overwrite
+     * @param append  true for append mode, false for truncate and overwrite
      * @return the output stream
      * @throws IOException on I/O exception
      */
@@ -280,7 +277,7 @@ public abstract class FilePath {
     /**
      * Create a new temporary file.
      *
-     * @param suffix the suffix
+     * @param suffix    the suffix
      * @param inTempDir if the file should be stored in the temporary directory
      * @return the name of the created file
      * @throws IOException on failure
@@ -305,8 +302,7 @@ public abstract class FilePath {
      * @param newRandom if the random part of the filename should change
      * @return the file name part
      */
-    private static synchronized String getNextTempFileNamePart(
-            boolean newRandom) {
+    private static synchronized String getNextTempFileNamePart(boolean newRandom) {
         if (newRandom || tempRandom == null) {
             tempRandom = MathUtils.randomInt(Integer.MAX_VALUE) + ".";
         }

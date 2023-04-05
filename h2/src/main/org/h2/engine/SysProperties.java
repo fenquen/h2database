@@ -151,8 +151,7 @@ public class SysProperties {
      * logins will double the time until DELAY_WRONG_PASSWORD_MAX.
      * To disable the delay, set this system property to 0.
      */
-    public static final int DELAY_WRONG_PASSWORD_MIN =
-            Utils.getProperty("h2.delayWrongPasswordMin", 250);
+    public static final int DELAY_WRONG_PASSWORD_MIN = Utils.getProperty("h2.delayWrongPasswordMin", 250);
 
     /**
      * System property <code>h2.delayWrongPasswordMax</code>
@@ -271,8 +270,7 @@ public class SysProperties {
 
     static {
         try {
-            OBJECT_CACHE_SIZE = MathUtils.nextPowerOf2(
-                    Utils.getProperty("h2.objectCacheSize", 1024));
+            OBJECT_CACHE_SIZE = MathUtils.nextPowerOf2(Utils.getProperty("h2.objectCacheSize", 1024));
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("Invalid h2.objectCacheSize", e);
         }

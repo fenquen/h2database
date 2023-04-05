@@ -12,8 +12,7 @@ public enum FileLockMethod {
     NO,
 
     /**
-     * This locking method means the cooperative file locking protocol should be
-     * used.
+     * This locking method means the cooperative file locking protocol should be used.
      */
     FILE,
 

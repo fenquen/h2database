@@ -43,9 +43,10 @@ public class CloseWatcher extends PhantomReference<Object> {
      */
     private AutoCloseable closeable;
 
-    public CloseWatcher(Object referent, ReferenceQueue<Object> q,
-            AutoCloseable closeable) {
-        super(referent, q);
+    public CloseWatcher(Object referent,
+                        ReferenceQueue<Object> referenceQueue,
+                        AutoCloseable closeable) {
+        super(referent, referenceQueue);
         this.closeable = closeable;
     }
 
@@ -56,15 +57,17 @@ public class CloseWatcher extends PhantomReference<Object> {
      */
     public static CloseWatcher pollUnclosed() {
         while (true) {
-            CloseWatcher cw = (CloseWatcher) queue.poll();
-            if (cw == null) {
+            CloseWatcher closeWatcher = (CloseWatcher) queue.poll();
+            if (closeWatcher == null) {
                 return null;
             }
+
             if (refs != null) {
-                refs.remove(cw);
+                refs.remove(closeWatcher);
             }
-            if (cw.closeable != null) {
-                return cw;
+
+            if (closeWatcher.closeable != null) {
+                return closeWatcher;
             }
         }
     }
@@ -73,22 +76,22 @@ public class CloseWatcher extends PhantomReference<Object> {
      * Register an object. Before calling this method, pollUnclosed() should be
      * called in a loop to remove old references.
      *
-     * @param o the object
-     * @param closeable the object to close
+     * @param o          the object
+     * @param closeable  the object to close
      * @param stackTrace whether the stack trace should be registered (this is
-     *            relatively slow)
+     *                   relatively slow)
      * @return the close watcher
      */
     public static CloseWatcher register(Object o, AutoCloseable closeable, boolean stackTrace) {
-        CloseWatcher cw = new CloseWatcher(o, queue, closeable);
+        CloseWatcher closeWatcher = new CloseWatcher(o, queue, closeable);
         if (stackTrace) {
             Exception e = new Exception("Open Stack Trace");
             StringWriter s = new StringWriter();
             e.printStackTrace(new PrintWriter(s));
-            cw.openStackTrace = s.toString();
+            closeWatcher.openStackTrace = s.toString();
         }
-        refs.add(cw);
-        return cw;
+        refs.add(closeWatcher);
+        return closeWatcher;
     }
 
     /**

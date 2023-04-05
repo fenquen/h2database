@@ -978,9 +978,9 @@ public final class PgServerThread implements Runnable {
         write('S');
         writeString("ERROR");
         write('C');
-        writeString(e.getSQLState());
+        writeString(e.getSQLState()); // code对应的文本
         write('M');
-        writeString(e.getMessage());
+        writeString(e.getMessage());// 使用code对照账单的得到的相应话术
         write('D');
         writeString(e.toString());
         write(0);

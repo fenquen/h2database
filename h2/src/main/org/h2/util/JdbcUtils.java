@@ -126,7 +126,7 @@ public class JdbcUtils {
             try {
                 serializer = (JavaObjectSerializer) loadUserClass(clazz).getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
     }

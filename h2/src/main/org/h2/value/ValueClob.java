@@ -92,7 +92,7 @@ public final class ValueClob extends ValueLob {
             try {
                 in = new RangeReader(in, 0, length);
             } catch (IOException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
         BufferedReader reader;
@@ -269,7 +269,7 @@ public final class ValueClob extends ValueLob {
                 }
             }
         } catch (IOException ex) {
-            throw DbException.convert(ex);
+            throw DbException.convert2DbException(ex);
         }
     }
 

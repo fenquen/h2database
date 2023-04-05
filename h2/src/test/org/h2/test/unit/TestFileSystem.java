@@ -44,15 +44,12 @@ import org.h2.util.Task;
  */
 public class TestFileSystem extends TestBase {
 
-    /**
-     * Run just this test.
-     *
-     * @param a ignored
-     */
     public static void main(String... a) throws Exception {
-        TestBase test = TestBase.createCaller().init();
+        System.out.println(FileUtils.toRealPath("./data/record"));
+
+        //TestBase test = TestBase.createCaller().init();
         // test.config.traceTest = true;
-        test.testFromMain();
+        //test.testFromMain();
     }
 
     @Override

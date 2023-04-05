@@ -213,9 +213,9 @@ public abstract class Command implements CommandInterface {
                         // there is a serious problem: the transaction may be applied partially
                         // in this case we need to panic: close the database
                         sessionLocal.database.shutdownImmediately();
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     } catch (Throwable e) {
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     }
                 }
             } catch (DbException e) {
@@ -267,9 +267,9 @@ public abstract class Command implements CommandInterface {
                     } catch (OutOfMemoryError e) {
                         callStop = false;
                         database.shutdownImmediately();
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     } catch (Throwable e) {
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     }
                 }
             } catch (DbException e) {

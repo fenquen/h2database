@@ -39,7 +39,7 @@ import org.h2.util.Utils;
 public abstract class Page<K, V> implements Cloneable {
 
     /**
-     * Map this page belongs to
+     * Map this page belongs to 外边传进来的的
      */
     public final MVMap<K, V> mvMap;
 
@@ -89,8 +89,7 @@ public abstract class Page<K, V> implements Cloneable {
      * but can be concurrently marked as removed
      */
     @SuppressWarnings("rawtypes")
-    private static final AtomicLongFieldUpdater<Page> posUpdater =
-            AtomicLongFieldUpdater.newUpdater(Page.class, "pos");
+    private static final AtomicLongFieldUpdater<Page> posUpdater = AtomicLongFieldUpdater.newUpdater(Page.class, "pos");
     /**
      * The estimated number of bytes used per child entry.
      */
@@ -128,7 +127,6 @@ public abstract class Page<K, V> implements Cloneable {
 
     @SuppressWarnings("rawtypes")
     private static final PageReference[] SINGLE_EMPTY = {PageReference.EMPTY};
-
 
     Page(MVMap<K, V> mvMap) {
         this.mvMap = mvMap;
@@ -627,9 +625,9 @@ public abstract class Page<K, V> implements Cloneable {
             Compressor compressor;
             if ((type & DataUtils.PAGE_COMPRESSED_HIGH) ==
                     DataUtils.PAGE_COMPRESSED_HIGH) {
-                compressor = mvMap.getStore().getCompressorHigh();
+                compressor = mvMap.getMvStore().getCompressorHigh();
             } else {
-                compressor = mvMap.getStore().getCompressorFast();
+                compressor = mvMap.getMvStore().getCompressorFast();
             }
             int lenAdd = DataUtils.readVarInt(buff);
             int compLen = buff.remaining();
@@ -717,7 +715,7 @@ public abstract class Page<K, V> implements Cloneable {
         int compressStart = buff.position();
         mvMap.getKeyType().write(buff, keys, keyCount);
         writeValues(buff);
-        MVStore store = mvMap.getStore();
+        MVStore store = mvMap.getMvStore();
         int expLen = buff.position() - compressStart;
         if (expLen > 16) {
             int compressionLevel = store.getCompressionLevel();
@@ -911,7 +909,7 @@ public abstract class Page<K, V> implements Cloneable {
      */
     public final int removePage(long version) {
         if (isPersistent() && getTotalCount() > 0) {
-            MVStore store = mvMap.store;
+            MVStore store = mvMap.mvStore;
             if (!markAsRemoved()) { // only if it has been saved already
                 long pagePos = pos;
                 store.accountForRemovedPage(pagePos, version, mvMap.isSingleWriter(), pageNo);
@@ -1077,7 +1075,6 @@ public abstract class Page<K, V> implements Cloneable {
                     ", page:{" + page + "}";
         }
     }
-
 
     private static class NonLeaf<K, V> extends Page<K, V> {
         /**
@@ -1269,7 +1266,7 @@ public abstract class Page<K, V> implements Cloneable {
                         long pagePos = ref.getPos();
                         assert DataUtils.isPageSaved(pagePos);
                         if (DataUtils.isLeafPosition(pagePos)) {
-                            mvMap.store.accountForRemovedPage(pagePos, version, mvMap.isSingleWriter(), -1);
+                            mvMap.mvStore.accountForRemovedPage(pagePos, version, mvMap.isSingleWriter(), -1);
                         } else {
                             unsavedMemory += mvMap.readPage(pagePos).removeAllRecursive(version);
                         }
@@ -1389,7 +1386,6 @@ public abstract class Page<K, V> implements Cloneable {
         }
     }
 
-
     private static class IncompleteNonLeaf<K, V> extends NonLeaf<K, V> {
 
         private boolean complete;
@@ -1432,7 +1428,6 @@ public abstract class Page<K, V> implements Cloneable {
         }
 
     }
-
 
     private static class Leaf<K, V> extends Page<K, V> {
         /**

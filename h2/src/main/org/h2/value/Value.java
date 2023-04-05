@@ -351,7 +351,7 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
             //
     };
 
-    private static final String NAMES[] = {
+    private static final String[] NAMES = {
             "UNKNOWN",
             "NULL", //
             "CHARACTER", "CHARACTER VARYING", "CHARACTER LARGE OBJECT", "VARCHAR_IGNORECASE", //
@@ -2698,17 +2698,14 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
         if (x > Long.MAX_VALUE || x < Long.MIN_VALUE) {
             // TODO document that +Infinity, -Infinity throw an exception and
             // NaN returns 0
-            throw DbException.get(
-                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Double.toString(x), getColumnName(column));
+            throw DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Double.toString(x), getColumnName(column));
         }
         return Math.round(x);
     }
 
     private static long convertToLong(BigDecimal x, Object column) {
-        if (x.compareTo(MAX_LONG_DECIMAL) > 0 ||
-                x.compareTo(MIN_LONG_DECIMAL) < 0) {
-            throw DbException.get(
-                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, x.toString(), getColumnName(column));
+        if (x.compareTo(MAX_LONG_DECIMAL) > 0 || x.compareTo(MIN_LONG_DECIMAL) < 0) {
+            throw DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, x.toString(), getColumnName(column));
         }
         return x.setScale(0, RoundingMode.HALF_UP).longValue();
     }
@@ -2763,7 +2760,7 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
      * @see #isFalse()
      */
     public final boolean isTrue() {
-        return this != ValueNull.INSTANCE ? getBoolean() : false;
+        return this != ValueNull.INSTANCE && getBoolean();
     }
 
     /**

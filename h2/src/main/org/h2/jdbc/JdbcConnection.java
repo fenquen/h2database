@@ -96,15 +96,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
 
     /**
      * INTERNAL
-     * the session closable object does not leak as Eclipse warns - due to the
-     * CloseWatcher.
-     *
-     * @param url            of this connection
-     * @param info           of this connection
-     * @param user           of this connection
-     * @param password       for the user
-     * @param forbidCreation whether database creation is forbidden
-     * @throws SQLException on failure
+     * the session closable object does not leak as Eclipse warns - due to the CloseWatcher.
      */
     @SuppressWarnings("resource")
     public JdbcConnection(String url,
@@ -119,6 +111,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
                 connectionInfo.setProperty("FORBID_CREATION", "TRUE");
             }
 
+            // todo rust略过
             String baseDir = SysProperties.getBaseDir();
             if (baseDir != null) {
                 connectionInfo.setBaseDir(baseDir);
@@ -130,7 +123,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
             setTrace(session.getTrace(), TraceObject.CONNECTION, getNextId(TraceObject.CONNECTION));
 
             this.user = connectionInfo.getUserName();
-            this.url = connectionInfo.getURL();
+            this.url = connectionInfo.url;
 
             if (isInfoEnabled()) {
                 trace.infoCode("Connection " + getTraceObjectName()
@@ -186,21 +179,22 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
 
     private void closeOld() {
         while (true) {
-            CloseWatcher w = CloseWatcher.pollUnclosed();
-            if (w == null) {
+            CloseWatcher closeWatcher = CloseWatcher.pollUnclosed();
+            if (closeWatcher == null) {
                 break;
             }
+
             try {
-                w.getCloseable().close();
+                closeWatcher.getCloseable().close();
             } catch (Exception e) {
                 trace.error(e, "closing session");
             }
+
             // there was an unclosed object -
             // keep the stack trace from now on
             keepOpenStackTrace = true;
-            String s = w.getOpenStackTrace();
-            Exception ex = DbException
-                    .get(ErrorCode.TRACE_CONNECTION_NOT_CLOSED);
+            String s = closeWatcher.getOpenStackTrace();
+            Exception ex = DbException.get(ErrorCode.TRACE_CONNECTION_NOT_CLOSED);
             trace.error(ex, s);
         }
     }
@@ -466,8 +460,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
         try {
             debugCodeCall("commit");
             checkClosed();
-            if (SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT
-                    && getAutoCommit()) {
+            if (SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT && getAutoCommit()) {
                 throw DbException.get(ErrorCode.METHOD_DISABLED_ON_AUTOCOMMIT_TRUE, "commit()");
             }
             commit = prepareCommand("COMMIT", commit);

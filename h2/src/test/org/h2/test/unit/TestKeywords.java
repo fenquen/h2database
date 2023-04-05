@@ -487,7 +487,7 @@ public class TestKeywords extends TestBase {
         try {
             r = new ClassReader(clazz.getResourceAsStream(clazz.getSimpleName() + ".class"));
         } catch (IOException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         r.accept(new ClassVisitor(Opcodes.ASM8) {
             @Override

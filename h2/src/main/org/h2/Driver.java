@@ -20,21 +20,18 @@ import org.h2.message.DbException;
 /**
  * The database driver. An application should not use this class directly. The
  * only thing the application needs to do is load the driver. This can be done
- * using Class.forName. To load the driver and open a database connection, use
- * the following code:
+ * using Class.forName. To load the driver and open a database connection, use the following code:
  *
  * <pre>
  * Class.forName(&quot;org.h2.Driver&quot;);
- * Connection conn = DriverManager.getConnection(
- *      &quot;jdbc:h2:&tilde;/test&quot;, &quot;sa&quot;, &quot;sa&quot;);
+ * Connection conn = DriverManager.getConnection(&quot;jdbc:h2:&tilde;/test&quot;, &quot;sa&quot;, &quot;sa&quot;);
  * </pre>
  */
 public class Driver implements java.sql.Driver, JdbcDriverBackwardsCompat {
 
     private static final Driver INSTANCE = new Driver();
     private static final String DEFAULT_URL = "jdbc:default:connection";
-    private static final ThreadLocal<Connection> DEFAULT_CONNECTION =
-            new ThreadLocal<>();
+    private static final ThreadLocal<Connection> DEFAULT_CONNECTION = new ThreadLocal<>();
 
     private static boolean registered;
 
@@ -42,16 +39,6 @@ public class Driver implements java.sql.Driver, JdbcDriverBackwardsCompat {
         load();
     }
 
-    /**
-     * Open a database connection.
-     * This method should not be called by an application.
-     * Instead, the method DriverManager.getConnection should be used.
-     *
-     * @param url  the database URL
-     * @param info the connection properties
-     * @return the new connection or null if the URL is not supported
-     * @throws SQLException on connection exception or if URL is {@code null}
-     */
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         if (url == null) {
@@ -62,6 +49,7 @@ public class Driver implements java.sql.Driver, JdbcDriverBackwardsCompat {
             return new JdbcConnection(url, info, null, null, false);
         }
 
+        // todo rust略过因为使用了thread local
         if (url.equals(DEFAULT_URL)) {
             return DEFAULT_CONNECTION.get();
         }
@@ -95,23 +83,11 @@ public class Driver implements java.sql.Driver, JdbcDriverBackwardsCompat {
         return false;
     }
 
-    /**
-     * Get the major version number of the driver.
-     * This method should not be called by an application.
-     *
-     * @return the major version number
-     */
     @Override
     public int getMajorVersion() {
         return Constants.VERSION_MAJOR;
     }
 
-    /**
-     * Get the minor version number of the driver.
-     * This method should not be called by an application.
-     *
-     * @return the minor version number
-     */
     @Override
     public int getMinorVersion() {
         return Constants.VERSION_MINOR;
@@ -185,21 +161,16 @@ public class Driver implements java.sql.Driver, JdbcDriverBackwardsCompat {
      * Sets, on a per-thread basis, the default-connection for
      * user-defined functions.
      *
-     * @param c to set default to
+     * @param connection to set default to
      */
-    public static void setDefaultConnection(Connection c) {
-        if (c == null) {
+    public static void setDefaultConnection(Connection connection) {
+        if (connection == null) {
             DEFAULT_CONNECTION.remove();
         } else {
-            DEFAULT_CONNECTION.set(c);
+            DEFAULT_CONNECTION.set(connection);
         }
     }
 
-    /**
-     * INTERNAL
-     *
-     * @param thread to set context class loader for
-     */
     public static void setThreadContextClassLoader(Thread thread) {
         // Apache Tomcat: use the classloader of the driver to avoid the
         // following log message:
@@ -213,5 +184,4 @@ public class Driver implements java.sql.Driver, JdbcDriverBackwardsCompat {
             // ignore
         }
     }
-
 }

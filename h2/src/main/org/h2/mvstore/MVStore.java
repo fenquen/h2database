@@ -225,7 +225,7 @@ public class MVStore implements AutoCloseable {
 
     private volatile int state;
 
-    private final FileStore fileStore;
+    private FileStore fileStore;
 
     private final boolean fileStoreShallBeClosed;
 
@@ -234,18 +234,20 @@ public class MVStore implements AutoCloseable {
     private final int keysPerPage;
 
     /**
+     * 不会通过get之类的对外暴露
+     * <p>
      * The page cache. The default size is 16 MB, and the average size is 2 KB.
      * It is split in 16 segments. The stack move distance is 2% of the expected
      * number of entries.
      */
-    private final CacheLongKeyLIRS<Page<?, ?>> cache;
+    private CacheLongKeyLIRS<Page<?, ?>> pageCache;
 
     /**
      * Cache for chunks "Table of Content" used to translate page's
      * sequential number within containing chunk into byte position
      * within chunk's image. Cache keyed by chunk id.
      */
-    private final CacheLongKeyLIRS<long[]> chunksToC;
+    private CacheLongKeyLIRS<long[]> chunkCache;
 
     /**
      * The newest chunk. If nothing was stored yet, this field is not set.
@@ -373,22 +375,22 @@ public class MVStore implements AutoCloseable {
 
 
     /**
-     * Create and open the store.
-     *
      * @param config the configuration to use
-     * @throws MVStoreException         if the file is corrupt, or an exception
-     *                                  occurred while opening
+     * @throws MVStoreException         if the file is corrupt, or an exception occurred while opening
      * @throws IllegalArgumentException if the directory does not exist
      */
     MVStore(Map<String, Object> config) {
         recoveryMode = config.containsKey("recoveryMode");
-        compressionLevel = DataUtils.getConfigParam(config, "compress", 0);
+        compressionLevel = DataUtils.getConfigIntParam(config, "compress", 0);
         String fileName = (String) config.get("fileName");
+
+        // 这个就算是在h2中也只是在test用到
+        // todo rust略过默认是null
         FileStore fileStore = (FileStore) config.get("fileStore");
         boolean fileStoreShallBeOpen = false;
         if (fileStore == null) {
             if (fileName != null) {
-                fileStore = new FileStore();
+                this.fileStore = new FileStore();
                 fileStoreShallBeOpen = true;
             }
             fileStoreShallBeClosed = true;
@@ -399,53 +401,53 @@ public class MVStore implements AutoCloseable {
             Boolean fileStoreIsAdopted = (Boolean) config.get("fileStoreIsAdopted");
             fileStoreShallBeClosed = fileStoreIsAdopted != null && fileStoreIsAdopted;
         }
-        this.fileStore = fileStore;
 
         int pgSplitSize = 48; // for "mem:" case it is # of keys
-        CacheLongKeyLIRS.Config cc = null;
-        CacheLongKeyLIRS.Config cc2 = null;
+        CacheLongKeyLIRS.Config pageCacheConfig = null;
+        CacheLongKeyLIRS.Config chunkCacheConfig = null;
         if (this.fileStore != null) {
-            int mb = DataUtils.getConfigParam(config, "cacheSize", 16);
-            if (mb > 0) {
-                cc = new CacheLongKeyLIRS.Config();
-                cc.maxMemory = mb * 1024L * 1024L;
+            int cacheSize = DataUtils.getConfigIntParam(config, "cacheSize", 16);
+            if (cacheSize > 0) {
+                pageCacheConfig = new CacheLongKeyLIRS.Config();
+                pageCacheConfig.maxMemory = cacheSize * 1024L * 1024L;
                 Object o = config.get("cacheConcurrency");
                 if (o != null) {
-                    cc.segmentCount = (Integer) o;
+                    pageCacheConfig.segmentCount = (Integer) o;
                 }
             }
-            cc2 = new CacheLongKeyLIRS.Config();
-            cc2.maxMemory = 1024L * 1024L;
+            chunkCacheConfig = new CacheLongKeyLIRS.Config();
+            chunkCacheConfig.maxMemory = 1024L * 1024L;
             pgSplitSize = 16 * 1024;
         }
-        if (cc != null) {
-            cache = new CacheLongKeyLIRS<>(cc);
-        } else {
-            cache = null;
+        if (pageCacheConfig != null) {
+            pageCache = new CacheLongKeyLIRS<>(pageCacheConfig);
         }
-        chunksToC = cc2 == null ? null : new CacheLongKeyLIRS<>(cc2);
+        if (chunkCacheConfig != null) {
+            chunkCache = new CacheLongKeyLIRS<>(chunkCacheConfig);
+        }
 
-        pgSplitSize = DataUtils.getConfigParam(config, "pageSplitSize", pgSplitSize);
+        pgSplitSize = DataUtils.getConfigIntParam(config, "pageSplitSize", pgSplitSize);
         // Make sure pages will fit into cache
-        if (cache != null && pgSplitSize > cache.getMaxItemSize()) {
-            pgSplitSize = (int) cache.getMaxItemSize();
+        if (pageCache != null && pgSplitSize > pageCache.getMaxItemSize()) {
+            pgSplitSize = (int) pageCache.getMaxItemSize();
         }
         pageSplitSize = pgSplitSize;
-        keysPerPage = DataUtils.getConfigParam(config, "keysPerPage", 48);
-        backgroundExceptionHandler =
-                (UncaughtExceptionHandler) config.get("backgroundExceptionHandler");
+        keysPerPage = DataUtils.getConfigIntParam(config, "keysPerPage", 48);
+        backgroundExceptionHandler = (UncaughtExceptionHandler) config.get("backgroundExceptionHandler");
         layout = new MVMap<>(this, 0, StringDataType.INSTANCE, StringDataType.INSTANCE);
+
         if (this.fileStore != null) {
             retentionTime = this.fileStore.getDefaultRetentionTime();
             // 19 KB memory is about 1 KB storage
             int kb = Math.max(1, Math.min(19, Utils.scaleForAvailableMemory(64))) * 1024;
-            kb = DataUtils.getConfigParam(config, "autoCommitBufferSize", kb);
+            kb = DataUtils.getConfigIntParam(config, "autoCommitBufferSize", kb);
             autoCommitMemory = kb * 1024;
-            autoCompactFillRate = DataUtils.getConfigParam(config, "autoCompactFillRate", 90);
+            autoCompactFillRate = DataUtils.getConfigIntParam(config, "autoCompactFillRate", 90);
             char[] encryptionKey = (char[]) config.remove("encryptionKey");
             // there is no need to lock store here, since it is not opened (or even created) yet,
             // just to make some assertions happy, when they ensure single-threaded access
             storeLock.lock();
+
             try {
                 saveChunkLock.lock();
                 try {
@@ -453,6 +455,7 @@ public class MVStore implements AutoCloseable {
                         boolean readOnly = config.containsKey("readOnly");
                         this.fileStore.open(fileName, readOnly, encryptionKey);
                     }
+
                     if (this.fileStore.size() == 0) {
                         creationTime = getTimeAbsolute();
                         storeHeader.put(HDR_H, 2);
@@ -473,8 +476,10 @@ public class MVStore implements AutoCloseable {
                 if (encryptionKey != null) {
                     Arrays.fill(encryptionKey, (char) 0);
                 }
+
                 unlockAndCheckPanicCondition();
             }
+
             lastCommitTime = getTimeSinceCreation();
 
             meta = openMetaMap();
@@ -483,13 +488,14 @@ public class MVStore implements AutoCloseable {
 
             // setAutoCommitDelay starts the thread, but only if
             // the parameter is different from the old value
-            int delay = DataUtils.getConfigParam(config, "autoCommitDelay", 1000);
+            int delay = DataUtils.getConfigIntParam(config, "autoCommitDelay", 1000);
             setAutoCommitDelay(delay);
         } else {
             autoCommitMemory = 0;
             autoCompactFillRate = 0;
             meta = openMetaMap();
         }
+
         onVersionChange(currentVersion);
     }
 
@@ -603,8 +609,8 @@ public class MVStore implements AutoCloseable {
     }
 
     /**
-     * Open a store in exclusive mode. For a file-based store, the parent
-     * directory must already exist.
+     * 当前只有test用
+     * Open a store in exclusive mode. For a file-based store, the parent directory must already exist.
      *
      * @param fileName the file name (null for in-memory)
      * @return the store
@@ -1715,7 +1721,7 @@ public class MVStore implements AutoCloseable {
                 ++nonLeafCount;
             }
         }
-        chunksToC.put(c.id, tocArray);
+        chunkCache.put(c.id, tocArray);
         int chunkLength = buff.position();
 
         // add the store header and round to the next block
@@ -2556,37 +2562,33 @@ public class MVStore implements AutoCloseable {
     }
 
     /**
-     * Read a page.
-     *
-     * @param <K> key type
-     * @param <V> value type
-     * @param mvMap the map
      * @param pos the page position
-     * @return the page
      */
     <K, V> Page<K, V> readPage(MVMap<K, V> mvMap, long pos) {
         try {
             if (!DataUtils.isPageSaved(pos)) {
-                throw DataUtils.newMVStoreException(
-                        DataUtils.ERROR_FILE_CORRUPT, "Position 0");
+                throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "Position 0");
             }
-            Page<K, V> p = readPageFromCache(pos);
-            if (p == null) {
+
+            // 这边的page对应的范型只是函数纬度上的其实是动态的
+            Page<K, V> page = readPageFromCache(pos);
+            if (page == null) {
                 Chunk chunk = getChunk(pos);
                 int pageOffset = DataUtils.getPageOffset(pos);
                 try {
                     ByteBuffer buff = chunk.readBufferForPage(fileStore, pageOffset, pos);
-                    p = Page.read(buff, pos, mvMap);
+                    page = Page.read(buff, pos, mvMap);
                 } catch (MVStoreException e) {
                     throw e;
                 } catch (Exception e) {
                     throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                            "Unable to read the page at position {0}, chunk {1}, offset {2}",
-                            pos, chunk.id, pageOffset, e);
+                            "Unable to read the page at position {0}, chunk {1}, offset {2}", pos, chunk.id, pageOffset, e);
                 }
-                cachePage(p);
+
+                cachePage(page);
             }
-            return p;
+
+            return page;
         } catch (MVStoreException e) {
             if (recoveryMode) {
                 return mvMap.createEmptyLeaf();
@@ -2600,10 +2602,10 @@ public class MVStore implements AutoCloseable {
             // legacy chunk without table of content
             return null;
         }
-        long[] toc = chunksToC.get(chunk.id);
+        long[] toc = chunkCache.get(chunk.id);
         if (toc == null) {
             toc = chunk.readToC(fileStore);
-            chunksToC.put(chunk.id, toc, toc.length * 8);
+            chunkCache.put(chunk.id, toc, toc.length * 8);
         }
         assert toc.length == chunk.pageCount : toc.length + " != " + chunk.pageCount;
         return toc;
@@ -2611,7 +2613,7 @@ public class MVStore implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     private <K, V> Page<K, V> readPageFromCache(long pos) {
-        return cache == null ? null : (Page<K, V>) cache.get(pos);
+        return pageCache == null ? null : (Page<K, V>) pageCache.get(pos);
     }
 
     /**
@@ -2682,7 +2684,7 @@ public class MVStore implements AutoCloseable {
     }
 
     public long getMaxPageSize() {
-        return cache == null ? Long.MAX_VALUE : cache.getMaxItemSize() >> 4;
+        return pageCache == null ? Long.MAX_VALUE : pageCache.getMaxItemSize() >> 4;
     }
 
     public boolean getReuseSpace() {
@@ -3050,11 +3052,11 @@ public class MVStore implements AutoCloseable {
     }
 
     private void clearCaches() {
-        if (cache != null) {
-            cache.clear();
+        if (pageCache != null) {
+            pageCache.clear();
         }
-        if (chunksToC != null) {
-            chunksToC.clear();
+        if (chunkCache != null) {
+            chunkCache.clear();
         }
     }
 
@@ -3073,11 +3075,6 @@ public class MVStore implements AutoCloseable {
         return currentVersion;
     }
 
-    /**
-     * Get the file store.
-     *
-     * @return the file store
-     */
     public FileStore getFileStore() {
         return fileStore;
     }
@@ -3095,8 +3092,7 @@ public class MVStore implements AutoCloseable {
 
     private void checkOpen() {
         if (!isOpenOrStopping()) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_CLOSED,
-                    "This store is closed", panicException);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_CLOSED, "This store is closed", panicException);
         }
     }
 
@@ -3342,9 +3338,9 @@ public class MVStore implements AutoCloseable {
      */
     public void setCacheSize(int mb) {
         final long bytes = (long) mb * 1024 * 1024;
-        if (cache != null) {
-            cache.setMaxMemory(bytes);
-            cache.clear();
+        if (pageCache != null) {
+            pageCache.setMaxMemory(bytes);
+            pageCache.clear();
         }
     }
 
@@ -3475,12 +3471,10 @@ public class MVStore implements AutoCloseable {
 
     /**
      * Put the page in the cache.
-     *
-     * @param page the page
      */
     void cachePage(Page<?, ?> page) {
-        if (cache != null) {
-            cache.put(page.getPos(), page, page.getMemory());
+        if (pageCache != null) {
+            pageCache.put(page.getPos(), page, page.getMemory());
         }
     }
 
@@ -3492,10 +3486,10 @@ public class MVStore implements AutoCloseable {
      * @return the amount of memory used for caching
      */
     public int getCacheSizeUsed() {
-        if (cache == null) {
+        if (pageCache == null) {
             return 0;
         }
-        return (int) (cache.getUsedMemory() >> 20);
+        return (int) (pageCache.getUsedMemory() >> 20);
     }
 
     /**
@@ -3506,20 +3500,18 @@ public class MVStore implements AutoCloseable {
      * @return the cache size
      */
     public int getCacheSize() {
-        if (cache == null) {
+        if (pageCache == null) {
             return 0;
         }
-        return (int) (cache.getMaxMemory() >> 20);
+        return (int) (pageCache.getMaxMemory() >> 20);
     }
 
     /**
-     * Get the cache.
-     *
-     * @return the cache
+     * 只有test用
      */
-    public CacheLongKeyLIRS<Page<?, ?>> getCache() {
-        return cache;
-    }
+    // public CacheLongKeyLIRS<Page<?, ?>> getPageCache() {
+    //     return pageCache;
+    // }
 
     /**
      * Whether the store is read-only.
@@ -3531,11 +3523,11 @@ public class MVStore implements AutoCloseable {
     }
 
     public int getCacheHitRatio() {
-        return getCacheHitRatio(cache);
+        return getCacheHitRatio(pageCache);
     }
 
     public int getTocCacheHitRatio() {
-        return getCacheHitRatio(chunksToC);
+        return getCacheHitRatio(chunkCache);
     }
 
     private static int getCacheHitRatio(CacheLongKeyLIRS<?> cache) {
@@ -3663,11 +3655,11 @@ public class MVStore implements AutoCloseable {
 
                     if (chunks.remove(chunk.id) != null) {
                         // purge dead pages from cache
-                        long[] toc = chunksToC.remove(chunk.id);
-                        if (toc != null && cache != null) {
+                        long[] toc = chunkCache.remove(chunk.id);
+                        if (toc != null && pageCache != null) {
                             for (long tocElement : toc) {
                                 long pagePos = DataUtils.getPagePos(chunk.id, tocElement);
-                                cache.remove(pagePos);
+                                pageCache.remove(pagePos);
                             }
                         }
 
@@ -3857,23 +3849,8 @@ public class MVStore implements AutoCloseable {
         }
     }
 
-    /**
-     * A builder for an MVStore.
-     */
     public static final class Builder {
-
-        private final HashMap<String, Object> config;
-
-        private Builder(HashMap<String, Object> config) {
-            this.config = config;
-        }
-
-        /**
-         * Creates new instance of MVStore.Builder.
-         */
-        public Builder() {
-            config = new HashMap<>();
-        }
+        private final HashMap<String, Object> config = new HashMap<>();
 
         private Builder set(String key, Object value) {
             config.put(key, value);
@@ -3881,10 +3858,7 @@ public class MVStore implements AutoCloseable {
         }
 
         /**
-         * Disable auto-commit, by setting the auto-commit delay and auto-commit
-         * buffer size to 0.
-         *
-         * @return this
+         * Disable auto-commit, by setting the auto-commit delay and auto-commit buffer size to 0.
          */
         public Builder autoCommitDisabled() {
             // we have a separate config option so that
@@ -4102,18 +4076,6 @@ public class MVStore implements AutoCloseable {
         @Override
         public String toString() {
             return DataUtils.appendMap(new StringBuilder(), config).toString();
-        }
-
-        /**
-         * Read the configuration from a string.
-         *
-         * @param s the string representation
-         * @return the builder
-         */
-        @SuppressWarnings({"unchecked", "rawtypes", "unused"})
-        public static Builder fromString(String s) {
-            // Cast from HashMap<String, String> to HashMap<String, Object> is safe
-            return new Builder((HashMap) DataUtils.parseMap(s));
         }
     }
 }

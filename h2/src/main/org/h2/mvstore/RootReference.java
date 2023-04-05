@@ -19,10 +19,12 @@ public final class RootReference<K, V> {
      * The root page.
      */
     public final Page<K, V> root;
+
     /**
      * The version used for writing.
      */
     public final long version;
+    
     /**
      * Counter of reentrant locks.
      */
@@ -63,7 +65,9 @@ public final class RootReference<K, V> {
         this.appendCounter = 0;
     }
 
-    private RootReference(RootReference<K, V> r, Page<K, V> root, long updateAttemptCounter) {
+    private RootReference(RootReference<K, V> r,
+                          Page<K, V> root,
+                          long updateAttemptCounter) {
         this.root = root;
         this.version = r.version;
         this.previous = r.previous;
@@ -109,6 +113,7 @@ public final class RootReference<K, V> {
         while ((tmp = previous.previous) != null && tmp.root == rootReference.root) {
             previous = tmp;
         }
+
         this.root = rootReference.root;
         this.version = version;
         this.previous = previous;

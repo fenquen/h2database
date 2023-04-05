@@ -49,7 +49,7 @@ public final class SortOrder implements Comparator<Value[]> {
      */
     public static final int NULLS_LAST = 4;
 
-    private final SessionLocal session;
+    private final SessionLocal sessionLocal;
 
     /**
      * The column indexes of the order by expressions within the query.
@@ -69,24 +69,24 @@ public final class SortOrder implements Comparator<Value[]> {
     /**
      * Construct a new sort order object with default sort directions.
      *
-     * @param session the session
+     * @param sessionLocal the session
      * @param queryColumnIndexes the column index list
      */
-    public SortOrder(SessionLocal session, int[] queryColumnIndexes) {
-        this (session, queryColumnIndexes, new int[queryColumnIndexes.length], null);
+    public SortOrder(SessionLocal sessionLocal, int[] queryColumnIndexes) {
+        this (sessionLocal, queryColumnIndexes, new int[queryColumnIndexes.length], null);
     }
 
     /**
      * Construct a new sort order object.
      *
-     * @param session the session
+     * @param sessionLocal the session
      * @param queryColumnIndexes the column index list
      * @param sortType the sort order bit masks
      * @param orderList the original query order list (if this is a query)
      */
-    public SortOrder(SessionLocal session, int[] queryColumnIndexes, int[] sortType,
-            ArrayList<QueryOrderBy> orderList) {
-        this.session = session;
+    public SortOrder(SessionLocal sessionLocal, int[] queryColumnIndexes, int[] sortType,
+                     ArrayList<QueryOrderBy> orderList) {
+        this.sessionLocal = sessionLocal;
         this.queryColumnIndexes = queryColumnIndexes;
         this.sortTypes = sortType;
         this.orderList = orderList;
@@ -153,9 +153,9 @@ public final class SortOrder implements Comparator<Value[]> {
                 if (aNull == bNull) {
                     continue;
                 }
-                return session.getDatabase().getDefaultNullOrdering().compareNull(aNull, type);
+                return sessionLocal.getDatabase().getDefaultNullOrdering().compareNull(aNull, type);
             }
-            int comp = session.compare(ao, bo);
+            int comp = sessionLocal.compare(ao, bo);
             if (comp != 0) {
                 return (type & DESCENDING) == 0 ? comp : -comp;
             }
@@ -263,7 +263,7 @@ public final class SortOrder implements Comparator<Value[]> {
      *         explicitly set.
      */
     public int[] getSortTypesWithNullOrdering() {
-        return addNullOrdering(session.getDatabase(), sortTypes.clone());
+        return addNullOrdering(sessionLocal.getDatabase(), sortTypes.clone());
     }
 
     /**

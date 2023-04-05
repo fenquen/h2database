@@ -52,7 +52,7 @@ public final class CSVReadFunction extends TableFunction {
             // TODO create result directly
             return JavaMethod.resultSetToResult(session, csv.read(fileName, columns, charset), Integer.MAX_VALUE);
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 
@@ -95,7 +95,7 @@ public final class CSVReadFunction extends TableFunction {
         try (ResultSet rs = csv.read(fileName, columns, charset)) {
             result = JavaMethod.resultSetToResult(session, rs, 0);
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         } finally {
             csv.close();
         }

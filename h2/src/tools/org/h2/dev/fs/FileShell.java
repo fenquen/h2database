@@ -105,7 +105,7 @@ public class FileShell extends Tool {
                 try {
                     execute(args[++i]);
                 } catch (Exception e) {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
             } else if (arg.equals("-verbose")) {
                 verbose = true;

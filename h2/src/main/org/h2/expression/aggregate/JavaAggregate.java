@@ -97,7 +97,7 @@ public class JavaAggregate extends AbstractAggregate {
             dataType = aggregate.getInternalType(argTypes);
             type = TypeInfo.getTypeInfo(dataType);
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         return this;
     }
@@ -107,7 +107,7 @@ public class JavaAggregate extends AbstractAggregate {
         try {
             agg.init(userConnection);
         } catch (SQLException ex) {
-            throw DbException.convert(ex);
+            throw DbException.convert2DbException(ex);
         }
         return agg;
     }
@@ -146,7 +146,7 @@ public class JavaAggregate extends AbstractAggregate {
             }
             return ValueToObjectConverter.objectToValue(session, obj, dataType);
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 
@@ -178,7 +178,7 @@ public class JavaAggregate extends AbstractAggregate {
                 agg.add(args.length == 1 ? arg : argValues);
             }
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 

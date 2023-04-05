@@ -34,10 +34,8 @@ import org.h2.util.MemoryEstimator;
  */
 public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> {
 
-    /**
-     * The store.
-     */
-    public final MVStore store;
+    // 外边传进来的的
+    public final MVStore mvStore;
 
     /**
      * Reference to the current root page.
@@ -72,8 +70,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     static final long INITIAL_VERSION = -1;
 
-
-    protected MVMap(Map<String, Object> config, DataType<K> keyType, DataType<V> valueType) {
+    protected MVMap(Map<String, Object> config,
+                    DataType<K> keyType,
+                    DataType<V> valueType) {
         this((MVStore) config.get("store"), keyType, valueType,
                 DataUtils.readHexInt(config, "id", 0),
                 DataUtils.readHexLong(config, "createVersion", 0),
@@ -81,13 +80,14 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 ((MVStore) config.get("store")).getKeysPerPage(),
                 config.containsKey("singleWriter") && (Boolean) config.get("singleWriter")
         );
-        setInitialRoot(createEmptyLeaf(), store.getCurrentVersion());
+
+        setInitialRoot(createEmptyLeaf(), mvStore.getCurrentVersion());
     }
 
     // constructor for cloneIt()
     @SuppressWarnings("CopyConstructorMissesField")
     protected MVMap(MVMap<K, V> source) {
-        this(source.store,
+        this(source.mvStore,
                 source.keyType,
                 source.valueType,
                 source.id,
@@ -98,22 +98,22 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     }
 
     // meta map constructor
-    MVMap(MVStore store,
+    MVMap(MVStore mvStore,
           int id,
           DataType<K> keyType,
           DataType<V> valueType) {
-        this(store,
+        this(mvStore,
                 keyType,
                 valueType,
                 id,
                 0,
                 new AtomicReference<>(),
-                store.getKeysPerPage(),
+                mvStore.getKeysPerPage(),
                 false);
-        setInitialRoot(createEmptyLeaf(), store.getCurrentVersion());
+        setInitialRoot(createEmptyLeaf(), mvStore.getCurrentVersion());
     }
 
-    private MVMap(MVStore store,
+    private MVMap(MVStore mvStore,
                   DataType<K> keyType,
                   DataType<V> valueType,
                   int id,
@@ -121,7 +121,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                   AtomicReference<RootReference<K, V>> root,
                   int keysPerPage,
                   boolean singleWriter) {
-        this.store = store;
+        this.mvStore = mvStore;
         this.id = id;
         this.createVersion = createVersion;
         this.keyType = keyType;
@@ -502,7 +502,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     }
                 }
                 if (isPersistent()) {
-                    store.registerUnsavedMemory(rootPage.removeAllRecursive(version));
+                    mvStore.registerUnsavedMemory(rootPage.removeAllRecursive(version));
                 }
                 rootPage = emptyRootPage;
                 return rootReference;
@@ -650,7 +650,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return the page
      */
     final Page<K, V> readPage(long pos) {
-        return store.readPage(this, pos);
+        return mvStore.readPage(this, pos);
     }
 
     /**
@@ -671,7 +671,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             root = root.copy(this, false);
         }
         setInitialRoot(root, version);
-        setWriteVersion(store.getCurrentVersion());
+        setWriteVersion(mvStore.getCurrentVersion());
     }
 
     private Page<K, V> readOrCreateRootPage(long rootPos) {
@@ -817,15 +817,15 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return the name
      */
     public final String getName() {
-        return store.getMapName(id);
+        return mvStore.getMapName(id);
     }
 
-    public final MVStore getStore() {
-        return store;
+    public final MVStore getMvStore() {
+        return mvStore;
     }
 
     protected final boolean isPersistent() {
-        return store.getFileStore() != null && !isVolatile;
+        return mvStore.getFileStore() != null && !isVolatile;
     }
 
     /**
@@ -939,7 +939,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @param rootReference to inspect
      */
     private void removeUnusedOldVersions(RootReference<K, V> rootReference) {
-        rootReference.removeUnusedOldVersions(store.getOldestVersionToKeep());
+        rootReference.removeUnusedOldVersions(mvStore.getOldestVersionToKeep());
     }
 
     public final boolean isReadOnly() {
@@ -978,15 +978,15 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         assert !getRoot().isLockedByCurrentThread() : getRoot();
         if (closed) {
             int id = getId();
-            String mapName = store.getMapName(id);
+            String mapName = mvStore.getMapName(id);
             throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_CLOSED, "Map {0}({1}) is closed. {2}", mapName, id, store.getPanicException());
+                    DataUtils.ERROR_CLOSED, "Map {0}({1}) is closed. {2}", mapName, id, mvStore.getPanicException());
         }
         if (readOnly) {
             throw DataUtils.newUnsupportedOperationException(
                     "This map is read-only");
         }
-        store.beforeWrite(this);
+        mvStore.beforeWrite(this);
     }
 
     @Override
@@ -1054,7 +1054,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         while ((previous = rootReference.previous) != null && previous.version >= version) {
             rootReference = previous;
         }
-        if (previous == null && version < store.getOldestVersionToKeep()) {
+        if (previous == null && version < mvStore.getOldestVersionToKeep()) {
             throw DataUtils.newIllegalArgumentException("Unknown version {0}", version);
         }
         MVMap<K, V> m = openReadOnly(rootReference.root, version);
@@ -1152,8 +1152,8 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             } else if (isClosed()) {
                 // map was closed a while back and can not possibly be in use by now
                 // it's time to remove it completely from the store (it was anonymous already)
-                if (rootReference.getVersion() + 1 < store.getOldestVersionToKeep()) {
-                    store.deregisterMapRoot(id);
+                if (rootReference.getVersion() + 1 < mvStore.getOldestVersionToKeep()) {
+                    mvStore.deregisterMapRoot(id);
                     return null;
                 }
             }
@@ -1203,12 +1203,12 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @param sourceMap the source map
      */
     final void copyFrom(MVMap<K, V> sourceMap) {
-        MVStore.TxCounter txCounter = store.registerVersionUsage();
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
         try {
             beforeWrite();
             copy(sourceMap.getRootPage(), null, 0);
         } finally {
-            store.deregisterVersionUsage(txCounter);
+            mvStore.deregisterVersionUsage(txCounter);
         }
     }
 
@@ -1230,9 +1230,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             }
             target.setComplete();
         }
-        store.registerUnsavedMemory(target.getMemory());
-        if (store.isSaveNeeded()) {
-            store.commit();
+        mvStore.registerUnsavedMemory(target.getMemory());
+        if (mvStore.isSaveNeeded()) {
+            mvStore.commit();
         }
     }
 
@@ -1248,7 +1248,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     private RootReference<K, V> flushAppendBuffer(RootReference<K, V> rootReference, boolean fullFlush) {
         boolean preLocked = rootReference.isLockedByCurrentThread();
         boolean locked = preLocked;
-        int keysPerPage = store.getKeysPerPage();
+        int keysPerPage = mvStore.getKeysPerPage();
         try {
             IntValueHolder unsavedMemoryHolder = new IntValueHolder();
             int attempt = 0;
@@ -1342,7 +1342,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                         keyCount = p.getKeyCount();
                         int at = keyCount - (p.isLeaf() ? 1 : 2);
                         if (keyCount <= keysPerPage &&
-                                (p.getMemory() < store.getMaxPageSize() || at <= 0)) {
+                                (p.getMemory() < mvStore.getMaxPageSize() || at <= 0)) {
                             break;
                         }
                         key = p.getKey(at);
@@ -1357,7 +1357,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     // should always be the case, except for spurious failure?
                     locked = preLocked || isPersistent();
                     if (isPersistent() && tip != null) {
-                        store.registerUnsavedMemory(unsavedMemoryHolder.value + tip.processRemovalInfo(version));
+                        mvStore.registerUnsavedMemory(unsavedMemoryHolder.value + tip.processRemovalInfo(version));
                     }
                     assert rootReference.getAppendCounter() <= availabilityThreshold;
                     break;
@@ -1870,8 +1870,8 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                             p.insertLeaf(-index - 1, key, value);
                             int keyCount;
 
-                            while ((keyCount = p.getKeyCount()) > store.getKeysPerPage()
-                                    || p.getMemory() > store.getMaxPageSize()
+                            while ((keyCount = p.getKeyCount()) > mvStore.getKeysPerPage()
+                                    || p.getMemory() > mvStore.getMaxPageSize()
                                     && keyCount > (p.isLeaf() ? 1 : 2)) {
 
                                 long totalCount = p.getTotalCount();
@@ -1917,7 +1917,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 }
 
                 if (isPersistent()) {
-                    store.registerUnsavedMemory(unsavedMemoryHolder.value + tip.processRemovalInfo(version));
+                    mvStore.registerUnsavedMemory(unsavedMemoryHolder.value + tip.processRemovalInfo(version));
                 }
 
                 return oldValue;

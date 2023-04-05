@@ -263,7 +263,7 @@ public class SourceCompiler {
             try {
                 Files.createDirectories(dir);
             } catch (Exception e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
         Path javaFile = dir.resolve(className + ".java");
@@ -278,7 +278,7 @@ public class SourceCompiler {
             }
             return Files.readAllBytes(classFile);
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         } finally {
             try {
                 Files.deleteIfExists(javaFile);
@@ -352,7 +352,7 @@ public class SourceCompiler {
             handleSyntaxError(output, (ok? 0: 1));
             return fileManager.getClassLoader(null).loadClass(fullClassName);
         } catch (ClassNotFoundException | IOException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 
@@ -383,7 +383,7 @@ public class SourceCompiler {
             handleSyntaxError(output, p.exitValue());
             return p.exitValue();
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 
@@ -416,7 +416,7 @@ public class SourceCompiler {
             String output = Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
             handleSyntaxError(output, status);
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         } finally {
             System.setErr(old);
         }

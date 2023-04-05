@@ -18,10 +18,7 @@ import org.h2.util.Bits;
 /**
  * This class implements the cryptographic hash function SHA-256.
  */
-public class SHA256 {
-
-    private SHA256() {
-    }
+public abstract class SHA256 {
 
     /**
      * Calculate the hash code by using the given salt. The salt is appended
@@ -73,7 +70,7 @@ public class SHA256 {
     /**
      * Calculate the hash-based message authentication code.
      *
-     * @param key the key
+     * @param key     the key
      * @param message the message
      * @return the hash
      */
@@ -98,14 +95,16 @@ public class SHA256 {
     /**
      * Calculate the hash using the password-based key derivation function 2.
      *
-     * @param password the password
-     * @param salt the salt
+     * @param password   the password
+     * @param salt       the salt
      * @param iterations the number of iterations
-     * @param resultLen the number of bytes in the result
+     * @param resultLen  the number of bytes in the result
      * @return the result
      */
-    public static byte[] getPBKDF2(byte[] password, byte[] salt,
-            int iterations, int resultLen) {
+    public static byte[] getPBKDF2(byte[] password,
+                                   byte[] salt,
+                                   int iterations,
+                                   int resultLen) {
         byte[] result = new byte[resultLen];
         Mac mac = initMac(password);
         int len = 64 + Math.max(32, salt.length + 4);
@@ -135,9 +134,9 @@ public class SHA256 {
     /**
      * Calculate the hash code for the given data.
      *
-     * @param data the data to hash
+     * @param data     the data to hash
      * @param nullData if the data should be filled with zeros after calculating
-     *            the hash code
+     *                 the hash code
      * @return the hash code
      */
     public static byte[] getHash(byte[] data, boolean nullData) {

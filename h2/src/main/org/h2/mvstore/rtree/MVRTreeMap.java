@@ -132,7 +132,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
                     removedPages.add(p);
                 }
                 p = createEmptyLeaf();
-            } else if (p.getKeyCount() > store.getKeysPerPage() || p.getMemory() > store.getMaxPageSize()
+            } else if (p.getKeyCount() > mvStore.getKeysPerPage() || p.getMemory() > mvStore.getMaxPageSize()
                                                                 && p.getKeyCount() > 3) {
                 // only possible if this is the root, else we would have
                 // split earlier (this requires pageSplitSize is fixed)
@@ -149,7 +149,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
                 children[2] = Page.PageReference.empty();
                 p = Page.createNode(this, keys, children, totalCount, 0);
                 if(isPersistent()) {
-                    store.registerUnsavedMemory(p.getMemory());
+                    mvStore.registerUnsavedMemory(p.getMemory());
                 }
             }
 
@@ -169,7 +169,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
                             }
                         }
                         if (isPersistent()) {
-                            store.registerUnsavedMemory(unsavedMemory);
+                            mvStore.registerUnsavedMemory(unsavedMemory);
                         }
                     } finally {
                         unlockRoot(p);
@@ -248,7 +248,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
             removedPages.add(c);
         }
         c = c.copy();
-        if (c.getKeyCount() > store.getKeysPerPage() || c.getMemory() > store.getMaxPageSize()
+        if (c.getKeyCount() > mvStore.getKeysPerPage() || c.getMemory() > mvStore.getMaxPageSize()
                 && c.getKeyCount() > 4) {
             // split on the way down
             Page<Spatial,V> split = split(c);
@@ -403,7 +403,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
     private Page<Spatial,V> newPage(boolean leaf) {
         Page<Spatial,V> page = leaf ? createEmptyLeaf() : createEmptyNode();
         if(isPersistent()) {
-            store.registerUnsavedMemory(page.getMemory());
+            mvStore.registerUnsavedMemory(page.getMemory());
         }
         return page;
     }

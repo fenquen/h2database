@@ -84,7 +84,7 @@ public class AlterUser extends DefineCommand {
             break;
         case CommandInterface.ALTER_USER_ADMIN:
             sessionLocal.getUser().checkAdmin();
-            user.setAdmin(admin);
+            user.admin = admin;
             break;
         default:
             throw DbException.getInternalError("type=" + type);

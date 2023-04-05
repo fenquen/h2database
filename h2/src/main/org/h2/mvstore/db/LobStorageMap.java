@@ -110,7 +110,7 @@ public final class LobStorageMap implements LobStorageInterface
     public LobStorageMap(Database database) {
         this.database = database;
         Store s = database.getStore();
-        TransactionStore txStore = s.getTransactionStore();
+        TransactionStore txStore = s.transactionStore;
         mvStore = s.getMvStore();
         if (mvStore.isVersioningRequired()) {
             cleanupExecutor = Utils.createSingleThreadExecutor("H2-lob-cleaner", new SynchronousQueue<>());

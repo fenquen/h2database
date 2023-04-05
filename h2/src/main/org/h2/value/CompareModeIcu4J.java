@@ -88,7 +88,7 @@ public class CompareModeIcu4J extends CompareMode {
             collatorClass.getMethod("setStrength", int.class).invoke(result, strength);
             return result;
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 

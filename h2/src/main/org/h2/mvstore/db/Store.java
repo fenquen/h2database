@@ -73,7 +73,7 @@ public final class Store {
 
     private final boolean encrypted;
 
-    private final String mvFilePath;
+    private String mvFilePath;
 
     /**
      * Creates the store.
@@ -87,13 +87,12 @@ public final class Store {
         boolean encrypted = false;
 
         if (databasePath != null) {
-            String mvFilePath = databasePath + Constants.SUFFIX_MV_FILE;
-            this.mvFilePath = mvFilePath;
+            mvFilePath = databasePath + Constants.SUFFIX_MV_FILE;
             MVStoreTool.compactCleanUp(mvFilePath);
             mvStoreBuilder.fileName(mvFilePath);
             mvStoreBuilder.pageSplitSize(database.getPageSize());
 
-            if (database.isReadOnly()) {
+            if (database.readOnly) {
                 mvStoreBuilder.readOnly();
             } else {
                 // possibly create the directory
@@ -114,7 +113,7 @@ public final class Store {
 
             if (encryptionKey != null) {
                 encrypted = true;
-                mvStoreBuilder.encryptionKey(decodePassword(encryptionKey));
+                mvStoreBuilder.encryptionKey(decodePassword(encryptionKey)); // todo rust忽略
             }
 
             if (database.getSettings().compressData) {
@@ -123,15 +122,14 @@ public final class Store {
                 mvStoreBuilder.pageSplitSize(64 * 1024);
             }
 
-            mvStoreBuilder.backgroundExceptionHandler((t, e) -> database.setBackgroundException(DbException.convert(e)));
+            // todo rust忽略
+            mvStoreBuilder.backgroundExceptionHandler((t, e) -> database.setBackgroundException(DbException.convert2DbException(e)));
 
             // always start without background thread first, and if necessary,
             // it will be set up later, after db has been fully started,
             // otherwise background thread would compete for store lock
             // with maps opening procedure
             mvStoreBuilder.autoCommitDisabled();
-        } else {
-            mvFilePath = null;
         }
 
         this.encrypted = encrypted;
@@ -196,10 +194,6 @@ public final class Store {
 
     public MVStore getMvStore() {
         return mvStore;
-    }
-
-    public TransactionStore getTransactionStore() {
-        return transactionStore;
     }
 
     /**

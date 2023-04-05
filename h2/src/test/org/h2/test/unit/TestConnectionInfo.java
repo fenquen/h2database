@@ -60,16 +60,16 @@ public class TestConnectionInfo extends TestDb {
                 null, null, null);
 
         assertEquals("jdbc:h2:mem:" + getTestName(),
-                connectionInfo.getURL());
+                connectionInfo.url);
 
         assertEquals("rws",
-                connectionInfo.getProperty("ACCESS_MODE_DATA", ""));
+                connectionInfo.getPropertyString("ACCESS_MODE_DATA", ""));
         assertEquals("CREATE this...;INSERT that...",
-                connectionInfo.getProperty("INIT", ""));
+                connectionInfo.getPropertyString("INIT", ""));
         assertEquals("TRUE",
-                connectionInfo.getProperty("IFEXISTS", ""));
+                connectionInfo.getPropertyString("IFEXISTS", ""));
         assertEquals("undefined",
-                connectionInfo.getProperty("CACHE_TYPE", "undefined"));
+                connectionInfo.getPropertyString("CACHE_TYPE", "undefined"));
     }
 
     private void testName() throws Exception {

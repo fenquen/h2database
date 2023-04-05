@@ -958,8 +958,7 @@ public final class DataUtils {
      * @param arguments the arguments
      * @throws IllegalArgumentException if the argument is invalid
      */
-    public static void checkArgument(boolean test, String message,
-            Object... arguments) {
+    public static void checkArgument(boolean test, String message, Object... arguments) {
         if (!test) {
             throw newIllegalArgumentException(message, arguments);
         }
@@ -972,11 +971,8 @@ public final class DataUtils {
      * @param arguments the arguments
      * @return the exception
      */
-    public static IllegalArgumentException newIllegalArgumentException(
-            String message, Object... arguments) {
-        return initCause(new IllegalArgumentException(
-                formatMessage(0, message, arguments)),
-                arguments);
+    public static IllegalArgumentException newIllegalArgumentException(String message, Object... arguments) {
+        return initCause(new IllegalArgumentException(formatMessage(0, message, arguments)), arguments);
     }
 
     /**
@@ -1145,7 +1141,7 @@ public final class DataUtils {
         if (v == null) {
             return null;
         }
-        return StringUtils.convertHexToBytes((String)v);
+        return StringUtils.convertHex2ByteArr((String)v);
     }
 
     /**
@@ -1156,17 +1152,20 @@ public final class DataUtils {
      * @param defaultValue the default
      * @return the configured value or default
      */
-    static int getConfigParam(Map<String, ?> config, String key, int defaultValue) {
-        Object o = config.get(key);
-        if (o instanceof Number) {
-            return ((Number) o).intValue();
-        } else if (o != null) {
+    static int getConfigIntParam(Map<String, ?> config, String key, int defaultValue) {
+        Object param = config.get(key);
+        if (param instanceof Number) {
+            return ((Number) param).intValue();
+        }
+
+        if (param != null) {
             try {
-                return Integer.decode(o.toString());
+                return Integer.decode(param.toString());
             } catch (NumberFormatException e) {
                 // ignore
             }
         }
+
         return defaultValue;
     }
 

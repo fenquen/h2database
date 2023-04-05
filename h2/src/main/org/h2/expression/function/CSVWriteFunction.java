@@ -53,7 +53,7 @@ public final class CSVWriteFunction extends FunctionN {
             return ValueInteger.get(csv.write(conn, args[0].getValue(session).getString(),
                     args[1].getValue(session).getString(), charset));
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 

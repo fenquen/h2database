@@ -302,7 +302,7 @@ public final class TriggerObject extends SchemaObject {
             if (onRollback) {
                 // ignore
             } else {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         } finally {
             session.setLastIdentity(identity);
@@ -334,7 +334,7 @@ public final class TriggerObject extends SchemaObject {
             return (DbException) e;
         }
         if (e instanceof SQLException) {
-            return DbException.convert(e);
+            return DbException.convert2DbException(e);
         }
         return DbException.get(ErrorCode.ERROR_EXECUTING_TRIGGER_3, e, getName(),
                 triggerClassName != null ? triggerClassName : "..source..", e.toString());
@@ -479,7 +479,7 @@ public final class TriggerObject extends SchemaObject {
             try {
                 triggerCallback.remove();
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
         table = null;

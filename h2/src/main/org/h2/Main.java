@@ -12,7 +12,5 @@ public class Main {
         PreparedStatement preparedStatement = connection.prepareStatement("select * from  TEST_TABLE");
         ResultSet resultSet = preparedStatement.executeQuery();
         resultSet.next();
-
-
     }
 }

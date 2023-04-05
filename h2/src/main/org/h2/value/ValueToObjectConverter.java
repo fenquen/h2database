@@ -157,7 +157,7 @@ public final class ValueToObjectConverter extends TraceObject {
             try {
                 return arrayToValue(session, array.getArray());
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         } else if (x instanceof ResultSet) {
             return resultSetToValue(session, (ResultSet) x);
@@ -175,7 +175,7 @@ public final class ValueToObjectConverter extends TraceObject {
                 Reader r = new BufferedReader(clob.getCharacterStream());
                 lob = session.getDataHandler().getLobStorage().createClob(r, clob.length());
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         } else if (x instanceof InputStream) {
             lob = session.getDataHandler().getLobStorage().createBlob((InputStream) x, -1);
@@ -184,14 +184,14 @@ public final class ValueToObjectConverter extends TraceObject {
                 Blob blob = (Blob) x;
                 lob = session.getDataHandler().getLobStorage().createBlob(blob.getBinaryStream(), blob.length());
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         } else if (x instanceof SQLXML) {
             try {
                 lob = session.getDataHandler().getLobStorage()
                         .createClob(new BufferedReader(((SQLXML) x).getCharacterStream()), -1);
             } catch (SQLException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         } else {
             Value v = LegacyDateTimeUtils.legacyObjectToValue(session, x);
@@ -234,7 +234,7 @@ public final class ValueToObjectConverter extends TraceObject {
             }
             return ValueRow.get(new ExtTypeInfoRow(columns), list);
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 

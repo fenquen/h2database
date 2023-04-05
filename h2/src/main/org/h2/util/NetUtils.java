@@ -281,7 +281,7 @@ public class NetUtils {
             try {
                 bind = InetAddress.getLocalHost();
             } catch (UnknownHostException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
         String address;

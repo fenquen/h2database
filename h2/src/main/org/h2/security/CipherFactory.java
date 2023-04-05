@@ -286,7 +286,7 @@ public class CipherFactory {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             store.load(null, password.toCharArray());
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(
-                    StringUtils.convertHexToBytes(
+                    StringUtils.convertHex2ByteArr(
                             "30820277020100300d06092a864886f70d010101" +
                             "0500048202613082025d02010002818100dc0a13" +
                             "c602b7141110eade2f051b54777b060d0f74e6a1" +
@@ -324,7 +324,7 @@ public class CipherFactory {
                     .getInstance("X.509")
                     .generateCertificate(
                             new ByteArrayInputStream(
-                                    StringUtils.convertHexToBytes(
+                                    StringUtils.convertHex2ByteArr(
                             "3082018b3081f502044295ce6b300d06092a8648" +
                             "86f70d0101040500300d310b3009060355040313" +
                             "024832301e170d3035303532363133323630335a" +

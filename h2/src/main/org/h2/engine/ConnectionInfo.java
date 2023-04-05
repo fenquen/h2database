@@ -34,23 +34,22 @@ public class ConnectionInfo implements Cloneable {
 
     private Properties prop = new Properties();
     private String originalURL;
-    private String url;
+    public String url;
     private String user;
-    private byte[] filePasswordHash;
+
+    public byte[] filePasswordHash;
     public byte[] fileEncryptionKey;
     private byte[] userPasswordHash;
 
     private TimeZoneProvider timeZone;
 
-    /**
-     * The database name
-     */
-    private String name;
-    private String nameNormalized;
-    private boolean remote;
+    // The database name
+    private String name;// ./data/record 实际对应的数据文件是 ./data/record.mv.db
+    private String nameNormalized; // /users/a/data/record
+    public boolean remote;
     private boolean ssl;
-    private boolean persistent;
-    private boolean unnamed;
+    public boolean persistent;
+    public boolean unnamedInMemory;
 
     public NetworkConnectionInfo networkConnectionInfo;
 
@@ -67,45 +66,63 @@ public class ConnectionInfo implements Cloneable {
     }
 
     /**
+     * 该函数必然是在客户端执行的
      * Create a connection info object.
      *
-     * @param u        the database URL (must start with jdbc:h2:)
+     * @param url      the database URL (must start with jdbc:h2:)
      * @param info     the connection properties or {@code null}
      * @param user     the user name or {@code null}
-     * @param password the password as {@code String} or {@code char[]}, or
-     *                 {@code null}
+     * @param password the password as {@code String} or {@code char[]}, or {@code null}
      */
-    public ConnectionInfo(String u, Properties info, String user, Object password) {
-        u = remapURL(u);
-        originalURL = url = u;
-        if (!u.startsWith(Constants.START_URL)) {
+    public ConnectionInfo(String url,
+                          Properties info,
+                          String user,
+                          Object password) {
+        // todo rust忽略
+        url = remapURL(url);
+
+        originalURL = this.url = url;
+
+        if (!url.startsWith(Constants.START_URL)) {
             throw getFormatException();
         }
+
         if (info != null) {
             readProperties(info);
         }
+
         if (user != null) {
             prop.put("USER", user);
         }
+
         if (password != null) {
             prop.put("PASSWORD", password);
         }
+
         readSettingsFromURL();
+
+        // todo rust略过
         Object timeZoneName = prop.remove("TIME ZONE");
         if (timeZoneName != null) {
             timeZone = TimeZoneProvider.ofId(timeZoneName.toString());
         }
+
         setUserName(removeProperty("USER", ""));
-        name = url.substring(Constants.START_URL.length()); // file:/home/a/file_collector_data/record
+
+        name = this.url.substring(Constants.START_URL.length()); // file:/home/a/file_collector_data/record
+
         parseName();
+
         convertPasswords();
+
+        // todo rust忽略
         String recoverTest = removeProperty("RECOVER_TEST", null);
         if (recoverTest != null) {
             FilePathRec.register();
             try {
                 Utils.callStaticMethod("org.h2.store.RecoverTester.init", recoverTest);
             } catch (Exception e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
             name = "rec:" + name;
         }
@@ -122,6 +139,7 @@ public class ConnectionInfo implements Cloneable {
                 "PAGE_SIZE", //
                 "RECOVER", //
         };
+
         String[] settings = { //
                 "AUTHREALM", "AUTHZPWD", "AUTOCOMMIT", //
                 "CIPHER", "CREATE", //
@@ -132,30 +150,23 @@ public class ConnectionInfo implements Cloneable {
                 "RECOVER_TEST", //
                 "USER" //
         };
-        HashSet<String> set = new HashSet<>(128);
-        set.addAll(SetTypes.getTypes());
+
+        KNOWN_SETTINGS = new HashSet<>(128);
+        KNOWN_SETTINGS.addAll(SetTypes.getTypes());
         for (String setting : commonSettings) {
-            if (!set.add(setting)) {
+            if (KNOWN_SETTINGS.add(setting) == false) {
                 throw DbException.getInternalError(setting);
             }
         }
         for (String setting : settings) {
-            if (!set.add(setting)) {
+            if (KNOWN_SETTINGS.add(setting) == false) {
                 throw DbException.getInternalError(setting);
             }
         }
-        KNOWN_SETTINGS = set;
-        settings = new String[]{ //
-                "ASSERT", //
-                "BINARY_COLLATION", //
-                "DB_CLOSE_ON_EXIT", //
-                "PAGE_STORE", //
-                "UUID_COLLATION", //
-        };
-        set = new HashSet<>(32);
-        Collections.addAll(set, commonSettings);
-        Collections.addAll(set, settings);
-        IGNORED_BY_PARSER = set;
+
+        IGNORED_BY_PARSER = new HashSet<>(64);
+        Collections.addAll(IGNORED_BY_PARSER, commonSettings);
+        Collections.addAll(IGNORED_BY_PARSER, "ASSERT", "BINARY_COLLATION", "DB_CLOSE_ON_EXIT", "PAGE_STORE", "UUID_COLLATION");
     }
 
     private static boolean isKnownSetting(String s) {
@@ -187,6 +198,7 @@ public class ConnectionInfo implements Cloneable {
         if (".".equals(name)) {
             name = "mem:";
         }
+
         if (name.startsWith("tcp:")) {
             remote = true;
             name = name.substring("tcp:".length());
@@ -197,7 +209,7 @@ public class ConnectionInfo implements Cloneable {
         } else if (name.startsWith("mem:")) {
             persistent = false;
             if ("mem:".equals(name)) {
-                unnamed = true;
+                unnamedInMemory = true;
             }
         } else if (name.startsWith("file:")) {
             name = name.substring("file:".length());
@@ -205,156 +217,145 @@ public class ConnectionInfo implements Cloneable {
         } else {
             persistent = true;
         }
+
         if (persistent && !remote) {
             name = IOUtils.nameSeparatorsToNative(name);
         }
     }
 
     /**
-     * Set the base directory of persistent databases, unless the database is in
-     * the user home folder (~).
-     *
-     * @param dir the new base directory
+     * Set the base directory of persistent databases, unless the database is incthe user home folder (~).
      */
-    public void setBaseDir(String dir) {
-        if (persistent) {
-            String absDir = FileUtils.unwrap(FileUtils.toRealPath(dir));
-            boolean absolute = FileUtils.isAbsolute(name);
-            String n;
-            String prefix = null;
-            if (dir.endsWith(File.separator)) {
-                dir = dir.substring(0, dir.length() - 1);
-            }
-            if (absolute) {
-                n = name;
-            } else {
-                n = FileUtils.unwrap(name);
-                prefix = name.substring(0, name.length() - n.length());
-                n = dir + File.separatorChar + n;
-            }
-            String normalizedName = FileUtils.unwrap(FileUtils.toRealPath(n));
-            if (normalizedName.equals(absDir) || !normalizedName.startsWith(absDir)) {
-                // database name matches the baseDir or
-                // database name is clearly outside of the baseDir
-                throw DbException.get(ErrorCode.IO_EXCEPTION_1, normalizedName + " outside " +
-                        absDir);
-            }
-            if (absDir.endsWith("/") || absDir.endsWith("\\")) {
-                // no further checks are needed for C:/ and similar
-            } else if (normalizedName.charAt(absDir.length()) != '/') {
-                // database must be within the directory
-                // (with baseDir=/test, the database name must not be
-                // /test2/x and not /test2)
-                throw DbException.get(ErrorCode.IO_EXCEPTION_1, normalizedName + " outside " +
-                        absDir);
-            }
-            if (!absolute) {
-                name = prefix + dir + File.separatorChar + FileUtils.unwrap(name);
-            }
+    public void setBaseDir(String dirPath) {
+
+        if (!persistent) { // 说明要是本地嵌入式模式
+            return;
+        }
+
+        String absDir = FileUtils.unwrap(FileUtils.toRealPath(dirPath));
+        if (dirPath.endsWith(File.separator)) {
+            dirPath = dirPath.substring(0, dirPath.length() - 1);
+        }
+
+        boolean absolute = FileUtils.isAbsolute(name);
+
+        String n;
+        String prefix = null;
+        if (absolute) {
+            n = name;
+        } else {
+            n = FileUtils.unwrap(name);
+            prefix = name.substring(0, name.length() - n.length());
+            n = dirPath + File.separatorChar + n;
+        }
+
+        String normalizedName = FileUtils.unwrap(FileUtils.toRealPath(n));
+        if (normalizedName.equals(absDir) || !normalizedName.startsWith(absDir)) {
+            // database name matches the baseDir or
+            // database name is clearly outside the baseDir
+            throw DbException.get(ErrorCode.IO_EXCEPTION_1, normalizedName + " outside " + absDir);
+        }
+
+        if (absDir.endsWith("/") || absDir.endsWith("\\")) {
+            // no further checks are needed for C:/ and similar
+        } else if (normalizedName.charAt(absDir.length()) != '/') {
+            // database must be within the directory
+            // (with baseDir=/test, the database name must not be /test2/x and not /test2)
+            throw DbException.get(ErrorCode.IO_EXCEPTION_1, normalizedName + " outside " + absDir);
+        }
+
+        if (!absolute) {
+            name = prefix + dirPath + File.separatorChar + FileUtils.unwrap(name);
         }
     }
 
-    /**
-     * Check if this is a remote connection.
-     *
-     * @return true if it is
-     */
-    public boolean isRemote() {
-        return remote;
-    }
-
-    /**
-     * Check if the referenced database is persistent.
-     *
-     * @return true if it is
-     */
-    public boolean isPersistent() {
-        return persistent;
-    }
-
-    /**
-     * Check if the referenced database is an unnamed in-memory database.
-     *
-     * @return true if it is
-     */
-    boolean isUnnamedInMemory() {
-        return unnamed;
-    }
-
     private void readProperties(Properties info) {
-        Object[] list = info.keySet().toArray();
-        DbSettings s = null;
-        for (Object k : list) {
-            String key = StringUtils.toUpperEnglish(k.toString());
-            if (prop.containsKey(key)) {
-                throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
+        Object[] ketArr = info.keySet().toArray();
+        DbSettings dbSettings = null;
+
+        for (Object key : ketArr) {
+            // todo rust忽略 toUpperEnglish内部用到了技巧 暂时略过 使用string自带的uppercase替换
+            String uppercaseKey = StringUtils.toUpperEnglish(key.toString());
+
+            if (prop.containsKey(uppercaseKey)) {
+                throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, uppercaseKey);
             }
-            Object value = info.get(k);
-            if (isKnownSetting(key)) {
-                prop.put(key, value);
-            } else {
-                if (s == null) {
-                    s = getDbSettings();
-                }
-                if (s.containsKey(key)) {
-                    prop.put(key, value);
-                }
+
+            Object value = info.get(key);
+
+            if (isKnownSetting(uppercaseKey)) {
+                prop.put(uppercaseKey, value);
+                continue;
+            }
+
+            // todo rust中可以使用once
+            if (dbSettings == null) {
+                dbSettings = getDbSettings();
+            }
+
+            if (dbSettings.containsKey(uppercaseKey)) {
+                prop.put(uppercaseKey, value);
             }
         }
     }
 
     private void readSettingsFromURL() {
-        DbSettings defaultSettings = DbSettings.DEFAULT;
         int idx = url.indexOf(';');
-        if (idx >= 0) {
-            String settings = url.substring(idx + 1);
-            url = url.substring(0, idx);
-            String unknownSetting = null;
-            String[] list = StringUtils.arraySplit(settings, ';', false);
-            for (String setting : list) {
-                if (setting.isEmpty()) {
-                    continue;
-                }
-                int equal = setting.indexOf('=');
-                if (equal < 0) {
-                    throw getFormatException();
-                }
-                String value = setting.substring(equal + 1);
-                String key = setting.substring(0, equal);
-                key = StringUtils.toUpperEnglish(key);
-                if (isKnownSetting(key) || defaultSettings.containsKey(key)) {
-                    String old = prop.getProperty(key);
-                    if (old != null && !old.equals(value)) {
-                        throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
-                    }
-                    prop.setProperty(key, value);
-                } else {
-                    unknownSetting = key;
-                }
+        if (idx < 0) {
+            return;
+        }
+
+        String settings = url.substring(idx + 1);
+        url = url.substring(0, idx);
+
+        String unknownSetting = null;
+        String[] list = StringUtils.arraySplit(settings, ';', false);
+        for (String setting : list) {
+            if (setting.isEmpty()) {
+                continue;
             }
-            if (unknownSetting != null //
-                    && !Utils.parseBoolean(prop.getProperty("IGNORE_UNKNOWN_SETTINGS"), false, false)) {
-                throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, unknownSetting);
+
+            int equal = setting.indexOf('=');
+            if (equal < 0) {
+                throw getFormatException();
+            }
+
+            String key = StringUtils.toUpperEnglish(setting.substring(0, equal));
+            String value = setting.substring(equal + 1);
+
+            if (isKnownSetting(key) || DbSettings.DEFAULT.containsKey(key)) {
+                String old = prop.getProperty(key);
+                if (old != null && !old.equals(value)) {
+                    throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
+                }
+
+                prop.setProperty(key, value);
+            } else {
+                unknownSetting = key;
             }
         }
-    }
 
-    private void preservePasswordForAuthentication(Object password) {
-        if ((!isRemote() || isSSL()) && prop.containsKey("AUTHREALM") && password != null) {
-            prop.put("AUTHZPWD", password instanceof char[] ? new String((char[]) password) : password);
+        if (unknownSetting != null && !Utils.parseBoolean(prop.getProperty("IGNORE_UNKNOWN_SETTINGS"), false, false)) {
+            throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, unknownSetting);
         }
     }
 
     private char[] removePassword() {
-        Object p = prop.remove("PASSWORD");
-        preservePasswordForAuthentication(p);
-        if (p == null) {
-            return new char[0];
-        } else if (p instanceof char[]) {
-            return (char[]) p;
-        } else {
-            return p.toString().toCharArray();
+        Object password = prop.remove("PASSWORD");
+
+        if ((!remote || ssl) && prop.containsKey("AUTHREALM") && password != null) {
+            prop.put("AUTHZPWD", password instanceof char[] ? new String((char[]) password) : password);
         }
+
+        if (password == null) {
+            return new char[0];
+        }
+
+        if (password instanceof char[]) {
+            return (char[]) password;
+        }
+
+        return password.toString().toCharArray();
     }
 
     /**
@@ -364,7 +365,9 @@ public class ConnectionInfo implements Cloneable {
     private void convertPasswords() {
         char[] password = removePassword();
         boolean passwordHash = removeProperty("PASSWORD_HASH", false);
-        if (getProperty("CIPHER", null) != null) {
+
+        // todo rust略过
+        if (getPropertyString("CIPHER", null) != null) {
             // split password into (filePassword+' '+userPassword)
             int space = -1;
             for (int i = 0, len = password.length; i < len; i++) {
@@ -376,6 +379,7 @@ public class ConnectionInfo implements Cloneable {
             if (space < 0) {
                 throw DbException.get(ErrorCode.WRONG_PASSWORD_FORMAT);
             }
+
             char[] np = Arrays.copyOfRange(password, space + 1, password.length);
             char[] filePassword = Arrays.copyOf(password, space);
             Arrays.fill(password, (char) 0);
@@ -383,17 +387,20 @@ public class ConnectionInfo implements Cloneable {
             fileEncryptionKey = FilePathEncrypt.getPasswordBytes(filePassword);
             filePasswordHash = hashPassword(passwordHash, "file", filePassword);
         }
+
         userPasswordHash = hashPassword(passwordHash, user, password);
     }
 
-    private static byte[] hashPassword(boolean passwordHash, String userName,
-                                       char[] password) {
+    private static byte[] hashPassword(boolean passwordHash, String userName, char[] password) {
         if (passwordHash) {
-            return StringUtils.convertHexToBytes(new String(password));
+            return StringUtils.convertHex2ByteArr(new String(password));
         }
+
+        // todo rust略过以下
         if (userName.isEmpty() && password.length == 0) {
             return new byte[0];
         }
+
         return SHA256.getKeyPasswordHash(userName, password);
     }
 
@@ -404,8 +411,8 @@ public class ConnectionInfo implements Cloneable {
      * @param defaultValue the default value
      * @return the value
      */
-    public boolean getProperty(String key, boolean defaultValue) {
-        return Utils.parseBoolean(getProperty(key, null), defaultValue, false);
+    public boolean getPropertyBoolean(String key, boolean defaultValue) {
+        return Utils.parseBoolean(getPropertyString(key, null), defaultValue, false);
     }
 
     /**
@@ -427,9 +434,11 @@ public class ConnectionInfo implements Cloneable {
      * @return the value
      */
     String removeProperty(String key, String defaultValue) {
+        // todo rust忽略
         if (SysProperties.CHECK && !isKnownSetting(key)) {
             throw DbException.getInternalError(key);
         }
+
         Object x = prop.remove(key);
         return x == null ? defaultValue : x.toString();
     }
@@ -445,8 +454,11 @@ public class ConnectionInfo implements Cloneable {
         }
 
         if (nameNormalized == null) {
-            if (!FileUtils.isAbsolute(name) && !name.contains("./") && !name.contains(".\\") && !name.contains(":/")
-                    && !name.contains(":\\")) {
+            if (!FileUtils.isAbsolute(name) &&
+                    !name.contains("./") &&
+                    !name.contains(".\\") &&
+                    !name.contains(":/") &&
+                    !name.contains(":\\")) {
                 // the name could start with "./", or
                 // it could start with a prefix such as "nioMapped:./"
                 // for Windows, the path "\test" is not considered
@@ -454,24 +466,18 @@ public class ConnectionInfo implements Cloneable {
                 // but we consider it absolute
                 throw DbException.get(ErrorCode.URL_RELATIVE_TO_CWD, originalURL);
             }
-            String suffix = Constants.SUFFIX_MV_FILE;
-            String n = FileUtils.toRealPath(name + suffix);
-            String fileName = FileUtils.getName(n);
-            if (fileName.length() < suffix.length() + 1) {
+
+            String real = FileUtils.toRealPath(name + Constants.SUFFIX_MV_FILE);
+            String fileName = FileUtils.getName(real);
+
+            if (fileName.length() < Constants.SUFFIX_MV_FILE.length() + 1) {
                 throw DbException.get(ErrorCode.INVALID_DATABASE_NAME_1, name);
             }
-            nameNormalized = n.substring(0, n.length() - suffix.length());
-        }
-        return nameNormalized;
-    }
 
-    /**
-     * Get the file password hash if it is set.
-     *
-     * @return the password hash or null
-     */
-    public byte[] getFilePasswordHash() {
-        return filePasswordHash;
+            nameNormalized = real.substring(0, real.length() - Constants.SUFFIX_MV_FILE.length());
+        }
+
+        return nameNormalized;
     }
 
     byte[] getFileEncryptionKey() {
@@ -526,10 +532,11 @@ public class ConnectionInfo implements Cloneable {
      * @param defaultValue the default value
      * @return the value as a String
      */
-    int getProperty(String key, int defaultValue) {
+    int getPropertyInt(String key, int defaultValue) {
         if (SysProperties.CHECK && !isKnownSetting(key)) {
             throw DbException.getInternalError(key);
         }
+
         String s = getProperty(key);
         return s == null ? defaultValue : Integer.parseInt(s);
     }
@@ -541,7 +548,7 @@ public class ConnectionInfo implements Cloneable {
      * @param defaultValue the default value
      * @return the value as a String
      */
-    public String getProperty(String key, String defaultValue) {
+    public String getPropertyString(String key, String defaultValue) {
         if (SysProperties.CHECK && !isKnownSetting(key)) {
             throw DbException.getInternalError(key);
         }
@@ -556,7 +563,7 @@ public class ConnectionInfo implements Cloneable {
      * @param defaultValue the default value
      * @return the value as a String
      */
-    String getProperty(int setting, String defaultValue) {
+    String getPropertyString(int setting, String defaultValue) {
         String key = SetTypes.getTypeName(setting);
         String s = getProperty(key);
         return s == null ? defaultValue : s;
@@ -571,7 +578,7 @@ public class ConnectionInfo implements Cloneable {
      */
     int getIntProperty(int setting, int defaultValue) {
         String key = SetTypes.getTypeName(setting);
-        String s = getProperty(key, null);
+        String s = getPropertyString(key, null);
         try {
             return s == null ? defaultValue : Integer.decode(s);
         } catch (NumberFormatException e) {
@@ -620,26 +627,10 @@ public class ConnectionInfo implements Cloneable {
         this.fileEncryptionKey = key;
     }
 
-    /**
-     * Overwrite a property.
-     *
-     * @param key   the property name
-     * @param value the value
-     */
     public void setProperty(String key, String value) {
-        // value is null if the value is an object
         if (value != null) {
             prop.setProperty(key, value);
         }
-    }
-
-    /**
-     * Get the database URL.
-     *
-     * @return the URL
-     */
-    public String getURL() {
-        return url;
     }
 
     /**
@@ -708,15 +699,14 @@ public class ConnectionInfo implements Cloneable {
     }
 
     public DbSettings getDbSettings() {
-        DbSettings defaultSettings = DbSettings.DEFAULT;
-        HashMap<String, String> s = new HashMap<>(DbSettings.TABLE_SIZE);
+        HashMap<String, String> settings = new HashMap<>(DbSettings.TABLE_SIZE);
         for (Object k : prop.keySet()) {
             String key = k.toString();
-            if (!isKnownSetting(key) && defaultSettings.containsKey(key)) {
-                s.put(key, prop.getProperty(key));
+            if (!isKnownSetting(key) && DbSettings.DEFAULT.containsKey(key)) {
+                settings.put(key, prop.getProperty(key));
             }
         }
-        return DbSettings.getInstance(s);
+        return new DbSettings(settings);
     }
 
     private static String remapURL(String url) {
@@ -736,7 +726,7 @@ public class ConnectionInfo implements Cloneable {
                     }
                 }
             } catch (IOException e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
         }
         return url;

@@ -227,7 +227,7 @@ public final class ValueBlob extends ValueLob {
                 }
             }
         } catch (IOException ex) {
-            throw DbException.convert(ex);
+            throw DbException.convert2DbException(ex);
         }
     }
 

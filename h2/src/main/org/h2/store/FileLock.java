@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.util.Properties;
+
 import org.h2.Driver;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
@@ -84,8 +85,8 @@ public class FileLock implements Runnable {
      * Create a new file locking object.
      *
      * @param traceSystem the trace system to use
-     * @param fileName the file name
-     * @param sleep the number of milliseconds to sleep
+     * @param fileName    the file name
+     * @param sleep       the number of milliseconds to sleep
      */
     public FileLock(TraceSystem traceSystem, String fileName, int sleep) {
         this.trace = traceSystem == null ?
@@ -105,16 +106,17 @@ public class FileLock implements Runnable {
         if (locked) {
             throw DbException.getInternalError("already locked");
         }
+
         switch (fileLockMethod) {
-        case FILE:
-            lockFile();
-            break;
-        case SOCKET:
-            lockSocket();
-            break;
-        case FS:
-        case NO:
-            break;
+            case FILE:
+                lockFile();
+                break;
+            case SOCKET:
+                lockSocket();
+                break;
+            case FS:
+            case NO:
+                break;
         }
         locked = true;
     }
@@ -165,7 +167,7 @@ public class FileLock implements Runnable {
      * Add or change a setting to the properties. This call does not save the
      * file.
      *
-     * @param key the key
+     * @param key   the key
      * @param value the value
      */
     public void setProperty(String key, String value) {
@@ -186,10 +188,13 @@ public class FileLock implements Runnable {
             try (OutputStream out = FileUtils.newOutputStream(fileName, false)) {
                 properties.store(out, MAGIC);
             }
+
             lastWrite = aggressiveLastModified(fileName);
+
             if (trace.isDebugEnabled()) {
                 trace.debug("save " + properties);
             }
+
             return properties;
         } catch (IOException e) {
             throw getExceptionFatal("Could not save properties " + fileName, e);
@@ -214,7 +219,9 @@ public class FileLock implements Runnable {
                 ByteBuffer b = ByteBuffer.wrap(new byte[1]);
                 f.read(b);
             }
-        } catch (IOException ignoreEx) {}
+        } catch (IOException ignoreEx) {
+        }
+
         return FileUtils.lastModified(fileName);
     }
 
@@ -227,8 +234,7 @@ public class FileLock implements Runnable {
         boolean running = false;
         String id = prop.getProperty("id");
         try {
-            Socket socket = NetUtils.createSocket(server,
-                    Constants.DEFAULT_TCP_PORT, false);
+            Socket socket = NetUtils.createSocket(server, Constants.DEFAULT_TCP_PORT, false);
             Transfer transfer = new Transfer(null, socket);
             transfer.init();
             transfer.writeInt(Constants.TCP_PROTOCOL_VERSION_MIN_SUPPORTED);
@@ -426,13 +432,11 @@ public class FileLock implements Runnable {
     }
 
     private static DbException getExceptionFatal(String reason, Throwable t) {
-        return DbException.get(
-                ErrorCode.ERROR_OPENING_DATABASE_1, t, reason);
+        return DbException.get(ErrorCode.ERROR_OPENING_DATABASE_1, t, reason);
     }
 
     private DbException getExceptionAlreadyInUse(String reason) {
-        DbException e = DbException.get(
-                ErrorCode.DATABASE_ALREADY_OPEN_1, reason);
+        DbException e = DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1, reason);
         if (fileName != null) {
             try {
                 Properties prop = load();
@@ -458,15 +462,21 @@ public class FileLock implements Runnable {
     public static FileLockMethod getFileLockMethod(String method) {
         if (method == null || method.equalsIgnoreCase("FILE")) {
             return FileLockMethod.FILE;
-        } else if (method.equalsIgnoreCase("NO")) {
-            return FileLockMethod.NO;
-        } else if (method.equalsIgnoreCase("SOCKET")) {
-            return FileLockMethod.SOCKET;
-        } else if (method.equalsIgnoreCase("FS")) {
-            return FileLockMethod.FS;
-        } else {
-            throw DbException.get(ErrorCode.UNSUPPORTED_LOCK_METHOD_1, method);
         }
+
+        if (method.equalsIgnoreCase("NO")) {
+            return FileLockMethod.NO;
+        }
+
+        if (method.equalsIgnoreCase("SOCKET")) {
+            return FileLockMethod.SOCKET;
+        }
+
+        if (method.equalsIgnoreCase("FS")) {
+            return FileLockMethod.FS;
+        }
+
+        throw DbException.get(ErrorCode.UNSUPPORTED_LOCK_METHOD_1, method);
     }
 
     public String getUniqueId() {
@@ -479,8 +489,7 @@ public class FileLock implements Runnable {
             while (locked && fileName != null) {
                 // trace.debug("watchdog check");
                 try {
-                    if (!FileUtils.exists(fileName) ||
-                            aggressiveLastModified(fileName) != lastWrite) {
+                    if (!FileUtils.exists(fileName) || aggressiveLastModified(fileName) != lastWrite) {
                         save();
                     }
                     Thread.sleep(sleep);
@@ -490,12 +499,14 @@ public class FileLock implements Runnable {
                     trace.debug(e, "watchdog");
                 }
             }
+
             while (true) {
                 // take a copy so we don't get an NPE between checking it and using it
                 ServerSocket local = serverSocket;
                 if (local == null) {
                     break;
                 }
+
                 try {
                     trace.debug("watchdog accept");
                     Socket s = local.accept();
@@ -507,6 +518,7 @@ public class FileLock implements Runnable {
         } catch (Exception e) {
             trace.debug(e, "watchdog");
         }
+
         trace.debug("watchdog end");
     }
 

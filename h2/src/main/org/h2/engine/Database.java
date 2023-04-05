@@ -167,10 +167,10 @@ public final class Database implements DataHandler, CastDataProvider {
      * Used to trigger the client side to reload some of the settings.
      */
     private final AtomicLong remoteSettingsId = new AtomicLong();
-    private CompareMode compareMode;
+    public CompareMode compareMode;
     private String cluster = Constants.CLUSTERING_DISABLED;
-    private boolean readOnly;
-    private DatabaseEventListener eventListener;
+    public boolean readOnly;
+    private DatabaseEventListener databaseEventListener;
     private int maxMemoryRows = SysProperties.MAX_MEMORY_ROWS;
     private int lockMode;
     private int maxLengthInplaceLob;
@@ -185,10 +185,9 @@ public final class Database implements DataHandler, CastDataProvider {
     private boolean optimizeReuseResults = true;
     private final String cacheType;
     private boolean referentialIntegrity = true;
-    private Mode mode = Mode.getRegular();
-    private DefaultNullOrdering defaultNullOrdering = DefaultNullOrdering.LOW;
-    private int maxOperationMemory =
-            Constants.DEFAULT_MAX_OPERATION_MEMORY;
+    private Mode mode;
+    private DefaultNullOrdering defaultNullOrdering;
+    private int maxOperationMemory = Constants.DEFAULT_MAX_OPERATION_MEMORY;
     private SmallLRUCache<String, String[]> lobFileListCache;
     private final boolean autoServerMode;
     private final int autoServerPort;
@@ -216,39 +215,51 @@ public final class Database implements DataHandler, CastDataProvider {
     private Authenticator authenticator;
 
     public Database(ConnectionInfo connectionInfo, String cipher) {
+        // todo rust略过
         if (ASSERT) {
             META_LOCK_DEBUGGING.set(null);
             META_LOCK_DEBUGGING_DB.set(null);
             META_LOCK_DEBUGGING_STACK.set(null);
         }
 
-        String databasePath = connectionInfo.getDatabasePath(); // /home/a/file_collector_data/record
-        this.dbSettings = connectionInfo.getDbSettings();
-        this.compareMode = CompareMode.getInstance(null, 0);
-        this.persistent = connectionInfo.isPersistent();
-        this.filePasswordHash = connectionInfo.getFilePasswordHash();
-        this.databasePath = databasePath;
-        this.databaseShortName = parseDatabaseShortName();
-        this.maxLengthInplaceLob = Constants.DEFAULT_MAX_LENGTH_INPLACE_LOB;
+       // String databasePath = connectionInfo.getDatabasePath(); // /home/a/file_collector_data/record
+        dbSettings = connectionInfo.getDbSettings();
+        persistent = connectionInfo.persistent;
+        filePasswordHash = connectionInfo.filePasswordHash;
+        databasePath = connectionInfo.getDatabasePath(); // /home/a/file_collector_data/record
+        maxLengthInplaceLob = Constants.DEFAULT_MAX_LENGTH_INPLACE_LOB;
         this.cipher = cipher;
-        this.autoServerMode = connectionInfo.getProperty("AUTO_SERVER", false);
-        this.autoServerPort = connectionInfo.getProperty("AUTO_SERVER_PORT", 0);
-        pageSize = connectionInfo.getProperty("PAGE_SIZE", Constants.DEFAULT_PAGE_SIZE);
+        autoServerMode = connectionInfo.getPropertyBoolean("AUTO_SERVER", false);
+        autoServerPort = connectionInfo.getPropertyInt("AUTO_SERVER_PORT", 0);
+        pageSize = connectionInfo.getPropertyInt("PAGE_SIZE", Constants.DEFAULT_PAGE_SIZE);
+
+        databaseShortName = parseDatabaseShortName();
+
+        // todo rust略过
+        compareMode = CompareMode.getInstance(CompareMode.OFF, 0);
+
         if (cipher != null && pageSize % FileEncrypt.BLOCK_SIZE != 0) {
             throw DbException.getUnsupportedException("CIPHER && PAGE_SIZE=" + pageSize);
         }
-        String accessModeData = StringUtils.toLowerEnglish(connectionInfo.getProperty("ACCESS_MODE_DATA", "rw"));
+
+        String accessModeData = StringUtils.toLowerEnglish(connectionInfo.getPropertyString("ACCESS_MODE_DATA", "rw"));
         if ("r".equals(accessModeData)) {
             readOnly = true;
         }
-        String lockMethodName = connectionInfo.getProperty("FILE_LOCK", null);
-        fileLockMethod = lockMethodName != null ? FileLock.getFileLockMethod(lockMethodName) :
-                autoServerMode ? FileLockMethod.FILE : FileLockMethod.FS;
-        this.databaseURL = connectionInfo.getURL();
+
+        String lockMethodName = connectionInfo.getPropertyString("FILE_LOCK", null);
+        fileLockMethod = lockMethodName != null ? FileLock.getFileLockMethod(lockMethodName) : autoServerMode ? FileLockMethod.FILE : FileLockMethod.FS;
+
+        databaseURL = connectionInfo.url;
+
+        // todo rust略过
         String s = connectionInfo.removeProperty("DATABASE_EVENT_LISTENER", null);
         if (s != null) {
             setEventListenerClass(StringUtils.trim(s, true, true, "'"));
         }
+
+        // todo rust暂时只支持regular
+        mode = Mode.getRegular();
         s = connectionInfo.removeProperty("MODE", null);
         if (s != null) {
             mode = Mode.getInstance(s);
@@ -256,6 +267,8 @@ public final class Database implements DataHandler, CastDataProvider {
                 throw DbException.get(ErrorCode.UNKNOWN_MODE_1, s);
             }
         }
+
+        defaultNullOrdering = DefaultNullOrdering.LOW;
         s = connectionInfo.removeProperty("DEFAULT_NULL_ORDERING", null);
         if (s != null) {
             try {
@@ -264,55 +277,64 @@ public final class Database implements DataHandler, CastDataProvider {
                 throw DbException.getInvalidValueException("DEFAULT_NULL_ORDERING", s);
             }
         }
-        s = connectionInfo.getProperty("JAVA_OBJECT_SERIALIZER", null);
+
+        // todo rust略过
+        s = connectionInfo.getPropertyString("JAVA_OBJECT_SERIALIZER", null);
         if (s != null) {
             s = StringUtils.trim(s, true, true, "'");
             javaObjectSerializerName = s;
         }
-        this.allowBuiltinAliasOverride = connectionInfo.getProperty("BUILTIN_ALIAS_OVERRIDE", false);
+
+        allowBuiltinAliasOverride = connectionInfo.getPropertyBoolean("BUILTIN_ALIAS_OVERRIDE", false);
+
         boolean closeAtVmShutdown = dbSettings.dbCloseOnExit;
         if (autoServerMode && !closeAtVmShutdown) {
             throw DbException.getUnsupportedException("AUTO_SERVER=TRUE && DB_CLOSE_ON_EXIT=FALSE");
         }
-        int traceLevelFile = connectionInfo.getIntProperty(SetTypes.TRACE_LEVEL_FILE, TraceSystem.DEFAULT_TRACE_LEVEL_FILE);
-        int traceLevelSystemOut = connectionInfo.getIntProperty(SetTypes.TRACE_LEVEL_SYSTEM_OUT,
-                TraceSystem.DEFAULT_TRACE_LEVEL_SYSTEM_OUT);
-        this.cacheType = StringUtils.toUpperEnglish(connectionInfo.removeProperty("CACHE_TYPE", Constants.CACHE_TYPE_DEFAULT));
-        this.ignoreCatalogs = connectionInfo.getProperty("IGNORE_CATALOGS", dbSettings.ignoreCatalogs);
-        this.lockMode = connectionInfo.getProperty("LOCK_MODE", Constants.DEFAULT_LOCK_MODE);
-        String traceFile;
-        if (persistent) {
-            if (readOnly) {
-                if (traceLevelFile >= TraceSystem.DEBUG) {
-                    traceFile = Utils.getProperty("java.io.tmpdir", ".") + "/h2_" + System.currentTimeMillis()
-                            + Constants.SUFFIX_TRACE_FILE;
+
+        cacheType = StringUtils.toUpperEnglish(connectionInfo.removeProperty("CACHE_TYPE", Constants.CACHE_TYPE_DEFAULT));
+        ignoreCatalogs = connectionInfo.getPropertyBoolean("IGNORE_CATALOGS", dbSettings.ignoreCatalogs);
+        lockMode = connectionInfo.getPropertyInt("LOCK_MODE", Constants.DEFAULT_LOCK_MODE);
+
+        // trace体系
+        {
+            String traceFile;
+            int traceLevelFile = connectionInfo.getIntProperty(SetTypes.TRACE_LEVEL_FILE, TraceSystem.DEFAULT_TRACE_LEVEL_FILE);
+            int traceLevelSystemOut = connectionInfo.getIntProperty(SetTypes.TRACE_LEVEL_SYSTEM_OUT, TraceSystem.DEFAULT_TRACE_LEVEL_SYSTEM_OUT);
+            if (persistent) {
+                if (readOnly) {
+                    if (traceLevelFile >= TraceSystem.DEBUG) {
+                        traceFile = Utils.getProperty("java.io.tmpdir", ".") + "/h2_" + System.currentTimeMillis()
+                                + Constants.SUFFIX_TRACE_FILE;
+                    } else {
+                        traceFile = null;
+                    }
                 } else {
-                    traceFile = null;
+                    traceFile = databasePath + Constants.SUFFIX_TRACE_FILE;
                 }
             } else {
-                traceFile = databasePath + Constants.SUFFIX_TRACE_FILE;
+                traceFile = null;
             }
-        } else {
-            traceFile = null;
+            traceSystem = new TraceSystem(traceFile);
+            traceSystem.setLevelFile(traceLevelFile);
+            traceSystem.setLevelSystemOut(traceLevelSystemOut);
+            trace = traceSystem.getTrace(Trace.DATABASE);
+            trace.info("opening {0} (build {1})", databasePath, Constants.BUILD_ID);
         }
-        traceSystem = new TraceSystem(traceFile);
-        traceSystem.setLevelFile(traceLevelFile);
-        traceSystem.setLevelSystemOut(traceLevelSystemOut);
-        trace = traceSystem.getTrace(Trace.DATABASE);
-        trace.info("opening {0} (build {1})", databasePath, Constants.BUILD_ID);
+
         try {
-            if (autoServerMode && (readOnly || !persistent || fileLockMethod == FileLockMethod.NO
-                    || fileLockMethod == FileLockMethod.FS)) {
-                throw DbException.getUnsupportedException(
-                        "AUTO_SERVER=TRUE && (readOnly || inMemory || FILE_LOCK=NO || FILE_LOCK=FS)");
+            if (autoServerMode &&
+                    (readOnly || !persistent || fileLockMethod == FileLockMethod.NO || fileLockMethod == FileLockMethod.FS)) {
+                throw DbException.getUnsupportedException("AUTO_SERVER=TRUE && (readOnly || inMemory || FILE_LOCK=NO || FILE_LOCK=FS)");
             }
+
             if (persistent) {
                 String lockFileName = databasePath + Constants.SUFFIX_LOCK_FILE;
                 if (readOnly) {
                     if (FileUtils.exists(lockFileName)) {
                         throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1, "Lock file exists: " + lockFileName);
                     }
-                } else if (fileLockMethod != FileLockMethod.NO && fileLockMethod != FileLockMethod.FS) {
+                } else if (fileLockMethod != FileLockMethod.NO && fileLockMethod != FileLockMethod.FS) { // todo rust略过因为默认的是FS
                     lock = new FileLock(traceSystem, lockFileName, Constants.LOCK_SLEEP);
                     lock.lock(fileLockMethod);
                     if (autoServerMode) {
@@ -324,30 +346,39 @@ public final class Database implements DataHandler, CastDataProvider {
             }
 
             starting = true;
+
             if (!dbSettings.mvStore) {
                 throw new UnsupportedOperationException();
             }
+
             store = new Store(this, connectionInfo.fileEncryptionKey);
+
             starting = false;
 
             systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
-            systemUser.setAdmin(true);
+            systemUser.admin = true;
+
             mainSchema = new Schema(this, Constants.MAIN_SCHEMA_ID, sysIdentifier(Constants.SCHEMA_MAIN), systemUser, true);
-            infoSchema = new InformationSchema(this, systemUser);
             schemas.put(mainSchema.getName(), mainSchema);
+
+            infoSchema = new InformationSchema(this, systemUser);
             schemas.put(infoSchema.getName(), infoSchema);
+
             if (mode.getEnum() == ModeEnum.PostgreSQL) {
                 pgCatalogSchema = new PgCatalogSchema(this, systemUser);
                 schemas.put(pgCatalogSchema.getName(), pgCatalogSchema);
             } else {
                 pgCatalogSchema = null;
             }
+
             publicRole = new Role(this, 0, sysIdentifier(Constants.PUBLIC_ROLE_NAME), true);
             usersAndRoles.put(publicRole.getName(), publicRole);
+
             systemSession = createSession(systemUser);
             lobSession = createSession(systemUser);
+
             Set<String> settingKeys = dbSettings.getSettings().keySet();
-            store.getTransactionStore().init(lobSession);
+            store.transactionStore.init(lobSession);
             settingKeys.removeIf(name -> name.startsWith("PAGE_STORE_"));
 
             CreateTableData createTableData = createSysTableData();
@@ -364,9 +395,9 @@ public final class Database implements DataHandler, CastDataProvider {
             objectIds.set(0);
 
             executeMeta();
-
             systemSession.commit(true);
-            store.getTransactionStore().endLeftoverTransactions();
+
+            store.transactionStore.endLeftoverTransactions();
             store.removeTemporaryMaps(objectIds);
             recompileInvalidViews();
             starting = false;
@@ -382,6 +413,7 @@ public final class Database implements DataHandler, CastDataProvider {
                     addDatabaseObject(systemSession, setting);
                 }
             }
+
             lobStorage = new LobStorageMap(this);
             lobSession.commit(true);
             systemSession.commit(true);
@@ -389,7 +421,7 @@ public final class Database implements DataHandler, CastDataProvider {
             trace.info("opened {0}", databasePath);
 
             if (persistent) {
-                int writeDelay = connectionInfo.getProperty("WRITE_DELAY", Constants.DEFAULT_WRITE_DELAY);
+                int writeDelay = connectionInfo.getPropertyInt("WRITE_DELAY", Constants.DEFAULT_WRITE_DELAY);
                 setWriteDelay(writeDelay);
             }
 
@@ -417,7 +449,7 @@ public final class Database implements DataHandler, CastDataProvider {
                 e.addSuppressed(ex);
             }
 
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
     }
 
@@ -428,10 +460,6 @@ public final class Database implements DataHandler, CastDataProvider {
 
     public RowFactory getRowFactory() {
         return rowFactory;
-    }
-
-    public void setRowFactory(RowFactory rowFactory) {
-        this.rowFactory = rowFactory;
     }
 
     public static void setInitialPowerOffCount(int count) {
@@ -528,8 +556,7 @@ public final class Database implements DataHandler, CastDataProvider {
         if (mustExist && !FileUtils.exists(name)) {
             throw DbException.get(ErrorCode.FILE_NOT_FOUND_1, name);
         }
-        FileStore store = FileStore.open(this, name, openMode, cipher,
-                filePasswordHash);
+        FileStore store = FileStore.open(this, name, openMode, cipher, filePasswordHash);
         try {
             store.init();
         } catch (DbException e) {
@@ -568,28 +595,29 @@ public final class Database implements DataHandler, CastDataProvider {
         }
         n = ++i == l ? "UNNAMED" : n.substring(i);
         return StringUtils.truncateString(
-                dbSettings.databaseToUpper ? StringUtils.toUpperEnglish(n)
-                        : dbSettings.databaseToLower ? StringUtils.toLowerEnglish(n) : n,
+                dbSettings.databaseToUpper ? StringUtils.toUpperEnglish(n) : dbSettings.databaseToLower ? StringUtils.toLowerEnglish(n) : n,
                 Constants.MAX_IDENTIFIER_LENGTH);
     }
 
     private CreateTableData createSysTableData() {
-        CreateTableData data = new CreateTableData();
-        ArrayList<Column> cols = data.columns;
+        CreateTableData createTableData = new CreateTableData();
+
         Column columnId = new Column("ID", TypeInfo.TYPE_INTEGER);
         columnId.setNullable(false);
-        cols.add(columnId);
-        cols.add(new Column("HEAD", TypeInfo.TYPE_INTEGER));
-        cols.add(new Column("TYPE", TypeInfo.TYPE_INTEGER));
-        cols.add(new Column("SQL", TypeInfo.TYPE_VARCHAR));
-        data.tableName = "SYS";
-        data.id = 0;
-        data.temporary = false;
-        data.persistData = persistent;
-        data.persistIndexes = persistent;
-        data.isHidden = true;
-        data.session = systemSession;
-        return data;
+
+        createTableData.columns.add(columnId);
+        createTableData.columns.add(new Column("HEAD", TypeInfo.TYPE_INTEGER));
+        createTableData.columns.add(new Column("TYPE", TypeInfo.TYPE_INTEGER));
+        createTableData.columns.add(new Column("SQL", TypeInfo.TYPE_VARCHAR));
+        createTableData.tableName = "SYS";
+        createTableData.id = 0;
+        createTableData.temporary = false;
+        createTableData.persistData = persistent;
+        createTableData.persistIndexes = persistent;
+        createTableData.isHidden = true;
+        createTableData.session = systemSession;
+
+        return createTableData;
     }
 
     private void executeMeta() {
@@ -639,7 +667,7 @@ public final class Database implements DataHandler, CastDataProvider {
                     for (int i = 0; i < count; i++) {
                         MetaRecord rec = domainRecords.get(i);
                         try {
-                            rec.prepareAndExecute(this, systemSession, eventListener);
+                            rec.prepareAndExecute(this, systemSession, databaseEventListener);
                         } catch (DbException ex) {
                             if (exception == null) {
                                 exception = ex;
@@ -663,7 +691,7 @@ public final class Database implements DataHandler, CastDataProvider {
             if (count > 0) {
                 ArrayList<Prepared> constraints = new ArrayList<>(count);
                 for (int i = 0; i < count; i++) {
-                    Prepared prepared = constraintRecords.get(i).prepare(this, systemSession, eventListener);
+                    Prepared prepared = constraintRecords.get(i).prepare(this, systemSession, databaseEventListener);
                     if (prepared != null) {
                         constraints.add(prepared);
                     }
@@ -672,7 +700,7 @@ public final class Database implements DataHandler, CastDataProvider {
                 // Create constraints in order (unique and primary key before
                 // all others)
                 for (Prepared constraint : constraints) {
-                    MetaRecord.execute(this, constraint, eventListener, constraint.getSQL());
+                    MetaRecord.execute(this, constraint, databaseEventListener, constraint.getSQL());
                 }
             }
 
@@ -684,7 +712,7 @@ public final class Database implements DataHandler, CastDataProvider {
         if (!metaRecordList.isEmpty()) {
             metaRecordList.sort(null);
             for (MetaRecord metaRecord : metaRecordList) {
-                metaRecord.prepareAndExecute(this, systemSession, eventListener);
+                metaRecord.prepareAndExecute(this, systemSession, databaseEventListener);
             }
         }
     }
@@ -698,7 +726,7 @@ public final class Database implements DataHandler, CastDataProvider {
                     "-key", key, databasePath);
             server.start();
         } catch (SQLException e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         String localAddress = NetUtils.getLocalAddress();
         String address = localAddress + ":" + server.getPort();
@@ -1203,12 +1231,12 @@ public final class Database implements DataHandler, CastDataProvider {
                 closeAllSessionsExcept(null);
             }
             trace.info("closing {0}", databasePath);
-            if (eventListener != null) {
+            if (databaseEventListener != null) {
                 // allow the event listener to connect to the database
                 closing = false;
-                DatabaseEventListener e = eventListener;
+                DatabaseEventListener e = databaseEventListener;
                 // set it to null, to make sure it's called only once
-                eventListener = null;
+                databaseEventListener = null;
                 e.closingDatabase();
                 closing = true;
                 if (!userSessions.isEmpty()) {
@@ -1559,8 +1587,8 @@ public final class Database implements DataHandler, CastDataProvider {
     }
 
     private void deleteOldTempFiles() {
-        String path = FileUtils.getParent(databasePath);
-        for (String name : FileUtils.newDirectoryStream(path)) {
+        String parentDirPath = FileUtils.getParent(databasePath);
+        for (String name : FileUtils.newDirectoryStream(parentDirPath)) {
             if (name.endsWith(Constants.SUFFIX_TEMP_FILE) && name.startsWith(databasePath)) {
                 // can't always delete the files, they may still be open
                 FileUtils.tryDelete(name);
@@ -1746,10 +1774,6 @@ public final class Database implements DataHandler, CastDataProvider {
         return tempName;
     }
 
-    public void setCompareMode(CompareMode compareMode) {
-        this.compareMode = compareMode;
-    }
-
     public void setCluster(String cluster) {
         this.cluster = cluster;
     }
@@ -1766,7 +1790,7 @@ public final class Database implements DataHandler, CastDataProvider {
     }
 
     public void setWriteDelay(int value) {
-        store.getMvStore().setAutoCommitDelay(value < 0 ? 0 : value);
+        store.getMvStore().setAutoCommitDelay(Math.max(value, 0));
     }
 
     public int getRetentionTime() {
@@ -1846,28 +1870,27 @@ public final class Database implements DataHandler, CastDataProvider {
             try {
                 store.flush();
             } catch (RuntimeException e) {
-                backgroundException.compareAndSet(null, DbException.convert(e));
+                backgroundException.compareAndSet(null, DbException.convert2DbException(e));
                 throw e;
             }
         }
     }
 
-    public void setEventListener(DatabaseEventListener eventListener) {
-        this.eventListener = eventListener;
+    public void setDatabaseEventListener(DatabaseEventListener databaseEventListener) {
+        this.databaseEventListener = databaseEventListener;
     }
 
     public void setEventListenerClass(String className) {
         if (className == null || className.isEmpty()) {
-            eventListener = null;
+            databaseEventListener = null;
         } else {
             try {
-                eventListener = (DatabaseEventListener)
-                        JdbcUtils.loadUserClass(className).getDeclaredConstructor().newInstance();
+                databaseEventListener = (DatabaseEventListener) JdbcUtils.loadUserClass(className).getDeclaredConstructor().newInstance();
                 String url = databaseURL;
                 if (cipher != null) {
                     url += ";CIPHER=" + cipher;
                 }
-                eventListener.init(url);
+                databaseEventListener.init(url);
             } catch (Throwable e) {
                 throw DbException.get(
                         ErrorCode.ERROR_SETTING_DATABASE_EVENT_LISTENER_2, e,
@@ -1886,9 +1909,9 @@ public final class Database implements DataHandler, CastDataProvider {
      * @param max   the highest value or 0 if unknown
      */
     public void setProgress(int state, String name, long x, long max) {
-        if (eventListener != null) {
+        if (databaseEventListener != null) {
             try {
-                eventListener.setProgress(state, name, x, max);
+                databaseEventListener.setProgress(state, name, x, max);
             } catch (Exception e2) {
                 // ignore this (user made) exception
             }
@@ -1903,9 +1926,9 @@ public final class Database implements DataHandler, CastDataProvider {
      * @param sql the SQL statement
      */
     public void exceptionThrown(SQLException e, String sql) {
-        if (eventListener != null) {
+        if (databaseEventListener != null) {
             try {
-                eventListener.exceptionThrown(e, sql);
+                databaseEventListener.exceptionThrown(e, sql);
             } catch (Exception e2) {
                 // ignore this (user made) exception
             }
@@ -2083,8 +2106,8 @@ public final class Database implements DataHandler, CastDataProvider {
      * notifies the event listener if one has been set.
      */
     void opened() {
-        if (eventListener != null) {
-            eventListener.opened();
+        if (databaseEventListener != null) {
+            databaseEventListener.opened();
         }
     }
 
@@ -2409,7 +2432,7 @@ public final class Database implements DataHandler, CastDataProvider {
                         javaObjectSerializer = (JavaObjectSerializer)
                                 JdbcUtils.loadUserClass(serializerName).getDeclaredConstructor().newInstance();
                     } catch (Exception e) {
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     }
                 }
             }
@@ -2439,7 +2462,7 @@ public final class Database implements DataHandler, CastDataProvider {
             try {
                 tableEngine = (TableEngine) JdbcUtils.loadUserClass(tableEngineName).getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                throw DbException.convert(e);
+                throw DbException.convert2DbException(e);
             }
 
             tableEngines.put(tableEngineName, tableEngine);

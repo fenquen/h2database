@@ -78,7 +78,7 @@ public class Help extends Prepared {
                         ValueVarchar.get(processHelpText(rs.getString(4)), sessionLocal));
             }
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         result.done();
         return result;

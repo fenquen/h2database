@@ -90,8 +90,7 @@ public class DbSettings extends SettingsBase {
 
     /**
      * Database setting <code>DB_CLOSE_ON_EXIT</code> (default: true).
-     * Close the database when the virtual machine exits normally, using a
-     * shutdown hook.
+     * Close the database when the virtual machine exits normally, using a shutdown hook.
      */
     public final boolean dbCloseOnExit = get("DB_CLOSE_ON_EXIT", true);
 
@@ -133,8 +132,7 @@ public class DbSettings extends SettingsBase {
      * The estimated number of rows in a function table (for example, CSVREAD or
      * FTL_SEARCH). This value is used by the optimizer.
      */
-    public final int estimatedFunctionTableRows = get(
-            "ESTIMATED_FUNCTION_TABLE_ROWS", 1000);
+    public final int estimatedFunctionTableRows = get("ESTIMATED_FUNCTION_TABLE_ROWS", 1000);
 
     /**
      * Database setting <code>LOB_TIMEOUT</code> (default: 300000,
@@ -178,8 +176,7 @@ public class DbSettings extends SettingsBase {
      * true).
      * Optimize subqueries that are not dependent on the outer query.
      */
-    public final boolean optimizeEvaluatableSubqueries = get(
-            "OPTIMIZE_EVALUATABLE_SUBQUERIES", true);
+    public final boolean optimizeEvaluatableSubqueries = get("OPTIMIZE_EVALUATABLE_SUBQUERIES", true);
 
     /**
      * Database setting <code>OPTIMIZE_INSERT_FROM_SELECT</code>
@@ -256,8 +253,7 @@ public class DbSettings extends SettingsBase {
      * database should be used for all linked tables that connect to the same
      * database.
      */
-    public final boolean shareLinkedConnections = get(
-            "SHARE_LINKED_CONNECTIONS", true);
+    public final boolean shareLinkedConnections = get("SHARE_LINKED_CONNECTIONS", true);
 
     /**
      * Database setting <code>DEFAULT_TABLE_ENGINE</code>
@@ -295,34 +291,24 @@ public class DbSettings extends SettingsBase {
      */
     public final boolean zeroBasedEnums = get("ZERO_BASED_ENUMS", false);
 
-    private DbSettings(HashMap<String, String> s) {
-        super(s);
+    DbSettings(HashMap<String, String> settings) {
+        super(settings);
+
         boolean lower = get("DATABASE_TO_LOWER", false);
         boolean upperSet = containsKey("DATABASE_TO_UPPER");
         boolean upper = get("DATABASE_TO_UPPER", true);
         if (lower && upper) {
             if (upperSet) {
-                throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
-                        "DATABASE_TO_LOWER & DATABASE_TO_UPPER");
+                throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_COMBINATION, "DATABASE_TO_LOWER & DATABASE_TO_UPPER");
             }
+
             upper = false;
         }
+
         databaseToLower = lower;
         databaseToUpper = upper;
-        HashMap<String, String> settings = getSettings();
-        settings.put("DATABASE_TO_LOWER", Boolean.toString(lower));
-        settings.put("DATABASE_TO_UPPER", Boolean.toString(upper));
-    }
 
-    /**
-     * INTERNAL.
-     * Get the settings for the given properties (may not be null).
-     *
-     * @param s the settings
-     * @return the settings
-     */
-    static DbSettings getInstance(HashMap<String, String> s) {
-        return new DbSettings(s);
+        this.settings.put("DATABASE_TO_LOWER", Boolean.toString(lower));
+        this.settings.put("DATABASE_TO_UPPER", Boolean.toString(upper));
     }
-
 }

@@ -108,7 +108,7 @@ public class TableLink extends Table {
                         // could be SQLException or RuntimeException
                         conn.close(true);
                         conn = null;
-                        throw DbException.convert(e);
+                        throw DbException.convert2DbException(e);
                     }
                 }
             } catch (DbException e) {
@@ -560,7 +560,7 @@ public class TableLink extends Table {
                 }
             } catch (SQLException e) {
                 if (retry >= MAX_RETRY) {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
                 conn.close(true);
                 connect();

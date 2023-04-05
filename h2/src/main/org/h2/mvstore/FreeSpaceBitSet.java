@@ -27,11 +27,6 @@ public class FreeSpaceBitSet {
     private final int blockSize;
 
     /**
-     * The bit set.
-     */
-    private final BitSet set = new BitSet();
-
-    /**
      * Left-shifting register, which holds outcomes of recent allocations. Only
      * allocations done in "reuseSpace" mode are recorded here. For example,
      * rightmost bit set to 1 means that last allocation failed to find a hole
@@ -40,12 +35,13 @@ public class FreeSpaceBitSet {
      */
     private int failureFlags;
 
+    private final BitSet bitSet = new BitSet();
 
     /**
      * Create a new free space map.
      *
      * @param firstFreeBlock the first free block
-     * @param blockSize the block size
+     * @param blockSize      the block size
      */
     public FreeSpaceBitSet(int firstFreeBlock, int blockSize) {
         this.firstFreeBlock = firstFreeBlock;
@@ -57,14 +53,14 @@ public class FreeSpaceBitSet {
      * Reset the list.
      */
     public void clear() {
-        set.clear();
-        set.set(0, firstFreeBlock);
+        bitSet.clear();
+        bitSet.set(0, firstFreeBlock);
     }
 
     /**
      * Check whether one of the blocks is in use.
      *
-     * @param pos the position in bytes
+     * @param pos    the position in bytes
      * @param length the number of bytes
      * @return true if a block is in use
      */
@@ -72,7 +68,7 @@ public class FreeSpaceBitSet {
         int start = getBlock(pos);
         int blocks = getBlockCount(length);
         for (int i = start; i < start + blocks; i++) {
-            if (!set.get(i)) {
+            if (!bitSet.get(i)) {
                 return false;
             }
         }
@@ -82,7 +78,7 @@ public class FreeSpaceBitSet {
     /**
      * Check whether one of the blocks is free.
      *
-     * @param pos the position in bytes
+     * @param pos    the position in bytes
      * @param length the number of bytes
      * @return true if a block is free
      */
@@ -90,7 +86,7 @@ public class FreeSpaceBitSet {
         int start = getBlock(pos);
         int blocks = getBlockCount(length);
         for (int i = start; i < start + blocks; i++) {
-            if (set.get(i)) {
+            if (bitSet.get(i)) {
                 return false;
             }
         }
@@ -110,27 +106,27 @@ public class FreeSpaceBitSet {
     /**
      * Allocate a number of blocks and mark them as used.
      *
-     * @param length the number of bytes to allocate
-     * @param reservedLow start block index of the reserved area (inclusive)
+     * @param length       the number of bytes to allocate
+     * @param reservedLow  start block index of the reserved area (inclusive)
      * @param reservedHigh end block index of the reserved area (exclusive),
      *                     special value -1 means beginning of the infinite free area
      * @return the start position in bytes
      */
     long allocate(int length, long reservedLow, long reservedHigh) {
-        return getPos(allocate(getBlockCount(length), (int)reservedLow, (int)reservedHigh, true));
+        return getPos(allocate(getBlockCount(length), (int) reservedLow, (int) reservedHigh, true));
     }
 
     /**
      * Calculate starting position of the prospective allocation.
      *
-     * @param blocks the number of blocks to allocate
-     * @param reservedLow start block index of the reserved area (inclusive)
+     * @param blocks       the number of blocks to allocate
+     * @param reservedLow  start block index of the reserved area (inclusive)
      * @param reservedHigh end block index of the reserved area (exclusive),
      *                     special value -1 means beginning of the infinite free area
      * @return the starting block index
      */
     long predictAllocation(int blocks, long reservedLow, long reservedHigh) {
-        return allocate(blocks, (int)reservedLow, (int)reservedHigh, false);
+        return allocate(blocks, (int) reservedLow, (int) reservedHigh, false);
     }
 
     boolean isFragmented() {
@@ -139,9 +135,9 @@ public class FreeSpaceBitSet {
 
     private int allocate(int blocks, int reservedLow, int reservedHigh, boolean allocate) {
         int freeBlocksTotal = 0;
-        for (int i = 0;;) {
-            int start = set.nextClearBit(i);
-            int end = set.nextSetBit(start + 1);
+        for (int i = 0; ; ) {
+            int start = bitSet.nextClearBit(i);
+            int end = bitSet.nextSetBit(start + 1);
             int freeBlocks = end - start;
             if (end < 0 || freeBlocks >= blocks) {
                 if ((reservedHigh < 0 || start < reservedHigh) && start + blocks > reservedLow) { // overlap detected
@@ -153,10 +149,10 @@ public class FreeSpaceBitSet {
                         continue;
                     }
                 }
-                assert set.nextSetBit(start) == -1 || set.nextSetBit(start) >= start + blocks :
+                assert bitSet.nextSetBit(start) == -1 || bitSet.nextSetBit(start) >= start + blocks :
                         "Double alloc: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this;
                 if (allocate) {
-                    set.set(start, start + blocks);
+                    bitSet.set(start, start + blocks);
                 } else {
                     failureFlags <<= 1;
                     if (end < 0 && freeBlocksTotal > 4 * blocks) {
@@ -173,34 +169,34 @@ public class FreeSpaceBitSet {
     /**
      * Mark the space as in use.
      *
-     * @param pos the position in bytes
+     * @param pos    the position in bytes
      * @param length the number of bytes
      */
     public void markUsed(long pos, int length) {
         int start = getBlock(pos);
         int blocks = getBlockCount(length);
         // this is not an assert because we get called during file opening
-        if (set.nextSetBit(start) != -1 && set.nextSetBit(start) < start + blocks ) {
+        if (bitSet.nextSetBit(start) != -1 && bitSet.nextSetBit(start) < start + blocks) {
             throw DataUtils.newMVStoreException(
                     DataUtils.ERROR_FILE_CORRUPT,
                     "Double mark: " + Integer.toHexString(start) +
-                    "/" + Integer.toHexString(blocks) + " " + this);
+                            "/" + Integer.toHexString(blocks) + " " + this);
         }
-        set.set(start, start + blocks);
+        bitSet.set(start, start + blocks);
     }
 
     /**
      * Mark the space as free.
      *
-     * @param pos the position in bytes
+     * @param pos    the position in bytes
      * @param length the number of bytes
      */
     public void free(long pos, int length) {
         int start = getBlock(pos);
         int blocks = getBlockCount(length);
-        assert set.nextClearBit(start) >= start + blocks :
+        assert bitSet.nextClearBit(start) >= start + blocks :
                 "Double free: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this;
-        set.clear(start, start + blocks);
+        bitSet.clear(start, start + blocks);
     }
 
     private long getPos(int block) {
@@ -230,9 +226,8 @@ public class FreeSpaceBitSet {
      * of sparsely populated chunk(s) and evacuation of still live data into a
      * new chunk.
      *
-     * @param vacatedBlocks
-     *            number of blocks vacated  as a result of live data evacuation less
-     *            number of blocks in prospective chunk with evacuated live data
+     * @param vacatedBlocks number of blocks vacated  as a result of live data evacuation less
+     *                      number of blocks in prospective chunk with evacuated live data
      * @return prospective fill rate (0 - 100)
      */
     int getProjectedFillRate(int vacatedBlocks) {
@@ -246,12 +241,12 @@ public class FreeSpaceBitSet {
             if (--cnt == 0) {
                 return 100;
             }
-            totalBlocks = set.length();
-            usedBlocks = set.cardinality();
-        } while (totalBlocks != set.length() || usedBlocks > totalBlocks);
+            totalBlocks = bitSet.length();
+            usedBlocks = bitSet.cardinality();
+        } while (totalBlocks != bitSet.length() || usedBlocks > totalBlocks);
         usedBlocks -= firstFreeBlock + vacatedBlocks;
         totalBlocks -= firstFreeBlock;
-        return usedBlocks == 0 ? 0 : (int)((100L * usedBlocks + totalBlocks - 1) / totalBlocks);
+        return usedBlocks == 0 ? 0 : (int) ((100L * usedBlocks + totalBlocks - 1) / totalBlocks);
     }
 
     /**
@@ -260,7 +255,7 @@ public class FreeSpaceBitSet {
      * @return the position.
      */
     long getFirstFree() {
-        return getPos(set.nextClearBit(0));
+        return getPos(bitSet.nextClearBit(0));
     }
 
     /**
@@ -279,7 +274,7 @@ public class FreeSpaceBitSet {
      * @return block index
      */
     int getAfterLastBlock() {
-        return set.previousSetBit(set.size() - 1) + 1;
+        return bitSet.previousSetBit(bitSet.size() - 1) + 1;
     }
 
     /**
@@ -292,17 +287,17 @@ public class FreeSpaceBitSet {
         // The most desirable chunks to move are the ones sitting within
         // a relatively short span of occupied blocks which is surrounded
         // from both sides by relatively long free spans
-        int prevEnd = set.previousClearBit(block);
+        int prevEnd = bitSet.previousClearBit(block);
         int freeSize;
         if (prevEnd < 0) {
             prevEnd = firstFreeBlock;
             freeSize = 0;
         } else {
-            freeSize = prevEnd - set.previousSetBit(prevEnd);
+            freeSize = prevEnd - bitSet.previousSetBit(prevEnd);
         }
 
-        int nextStart = set.nextClearBit(block);
-        int nextEnd = set.nextSetBit(nextStart);
+        int nextStart = bitSet.nextClearBit(block);
+        int nextEnd = bitSet.nextSetBit(nextStart);
         if (nextEnd >= 0) {
             freeSize += nextEnd - nextStart;
         }
@@ -315,8 +310,8 @@ public class FreeSpaceBitSet {
         if (DETAILED_INFO) {
             int onCount = 0, offCount = 0;
             int on = 0;
-            for (int i = 0; i < set.length(); i++) {
-                if (set.get(i)) {
+            for (int i = 0; i < bitSet.length(); i++) {
+                if (bitSet.get(i)) {
                     onCount++;
                     on++;
                 } else {
@@ -329,16 +324,16 @@ public class FreeSpaceBitSet {
             }
             buff.append('\n')
                     .append(" on ").append(onCount).append(" off ").append(offCount)
-                    .append(' ').append(100 * onCount / (onCount+offCount)).append("% used ");
+                    .append(' ').append(100 * onCount / (onCount + offCount)).append("% used ");
         }
         buff.append('[');
-        for (int i = 0;;) {
+        for (int i = 0; ; ) {
             if (i > 0) {
                 buff.append(", ");
             }
-            int start = set.nextClearBit(i);
+            int start = bitSet.nextClearBit(i);
             buff.append(Integer.toHexString(start)).append('-');
-            int end = set.nextSetBit(start + 1);
+            int end = bitSet.nextSetBit(start + 1);
             if (end < 0) {
                 break;
             }

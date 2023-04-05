@@ -198,7 +198,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
                 }
             }
         } catch (Exception e) {
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         }
         return builder.toString();
     }

@@ -26,11 +26,11 @@ public class AuthenticationInfo {
 
     public AuthenticationInfo(ConnectionInfo connectionInfo) {
         this.connectionInfo = connectionInfo;
-        this.realm = connectionInfo.getProperty("AUTHREALM", null);
+        this.realm = connectionInfo.getPropertyString("AUTHREALM", null);
         if (this.realm != null) {
             this.realm = StringUtils.toUpperEnglish(this.realm);
         }
-        this.password = connectionInfo.getProperty("AUTHZPWD", null);
+        this.password = connectionInfo.getPropertyString("AUTHZPWD", null);
     }
 
     public String getUserName() {

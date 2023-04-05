@@ -49,7 +49,7 @@ import org.h2.value.ValueTimestampTimeZone;
 import org.h2.value.ValueVarchar;
 
 /**
- * 客户端的session 用来和服务端的session交互
+ * 客户端的session用来和服务端的session交互,如果是嵌入式模式的话用的也是这个
  */
 public final class SessionRemote extends Session implements DataHandler {
 
@@ -109,9 +109,9 @@ public final class SessionRemote extends Session implements DataHandler {
 
     private volatile DynamicSettings dynamicSettings;
 
-    public SessionRemote(ConnectionInfo ci) {
-        this.connectionInfo = ci;
-        oldInformationSchema = ci.getProperty("OLD_INFORMATION_SCHEMA", false);
+    public SessionRemote(ConnectionInfo connectionInfo) {
+        this.connectionInfo = connectionInfo;
+        oldInformationSchema = connectionInfo.getPropertyBoolean("OLD_INFORMATION_SCHEMA", false);
     }
 
     @Override
@@ -127,7 +127,7 @@ public final class SessionRemote extends Session implements DataHandler {
 
     private Transfer initTransfer(ConnectionInfo ci, String db, String server) throws IOException {
         Socket socket = NetUtils.createSocket(server, Constants.DEFAULT_TCP_PORT, ci.isSSL(),
-                ci.getProperty("NETWORK_TIMEOUT", 0));
+                ci.getPropertyInt("NETWORK_TIMEOUT", 0));
         Transfer trans = new Transfer(this, socket);
         trans.setSSL(ci.isSSL());
         trans.init();
@@ -137,7 +137,7 @@ public final class SessionRemote extends Session implements DataHandler {
         trans.writeString(ci.getOriginalURL());
         trans.writeString(ci.getUserName());
         trans.writeBytes(ci.getUserPasswordHash());
-        trans.writeBytes(ci.getFilePasswordHash());
+        trans.writeBytes(ci.filePasswordHash);
         String[] keys = ci.getKeys();
         trans.writeInt(keys.length);
         for (String key : keys) {
@@ -320,15 +320,18 @@ public final class SessionRemote extends Session implements DataHandler {
      */
     public Session connectEmbeddedOrServer(boolean openNew) {
         ConnectionInfo ci = connectionInfo;
-        if (ci.isRemote()) {
+
+        // todo rust略过
+        if (ci.remote) {
             connectServer(ci);
             return this;
         }
 
-        boolean autoServerMode = ci.getProperty("AUTO_SERVER", false);
+        boolean autoServerMode = ci.getPropertyBoolean("AUTO_SERVER", false);
         ConnectionInfo backup = null;
 
         try {
+            // todo rust略过涉及到了clone
             if (autoServerMode) {
                 backup = ci.clone();
                 connectionInfo = ci.clone();
@@ -340,7 +343,7 @@ public final class SessionRemote extends Session implements DataHandler {
 
             return Engine.createSession(ci);
         } catch (Exception re) {
-            DbException dbException = DbException.convert(re);
+            DbException dbException = DbException.convert2DbException(re);
             if (dbException.getErrorCode() == ErrorCode.DATABASE_ALREADY_OPEN_1) {
                 if (autoServerMode) {
                     String serverKey = ((JdbcException) dbException.getSQLException()).getSQL();
@@ -372,7 +375,7 @@ public final class SessionRemote extends Session implements DataHandler {
         databaseName = name.substring(idx + 1);
         String serverAddrsStr = name.substring(0, idx);
         traceSystem = new TraceSystem(null);
-        String traceLevelFile = connectionInfo.getProperty(
+        String traceLevelFile = connectionInfo.getPropertyString(
                 SetTypes.TRACE_LEVEL_FILE, null);
         if (traceLevelFile != null) {
             int level = Integer.parseInt(traceLevelFile);
@@ -389,7 +392,7 @@ public final class SessionRemote extends Session implements DataHandler {
                 throw DbException.convertIOException(e, prefix);
             }
         }
-        String traceLevelSystemOut = connectionInfo.getProperty(
+        String traceLevelSystemOut = connectionInfo.getPropertyString(
                 SetTypes.TRACE_LEVEL_SYSTEM_OUT, null);
         if (traceLevelSystemOut != null) {
             int level = Integer.parseInt(traceLevelSystemOut);
@@ -404,9 +407,9 @@ public final class SessionRemote extends Session implements DataHandler {
             connectionInfo.setProperty("CLUSTER", Constants.CLUSTERING_ENABLED);
         }
 
-        autoReconnect = connectionInfo.getProperty("AUTO_RECONNECT", false);
+        autoReconnect = connectionInfo.getPropertyBoolean("AUTO_RECONNECT", false);
         // AUTO_SERVER implies AUTO_RECONNECT
-        boolean autoServer = connectionInfo.getProperty("AUTO_SERVER", false);
+        boolean autoServer = connectionInfo.getPropertyBoolean("AUTO_SERVER", false);
         if (autoServer && serverList != null) {
             throw DbException.getUnsupportedException("autoServer && serverList != null");
         }
@@ -420,7 +423,7 @@ public final class SessionRemote extends Session implements DataHandler {
                 try {
                     eventListener = (DatabaseEventListener) JdbcUtils.loadUserClass(className).getDeclaredConstructor().newInstance();
                 } catch (Throwable e) {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
             }
         }
@@ -469,8 +472,7 @@ public final class SessionRemote extends Session implements DataHandler {
     }
 
     /**
-     * Remove a server from the list of cluster nodes and disables the cluster
-     * mode.
+     * Remove a server from the list of cluster nodes and disables the cluster mode.
      *
      * @param e     the exception (used for debugging)
      * @param i     the index of the server to remove
@@ -649,7 +651,7 @@ public final class SessionRemote extends Session implements DataHandler {
             // allow re-connect
             throw new IOException(s.toString(), s);
         }
-        return DbException.convert(s);
+        return DbException.convert2DbException(s);
     }
 
     /**
@@ -946,7 +948,7 @@ public final class SessionRemote extends Session implements DataHandler {
                     javaObjectSerializer = (JavaObjectSerializer) JdbcUtils
                             .loadUserClass(javaObjectSerializerName).getDeclaredConstructor().newInstance();
                 } catch (Exception e) {
-                    throw DbException.convert(e);
+                    throw DbException.convert2DbException(e);
                 }
             } else {
                 javaObjectSerializer = null;

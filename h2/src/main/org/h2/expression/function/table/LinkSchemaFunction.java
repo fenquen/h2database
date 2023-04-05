@@ -83,7 +83,7 @@ public final class LinkSchemaFunction extends TableFunction {
             }
         } catch (SQLException e) {
             result.close();
-            throw DbException.convert(e);
+            throw DbException.convert2DbException(e);
         } finally {
             JdbcUtils.closeSilently(rs);
             JdbcUtils.closeSilently(c2);

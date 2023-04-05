@@ -588,6 +588,7 @@ public class Utils {
         if (value == null) {
             return defaultValue;
         }
+
         switch (value.length()) {
         case 1:
             if (value.equals("1") || value.equalsIgnoreCase("t") || value.equalsIgnoreCase("y")) {
@@ -617,9 +618,11 @@ public class Utils {
                 return false;
             }
         }
+
         if (throwException) {
             throw new IllegalArgumentException(value);
         }
+
         return defaultValue;
     }
 
@@ -686,15 +689,12 @@ public class Utils {
             return (int) (value * maxMemory / (1024 * 1024 * 1024));
         }
         try {
-            OperatingSystemMXBean mxBean = ManagementFactory
-                    .getOperatingSystemMXBean();
+            OperatingSystemMXBean mxBean = ManagementFactory.getOperatingSystemMXBean();
             // this method is only available on the class
             // com.sun.management.OperatingSystemMXBean, which mxBean
             // is an instance of under the Oracle JDK, but it is not present on
             // Android and other JDK's
-            Method method = Class.forName(
-                    "com.sun.management.OperatingSystemMXBean").
-                    getMethod("getTotalPhysicalMemorySize");
+            Method method = Class.forName("com.sun.management.OperatingSystemMXBean").getMethod("getTotalPhysicalMemorySize");
             long physicalMemorySize = ((Number) method.invoke(mxBean)).longValue();
             return (int) (value * physicalMemorySize / (1024 * 1024 * 1024));
         } catch (Exception e) {
@@ -768,7 +768,7 @@ public class Utils {
      * Makes sure that all currently submitted tasks are processed before this method returns.
      * It is assumed that there will be no new submissions to this executor, once this method has started.
      * It is assumed that executor is single-threaded, and flush is done by submitting a dummy task
-     * and waiting for it's completion.
+     * and waiting for its completion.
      * @param executor to flush
      */
     public static void flushExecutor(ThreadPoolExecutor executor) {
