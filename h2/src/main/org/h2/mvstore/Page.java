@@ -90,6 +90,7 @@ public abstract class Page<K, V> implements Cloneable {
      */
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<Page> posUpdater = AtomicLongFieldUpdater.newUpdater(Page.class, "pos");
+
     /**
      * The estimated number of bytes used per child entry.
      */
@@ -167,8 +168,12 @@ public abstract class Page<K, V> implements Cloneable {
      * @return the new page
      */
     @SuppressWarnings("unchecked")
-    static <K, V> Page<K, V> createEmptyNode(MVMap<K, V> map) {
-        return createNode(map, map.getKeyType().createStorage(0), SINGLE_EMPTY, 0,
+    static <K, V> Page<K, V> createEmptyNoLeaf(MVMap<K, V> map) {
+        return createNoLeaf(
+                map,
+                map.getKeyType().createStorage(0),
+                SINGLE_EMPTY,
+                0,
                 PAGE_NODE_MEMORY + MEMORY_POINTER + PAGE_MEMORY_CHILD); // there is always one child
     }
 
@@ -184,11 +189,11 @@ public abstract class Page<K, V> implements Cloneable {
      * @param memory     the memory used in bytes
      * @return the page
      */
-    public static <K, V> Page<K, V> createNode(MVMap<K, V> map,
-                                               K[] keys,
-                                               PageReference<K, V>[] children,
-                                               long totalCount,
-                                               int memory) {
+    public static <K, V> Page<K, V> createNoLeaf(MVMap<K, V> map,
+                                                 K[] keys,
+                                                 PageReference<K, V>[] children,
+                                                 long totalCount,
+                                                 int memory) {
         assert keys != null;
         Page<K, V> page = new NonLeaf<>(map, keys, children, totalCount);
         page.initMemoryAccount(memory);
@@ -1165,7 +1170,7 @@ public abstract class Page<K, V> implements Cloneable {
             for (PageReference<K, V> x : bChildren) {
                 t += x.count;
             }
-            Page<K, V> newPage = createNode(mvMap, bKeys, bChildren, t, 0);
+            Page<K, V> newPage = createNoLeaf(mvMap, bKeys, bChildren, t, 0);
             if (isPersistent()) {
                 recalculateMemory();
             }

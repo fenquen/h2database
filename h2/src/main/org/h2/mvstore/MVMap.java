@@ -1194,7 +1194,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return new page
      */
     protected Page<K, V> createEmptyNode() {
-        return Page.createEmptyNode(this);
+        return Page.createEmptyNoLeaf(this);
     }
 
     /**
@@ -1328,7 +1328,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                 children[0] = new Page.PageReference<>(p);
                                 children[1] = new Page.PageReference<>(page);
                                 unsavedMemoryHolder.value += p.getMemory();
-                                p = Page.createNode(this, keys, children, p.getTotalCount() + page.getTotalCount(), 0);
+                                p = Page.createNoLeaf(this, keys, children, p.getTotalCount() + page.getTotalCount(), 0);
                             }
                             break;
                         }
@@ -1886,7 +1886,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                     Page.PageReference<K, V>[] children = Page.createRefStorage(2);
                                     children[0] = new Page.PageReference<>(p);
                                     children[1] = new Page.PageReference<>(split);
-                                    p = Page.createNode(this, keys, children, totalCount, 0);
+                                    p = Page.createNoLeaf(this, keys, children, totalCount, 0);
                                     break;
                                 }
 

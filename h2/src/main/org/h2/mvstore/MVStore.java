@@ -195,8 +195,7 @@ public class MVStore implements AutoCloseable {
     private static final int STATE_CLOSED = 3;
 
     private static final int PIPE_LENGTH = 1;
-
-
+    
     /**
      * Lock which governs access to major store operations: store(), close(), ...
      * It serves as a replacement for synchronized(this), except it allows for
