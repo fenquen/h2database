@@ -26,16 +26,16 @@ public final class ByteArrayDataType extends BasicDataType<byte[]>
     }
 
     @Override
-    public void write(WriteBuffer buff, byte[] data) {
-        buff.putVarInt(data.length);
-        buff.put(data);
+    public void write(WriteBuffer writeBuffer, byte[] data) {
+        writeBuffer.putVarInt(data.length);
+        writeBuffer.put(data);
     }
 
     @Override
-    public byte[] read(ByteBuffer buff) {
-        int size = DataUtils.readVarInt(buff);
+    public byte[] read(ByteBuffer byteBuffer) {
+        int size = DataUtils.readVarInt(byteBuffer);
         byte[] data = new byte[size];
-        buff.get(data);
+        byteBuffer.get(data);
         return data;
     }
 

@@ -6,6 +6,7 @@
 package org.h2.mvstore.type;
 
 import java.nio.ByteBuffer;
+
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
 
@@ -29,7 +30,7 @@ public class StringDataType extends BasicDataType<String> {
     }
 
     @Override
-    public int binarySearch(String key, Object storageObj, int size, int initialGuess) {
+    public int binarySearch(String key, String[] storageObj, int size, int initialGuess) {
         String[] storage = cast(storageObj);
         int low = 0;
         int high = size - 1;
@@ -53,20 +54,21 @@ public class StringDataType extends BasicDataType<String> {
         }
         return -(low + 1);
     }
+
     @Override
     public int getMemory(String obj) {
         return 24 + 2 * obj.length();
     }
 
     @Override
-    public String read(ByteBuffer buff) {
-        return DataUtils.readString(buff);
+    public String read(ByteBuffer byteBuffer) {
+        return DataUtils.readString(byteBuffer);
     }
 
     @Override
-    public void write(WriteBuffer buff, String s) {
+    public void write(WriteBuffer writeBuffer, String s) {
         int len = s.length();
-        buff.putVarInt(len).putStringData(s, len);
+        writeBuffer.putVarInt(len).putStringData(s, len);
     }
 }
 

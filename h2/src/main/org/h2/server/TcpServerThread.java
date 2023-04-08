@@ -165,7 +165,7 @@ public class TcpServerThread implements Runnable {
                                         socket.getLocalAddress().getAddress(), true) //
                                 .append(':').append(socket.getLocalPort()).toString(), //
                         socket.getInetAddress().getAddress(), socket.getPort(),
-                        new StringBuilder().append('P').append(clientVersion).toString()));
+                        "P" + clientVersion));
                 if (clientVersion < Constants.TCP_PROTOCOL_VERSION_20) {
                     // For DatabaseMetaData
                     connectionInfo.setProperty("OLD_INFORMATION_SCHEMA", "TRUE");

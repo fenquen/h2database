@@ -40,7 +40,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     /**
      * Reference to the current root page.
      */
-    private final AtomicReference<RootReference<K, V>> root;
+    private final AtomicReference<RootReference<K, V>> rootReference;
 
     private final int id;
     private final long createVersion;
@@ -77,7 +77,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 DataUtils.readHexInt(config, "id", 0),
                 DataUtils.readHexLong(config, "createVersion", 0),
                 new AtomicReference<>(),
-                ((MVStore) config.get("store")).getKeysPerPage(),
+                ((MVStore) config.get("store")).keysPerPage,
                 config.containsKey("singleWriter") && (Boolean) config.get("singleWriter")
         );
 
@@ -92,7 +92,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 source.valueType,
                 source.id,
                 source.createVersion,
-                new AtomicReference<>(source.root.get()),
+                new AtomicReference<>(source.rootReference.get()),
                 source.keysPerPage,
                 source.singleWriter);
     }
@@ -108,7 +108,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 id,
                 0,
                 new AtomicReference<>(),
-                mvStore.getKeysPerPage(),
+                mvStore.keysPerPage,
                 false);
         setInitialRoot(createEmptyLeaf(), mvStore.getCurrentVersion());
     }
@@ -118,7 +118,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                   DataType<V> valueType,
                   int id,
                   long createVersion,
-                  AtomicReference<RootReference<K, V>> root,
+                  AtomicReference<RootReference<K, V>> rootReference,
                   int keysPerPage,
                   boolean singleWriter) {
         this.mvStore = mvStore;
@@ -126,11 +126,11 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         this.createVersion = createVersion;
         this.keyType = keyType;
         this.valueType = valueType;
-        this.root = root;
+        this.rootReference = rootReference;
         this.keysPerPage = keysPerPage;
+        this.singleWriter = singleWriter;
         this.keysBuffer = singleWriter ? keyType.createStorage(keysPerPage) : null;
         this.valuesBuffer = singleWriter ? valueType.createStorage(keysPerPage) : null;
-        this.singleWriter = singleWriter;
         this.avgKeySize = keyType.isMemoryEstimationAllowed() ? new AtomicLong() : null;
         this.avgValSize = valueType.isMemoryEstimationAllowed() ? new AtomicLong() : null;
     }
@@ -847,8 +847,8 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         return flushAndGetRoot().root;
     }
 
-    public RootReference<K, V> getRoot() {
-        return root.get();
+    public RootReference<K, V> getRootReference() {
+        return rootReference.get();
     }
 
     /**
@@ -857,7 +857,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return current root reference
      */
     public RootReference<K, V> flushAndGetRoot() {
-        RootReference<K, V> rootReference = getRoot();
+        RootReference<K, V> rootReference = getRootReference();
         if (singleWriter && rootReference.getAppendCounter() > 0) {
             return flushAppendBuffer(rootReference, true);
         }
@@ -871,7 +871,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @param version  initial version
      */
     final void setInitialRoot(Page<K, V> rootPage, long version) {
-        root.set(new RootReference<>(rootPage, version));
+        rootReference.set(new RootReference<>(rootPage, version));
     }
 
     /**
@@ -883,7 +883,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     final boolean compareAndSetRoot(RootReference<K, V> expectedRootReference,
                                     RootReference<K, V> updatedRootReference) {
-        return root.compareAndSet(expectedRootReference, updatedRootReference);
+        return rootReference.compareAndSet(expectedRootReference, updatedRootReference);
     }
 
     /**
@@ -908,7 +908,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         RootReference<K, V> rootReference = flushAndGetRoot();
         RootReference<K, V> previous;
         while (rootReference.version >= version && (previous = rootReference.previous) != null) {
-            if (root.compareAndSet(rootReference, previous)) {
+            if (this.rootReference.compareAndSet(rootReference, previous)) {
                 rootReference = previous;
                 closed = false;
             }
@@ -975,7 +975,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      *                                       or if another thread is concurrently writing
      */
     protected final void beforeWrite() {
-        assert !getRoot().isLockedByCurrentThread() : getRoot();
+        assert !getRootReference().isLockedByCurrentThread() : getRootReference();
         if (closed) {
             int id = getId();
             String mapName = mvStore.getMapName(id);
@@ -1018,7 +1018,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return the number of entries
      */
     public final long sizeAsLong() {
-        return getRoot().getTotalCount();
+        return getRootReference().getTotalCount();
     }
 
     @Override
@@ -1088,7 +1088,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return version
      */
     public final long getVersion() {
-        return getRoot().getVersion();
+        return getRootReference().getVersion();
     }
 
     /**
@@ -1098,7 +1098,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return true if has changes
      */
     final boolean hasChangesSince(long version) {
-        return getRoot().hasChangesSince(version, isPersistent());
+        return getRootReference().hasChangesSince(version, isPersistent());
     }
 
     /**
@@ -1248,7 +1248,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     private RootReference<K, V> flushAppendBuffer(RootReference<K, V> rootReference, boolean fullFlush) {
         boolean preLocked = rootReference.isLockedByCurrentThread();
         boolean locked = preLocked;
-        int keysPerPage = mvStore.getKeysPerPage();
+        int keysPerPage = mvStore.keysPerPage;
         try {
             IntValueHolder unsavedMemoryHolder = new IntValueHolder();
             int attempt = 0;
@@ -1260,7 +1260,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     // already flushed the buffer, then we don't need a lock
                     rootReference = tryLock(rootReference, ++attempt);
                     if (rootReference == null) {
-                        rootReference = getRoot();
+                        rootReference = getRootReference();
                         continue;
                     }
                     locked = true;
@@ -1362,7 +1362,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     assert rootReference.getAppendCounter() <= availabilityThreshold;
                     break;
                 }
-                rootReference = getRoot();
+                rootReference = getRootReference();
             }
         } finally {
             if (locked && !preLocked) {
@@ -1403,7 +1403,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     public void append(K key, V value) {
         if (singleWriter) {
             beforeWrite();
-            RootReference<K, V> rootReference = lockRoot(getRoot(), 1);
+            RootReference<K, V> rootReference = lockRoot(getRootReference(), 1);
             int appendCounter = rootReference.getAppendCounter();
             try {
                 if (appendCounter >= keysPerPage) {
@@ -1431,7 +1431,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     public void trimLast() {
         if (singleWriter) {
-            RootReference<K, V> rootReference = getRoot();
+            RootReference<K, V> rootReference = getRootReference();
             int appendCounter = rootReference.getAppendCounter();
             boolean useRegularRemove = appendCounter == 0;
             if (!useRegularRemove) {
@@ -1801,7 +1801,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
 
                 CursorPos<K, V> pos = CursorPos.traverseDown(rootPage, key);
-                if (!locked && rootReference != getRoot()) {
+                if (!locked && rootReference != getRootReference()) {
                     continue;
                 }
 
@@ -1817,14 +1817,14 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                         decisionMaker.reset();
                         continue;
                     case ABORT:
-                        if (!locked && rootReference != getRoot()) {
+                        if (!locked && rootReference != getRootReference()) {
                             decisionMaker.reset();
                             continue;
                         }
                         return oldValue;
                     case REMOVE: {
                         if (index < 0) {
-                            if (!locked && rootReference != getRoot()) {
+                            if (!locked && rootReference != getRootReference()) {
                                 decisionMaker.reset();
                                 continue;
                             }
@@ -1870,7 +1870,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                             p.insertLeaf(-index - 1, key, value);
                             int keyCount;
 
-                            while ((keyCount = p.getKeyCount()) > mvStore.getKeysPerPage()
+                            while ((keyCount = p.getKeyCount()) > mvStore.keysPerPage
                                     || p.getMemory() > mvStore.getMaxPageSize()
                                     && keyCount > (p.isLeaf() ? 1 : 2)) {
 
@@ -1935,7 +1935,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             if (lockedRootReference != null) {
                 return lockedRootReference;
             }
-            rootReference = getRoot();
+            rootReference = getRootReference();
         }
     }
 
@@ -2012,7 +2012,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     private RootReference<K, V> unlockRoot(Page<K, V> newRootPage, int appendCounter) {
         RootReference<K, V> updatedRootReference;
         do {
-            RootReference<K, V> rootReference = getRoot();
+            RootReference<K, V> rootReference = getRootReference();
             assert rootReference.isLockedByCurrentThread();
             updatedRootReference = rootReference.updatePageAndLockedStatus(
                     newRootPage == null ? rootReference.root : newRootPage,

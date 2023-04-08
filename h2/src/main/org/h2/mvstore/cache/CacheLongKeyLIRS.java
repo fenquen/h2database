@@ -62,8 +62,6 @@ public class CacheLongKeyLIRS<V> {
 
     /**
      * Create a new cache with the given memory size.
-     *
-     * @param config the configuration
      */
     @SuppressWarnings("unchecked")
     public CacheLongKeyLIRS(Config config) {
@@ -91,9 +89,7 @@ public class CacheLongKeyLIRS<V> {
     }
 
     /**
-     * Determines max size of the data item size to fit into cache
-     *
-     * @return data items size limit
+     * determines max size of the data item size to fit into cache
      */
     public long getMaxItemSize() {
         return Math.max(1, maxMemory / segmentCount);

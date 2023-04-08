@@ -697,7 +697,7 @@ public class TransactionStore {
         for (int i = opentransactions.nextSetBit(0); i >= 0; i = opentransactions.nextSetBit(i + 1)) {
             MVMap<Long, Record<?, ?>> undoLog = undoLogs[i];
             if (undoLog != null) {
-                RootReference<Long, Record<?, ?>> rootReference = undoLog.getRoot();
+                RootReference<Long, Record<?, ?>> rootReference = undoLog.getRootReference();
                 if (rootReference.needFlush()) {
                     // abort attempt to collect snapshots for all undo logs
                     // because map's append buffer can't be flushed from a non-owning thread

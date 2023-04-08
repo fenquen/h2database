@@ -50,35 +50,35 @@ public class VersionedValueType<T,D> extends BasicDataType<VersionedValue<T>> im
     }
 
     @Override
-    public void read(ByteBuffer buff, Object storage, int len) {
-        if (buff.get() == 0) {
+    public void read(ByteBuffer byteBuffer, VersionedValue<T>[] storage, int len) {
+        if (byteBuffer.get() == 0) {
             // fast path (no op ids or null entries)
             for (int i = 0; i < len; i++) {
-                cast(storage)[i] = VersionedValueCommitted.getInstance(valueType.read(buff));
+                cast(storage)[i] = VersionedValueCommitted.getInstance(valueType.read(byteBuffer));
             }
         } else {
             // slow path (some entries may be null)
             for (int i = 0; i < len; i++) {
-                cast(storage)[i] = read(buff);
+                cast(storage)[i] = read(byteBuffer);
             }
         }
     }
 
     @Override
-    public VersionedValue<T> read(ByteBuffer buff) {
-        long operationId = DataUtils.readVarLong(buff);
+    public VersionedValue<T> read(ByteBuffer byteBuffer) {
+        long operationId = DataUtils.readVarLong(byteBuffer);
         if (operationId == 0) {
-            return VersionedValueCommitted.getInstance(valueType.read(buff));
+            return VersionedValueCommitted.getInstance(valueType.read(byteBuffer));
         } else {
-            byte flags = buff.get();
-            T value = (flags & 1) != 0 ? valueType.read(buff) : null;
-            T committedValue = (flags & 2) != 0 ? valueType.read(buff) : null;
+            byte flags = byteBuffer.get();
+            T value = (flags & 1) != 0 ? valueType.read(byteBuffer) : null;
+            T committedValue = (flags & 2) != 0 ? valueType.read(byteBuffer) : null;
             return VersionedValueUncommitted.getInstance(operationId, value, committedValue);
         }
     }
 
     @Override
-    public void write(WriteBuffer buff, Object storage, int len) {
+    public void write(WriteBuffer writeBuffer, VersionedValue<T>[] storage, int len) {
         boolean fastPath = true;
         for (int i = 0; i < len; i++) {
             VersionedValue<T> v = cast(storage)[i];
@@ -87,36 +87,36 @@ public class VersionedValueType<T,D> extends BasicDataType<VersionedValue<T>> im
             }
         }
         if (fastPath) {
-            buff.put((byte) 0);
+            writeBuffer.put((byte) 0);
             for (int i = 0; i < len; i++) {
                 VersionedValue<T> v = cast(storage)[i];
-                valueType.write(buff, v.getCurrentValue());
+                valueType.write(writeBuffer, v.getCurrentValue());
             }
         } else {
             // slow path:
             // store op ids, and some entries may be null
-            buff.put((byte) 1);
+            writeBuffer.put((byte) 1);
             for (int i = 0; i < len; i++) {
-                write(buff, cast(storage)[i]);
+                write(writeBuffer, cast(storage)[i]);
             }
         }
     }
 
     @Override
-    public void write(WriteBuffer buff, VersionedValue<T> v) {
+    public void write(WriteBuffer writeBuffer, VersionedValue<T> v) {
         long operationId = v.getOperationId();
-        buff.putVarLong(operationId);
+        writeBuffer.putVarLong(operationId);
         if (operationId == 0) {
-            valueType.write(buff, v.getCurrentValue());
+            valueType.write(writeBuffer, v.getCurrentValue());
         } else {
             T committedValue = v.getCommittedValue();
             int flags = (v.getCurrentValue() == null ? 0 : 1) | (committedValue == null ? 0 : 2);
-            buff.put((byte) flags);
+            writeBuffer.put((byte) flags);
             if (v.getCurrentValue() != null) {
-                valueType.write(buff, v.getCurrentValue());
+                valueType.write(writeBuffer, v.getCurrentValue());
             }
             if (committedValue != null) {
-                valueType.write(buff, committedValue);
+                valueType.write(writeBuffer, committedValue);
             }
         }
     }

@@ -31,13 +31,13 @@ public class LongDataType extends BasicDataType<Long> {
     }
 
     @Override
-    public void write(WriteBuffer buff, Long data) {
-        buff.putVarLong(data);
+    public void write(WriteBuffer writeBuffer, Long data) {
+        writeBuffer.putVarLong(data);
     }
 
     @Override
-    public Long read(ByteBuffer buff) {
-        return DataUtils.readVarLong(buff);
+    public Long read(ByteBuffer byteBuffer) {
+        return DataUtils.readVarLong(byteBuffer);
     }
 
     @Override
@@ -51,7 +51,7 @@ public class LongDataType extends BasicDataType<Long> {
     }
 
     @Override
-    public int binarySearch(Long keyObj, Object storageObj, int size, int initialGuess) {
+    public int binarySearch(Long keyObj, Long[] storageObj, int size, int initialGuess) {
         long key = keyObj;
         Long[] storage = cast(storageObj);
         int low = 0;

@@ -78,33 +78,33 @@ final class Record<K,V> {
         }
 
         @Override
-        public void write(WriteBuffer buff, Record<K,V> record) {
-            buff.putVarInt(record.mapId);
+        public void write(WriteBuffer writeBuffer, Record<K,V> record) {
+            writeBuffer.putVarInt(record.mapId);
             if (record.mapId >= 0) {
                 MVMap<K, VersionedValue<V>> map = transactionStore.getMap(record.mapId);
-                map.getKeyType().write(buff, record.key);
+                map.getKeyType().write(writeBuffer, record.key);
                 VersionedValue<V> oldValue = record.oldValue;
                 if (oldValue == null) {
-                    buff.put((byte) 0);
+                    writeBuffer.put((byte) 0);
                 } else {
-                    buff.put((byte) 1);
-                    map.getValueType().write(buff, oldValue);
+                    writeBuffer.put((byte) 1);
+                    map.getValueType().write(writeBuffer, oldValue);
                 }
             }
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public Record<K,V> read(ByteBuffer buff) {
-            int mapId = DataUtils.readVarInt(buff);
+        public Record<K,V> read(ByteBuffer byteBuffer) {
+            int mapId = DataUtils.readVarInt(byteBuffer);
             if (mapId < 0) {
                 return (Record<K,V>)COMMIT_MARKER;
             }
             MVMap<K, VersionedValue<V>> map = transactionStore.getMap(mapId);
-            K key = map.getKeyType().read(buff);
+            K key = map.getKeyType().read(byteBuffer);
             VersionedValue<V> oldValue = null;
-            if (buff.get() == 1) {
-                oldValue = map.getValueType().read(buff);
+            if (byteBuffer.get() == 1) {
+                oldValue = map.getValueType().read(byteBuffer);
             }
             return new Record<>(mapId, key, oldValue);
         }

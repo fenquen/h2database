@@ -81,10 +81,10 @@ public class TestRandomMapOps extends TestBase {
     private void testOps(String fileName, int loopCount, long seed) {
         r.setSeed(seed);
         op = 0;
-        MVStore s = openStore(fileName);
-        int keysPerPage = s.getKeysPerPage();
+        MVStore mvStore = openStore(fileName);
+        int keysPerPage = mvStore.keysPerPage;
         int keyRange = 2000;
-        MVMap<Integer, String> m = s.openMap("data");
+        MVMap<Integer, String> m = mvStore.openMap("data");
         TreeMap<Integer, String> map = new TreeMap<>();
         int[] recentKeys = new int[2 * keysPerPage];
         for (; op < loopCount; op++) {
@@ -113,7 +113,7 @@ public class TestRandomMapOps extends TestBase {
                 break;
             case 6:
                 log(op, k, v, "s.compact(90, 1024)");
-                s.compact(90, 1024);
+                mvStore.compact(90, 1024);
                 break;
             case 7:
                 if (op % 64 == 0) {
@@ -124,25 +124,25 @@ public class TestRandomMapOps extends TestBase {
                 break;
             case 8:
                 log(op, k, v, "s.commit()");
-                s.commit();
+                mvStore.commit();
                 break;
             case 9:
                 if (fileName != null) {
                     log(op, k, v, "s.commit()");
-                    s.commit();
+                    mvStore.commit();
                     log(op, k, v, "s.close()");
-                    s.close();
+                    mvStore.close();
                     log(op, k, v, "s = openStore(fileName)");
-                    s = openStore(fileName);
+                    mvStore = openStore(fileName);
                     log(op, k, v, "m = s.openMap(\"data\")");
-                    m = s.openMap("data");
+                    m = mvStore.openMap("data");
                 }
                 break;
             case 10:
                 log(op, k, v, "s.commit()");
-                s.commit();
+                mvStore.commit();
                 log(op, k, v, "s.compactMoveChunks()");
-                s.compactMoveChunks();
+                mvStore.compactMoveChunks();
                 break;
             case 11: {
                 int rangeSize = r.nextInt(2 * keysPerPage);
@@ -231,7 +231,7 @@ public class TestRandomMapOps extends TestBase {
                 assertEquals(msg, entrySet, cursor);
             }
         }
-        s.close();
+        mvStore.close();
     }
 
     private static <K,V> Collection<Map.Entry<K,V>> reverse(Collection<Map.Entry<K,V>> entrySet) {

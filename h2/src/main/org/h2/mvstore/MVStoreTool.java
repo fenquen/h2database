@@ -733,20 +733,20 @@ public class MVStoreTool {
         }
 
         @Override
-        public void write(WriteBuffer buff, byte[] obj) {
+        public void write(WriteBuffer writeBuffer, byte[] obj) {
             if (obj != null) {
-                buff.put(obj);
+                writeBuffer.put(obj);
             }
         }
 
         @Override
-        public byte[] read(ByteBuffer buff) {
-            int len = buff.remaining();
+        public byte[] read(ByteBuffer byteBuffer) {
+            int len = byteBuffer.remaining();
             if (len == 0) {
                 return null;
             }
             byte[] data = new byte[len];
-            buff.get(data);
+            byteBuffer.get(data);
             return data;
         }
     }

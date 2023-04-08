@@ -151,8 +151,11 @@ public abstract class Page<K, V> implements Cloneable {
      * @return the new page
      */
     static <K, V> Page<K, V> createEmptyLeaf(MVMap<K, V> map) {
-        return createLeaf(map, map.getKeyType().createStorage(0),
-                map.getValueType().createStorage(0), PAGE_LEAF_MEMORY);
+        return createLeaf(
+                map,
+                map.getKeyType().createStorage(0),
+                map.getValueType().createStorage(0),
+                PAGE_LEAF_MEMORY);
     }
 
     /**

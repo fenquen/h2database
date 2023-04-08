@@ -5,14 +5,13 @@
  */
 package org.h2.mvstore.type;
 
+
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 
+import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
 
-/**
- * A data type.
- */
 public interface DataType<T> extends Comparator<T> {
 
     /**
@@ -24,65 +23,99 @@ public interface DataType<T> extends Comparator<T> {
      * @throws UnsupportedOperationException if the type is not orderable
      */
     @Override
-    int compare(T a, T b);
+    default int compare(T a, T b) {
+        throw DataUtils.newUnsupportedOperationException("Can not compare");
+    }
 
     /**
      * Perform binary search for the key within the storage
-     * @param key to search for
-     * @param storage to search within (an array of type T)
-     * @param size number of data items in the storage
+     *
+     * @param key          to search for
+     * @param storage      to search within (an array of type T)
+     * @param size         number of data items in the storage
      * @param initialGuess for key position
      * @return index of the key , if found, - index of the insertion point, if not
      */
-    int binarySearch(T key, Object storage, int size, int initialGuess);
+    default int binarySearch(T key, T[] storage, int size, int initialGuess) {
+        int low = 0;
+        int high = size - 1;
+
+        // the cached index minus one, so that
+        // for the first time (when cachedCompare is 0),
+        // the default value is used
+        int x = initialGuess - 1;
+        if (x < 0 || x > high) {
+            x = high >>> 1;
+        }
+
+        while (low <= high) {
+            int compare = compare(key, storage[x]);
+            if (compare > 0) {
+                low = x + 1;
+            } else if (compare < 0) {
+                high = x - 1;
+            } else {
+                return x;
+            }
+            x = (low + high) >>> 1;
+        }
+
+        return ~low;
+    }
 
     /**
      * Calculates the amount of used memory in bytes.
-     *
-     * @param obj the object
-     * @return the used memory
      */
     int getMemory(T obj);
 
     /**
      * Whether memory estimation based on previously seen values is allowed/desirable
-     * @return true if memory estimation is allowed
      */
-    boolean isMemoryEstimationAllowed();
+    default boolean isMemoryEstimationAllowed() {
+        return true;
+    }
 
     /**
      * Write an object.
      *
-     * @param buff the target buffer
-     * @param obj the value
+     * @param writeBuffer the target buffer
+     * @param obj         the value
      */
-    void write(WriteBuffer buff, T obj);
+    void write(WriteBuffer writeBuffer, T obj);
 
     /**
      * Write a list of objects.
      *
-     * @param buff the target buffer
+     * @param writeBuffer    the target buffer
      * @param storage the objects
-     * @param len the number of objects to write
+     * @param len     the number of objects to write
      */
-    void write(WriteBuffer buff, Object storage, int len);
+    default void write(WriteBuffer writeBuffer, T[] storage, int len) {
+        for (int i = 0; i < len; i++) {
+            write(writeBuffer, storage[i]);
+        }
+    }
 
     /**
      * Read an object.
      *
-     * @param buff the source buffer
+     * @param byteBuffer the source buffer
      * @return the object
      */
-    T read(ByteBuffer buff);
+    T read(ByteBuffer byteBuffer);
 
     /**
      * Read a list of objects.
      *
-     * @param buff the target buffer
+     * @param byteBuffer    the target buffer
      * @param storage the objects
-     * @param len the number of objects to read
+     * @param len     the number of objects to read
      */
-    void read(ByteBuffer buff, Object storage, int len);
+    default void read(ByteBuffer byteBuffer, T[] storage, int len) {
+        for (int i = 0; i < len; i++) {
+            storage[i] = read(byteBuffer);
+        }
+    }
 
     /**
      * Create storage object of array type to hold values
@@ -91,5 +124,9 @@ public interface DataType<T> extends Comparator<T> {
      * @return storage object
      */
     T[] createStorage(int size);
+
+    default T[] cast(Object storage) {
+        return (T[]) storage;
+    }
 }
 

@@ -132,7 +132,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
                     removedPages.add(p);
                 }
                 p = createEmptyLeaf();
-            } else if (p.getKeyCount() > mvStore.getKeysPerPage() || p.getMemory() > mvStore.getMaxPageSize()
+            } else if (p.getKeyCount() > mvStore.keysPerPage || p.getMemory() > mvStore.getMaxPageSize()
                                                                 && p.getKeyCount() > 3) {
                 // only possible if this is the root, else we would have
                 // split earlier (this requires pageSplitSize is fixed)
@@ -248,7 +248,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
             removedPages.add(c);
         }
         c = c.copy();
-        if (c.getKeyCount() > mvStore.getKeysPerPage() || c.getMemory() > mvStore.getMaxPageSize()
+        if (c.getKeyCount() > mvStore.keysPerPage || c.getMemory() > mvStore.getMaxPageSize()
                 && c.getKeyCount() > 4) {
             // split on the way down
             Page<Spatial,V> split = split(c);

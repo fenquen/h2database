@@ -109,11 +109,6 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
                 0 : Long.compare(aKey, bKey);
     }
 
-    @Override
-    public int binarySearch(SearchRow key, Object storage, int size, int initialGuess) {
-        return binarySearch(key, (SearchRow[])storage, size, initialGuess);
-    }
-
     public int binarySearch(SearchRow key, SearchRow[] keys, int size, int initialGuess) {
         int low = 0;
         int high = size - 1;
@@ -144,39 +139,39 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
     }
 
     @Override
-    public SearchRow read(ByteBuffer buff) {
+    public SearchRow read(ByteBuffer byteBuffer) {
         RowFactory rowFactory = valueDataType.getRowFactory();
         SearchRow row = rowFactory.createRow();
         if (storeKeys) {
-            row.setKey(DataUtils.readVarLong(buff));
+            row.setKey(DataUtils.readVarLong(byteBuffer));
         }
         TypeInfo[] columnTypes = rowFactory.getColumnTypes();
         if (indexes == null) {
             int columnCount = row.getColumnCount();
             for (int i = 0; i < columnCount; i++) {
-                row.setValue(i, valueDataType.readValue(buff, columnTypes != null ? columnTypes[i] : null));
+                row.setValue(i, valueDataType.readValue(byteBuffer, columnTypes != null ? columnTypes[i] : null));
             }
         } else {
             for (int i : indexes) {
-                row.setValue(i, valueDataType.readValue(buff, columnTypes != null ? columnTypes[i] : null));
+                row.setValue(i, valueDataType.readValue(byteBuffer, columnTypes != null ? columnTypes[i] : null));
             }
         }
         return row;
     }
 
     @Override
-    public void write(WriteBuffer buff, SearchRow row) {
+    public void write(WriteBuffer writeBuffer, SearchRow row) {
         if (storeKeys) {
-            buff.putVarLong(row.getKey());
+            writeBuffer.putVarLong(row.getKey());
         }
         if (indexes == null) {
             int columnCount = row.getColumnCount();
             for (int i = 0; i < columnCount; i++) {
-                valueDataType.write(buff, row.getValue(i));
+                valueDataType.write(writeBuffer, row.getValue(i));
             }
         } else {
             for (int i : indexes) {
-                valueDataType.write(buff, row.getValue(i));
+                valueDataType.write(writeBuffer, row.getValue(i));
             }
         }
     }

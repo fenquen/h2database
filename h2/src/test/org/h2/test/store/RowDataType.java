@@ -61,21 +61,21 @@ public class RowDataType extends BasicDataType<Object[]> {
     }
 
     @Override
-    public Object[] read(ByteBuffer buff) {
-        int len = DataUtils.readVarInt(buff);
+    public Object[] read(ByteBuffer byteBuffer) {
+        int len = DataUtils.readVarInt(byteBuffer);
         Object[] x = new Object[len];
         for (int i = 0; i < len; i++) {
-            x[i] = types[i].read(buff);
+            x[i] = types[i].read(byteBuffer);
         }
         return x;
     }
 
     @Override
-    public void write(WriteBuffer buff, Object[] x) {
+    public void write(WriteBuffer writeBuffer, Object[] x) {
         int len = x.length;
-        buff.putVarInt(len);
+        writeBuffer.putVarInt(len);
         for (int i = 0; i < len; i++) {
-            types[i].write(buff, x[i]);
+            types[i].write(writeBuffer, x[i]);
         }
     }
 }

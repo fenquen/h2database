@@ -543,7 +543,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         BitSet committingTransactions = holder.get();
         while (true) {
             BitSet prevCommittingTransactions = committingTransactions;
-            RootReference<K, VersionedValue<V>> root = mvMap.getRoot();
+            RootReference<K, VersionedValue<V>> root = mvMap.getRootReference();
             committingTransactions = holder.get();
             if (committingTransactions == prevCommittingTransactions) {
                 return snapshotConsumer.apply(root, committingTransactions);

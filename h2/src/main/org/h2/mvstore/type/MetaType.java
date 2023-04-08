@@ -42,7 +42,7 @@ public final class MetaType<D> extends BasicDataType<DataType<?>> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public void write(WriteBuffer buff, DataType<?> obj) {
+    public void write(WriteBuffer writeBuffer, DataType<?> obj) {
         Class<?> clazz = obj.getClass();
         StatefulDataType<D> statefulDataType = null;
         if (obj instanceof StatefulDataType) {
@@ -54,22 +54,22 @@ public final class MetaType<D> extends BasicDataType<DataType<?>> {
         }
         String className = clazz.getName();
         int len = className.length();
-        buff.putVarInt(len).putStringData(className, len);
+        writeBuffer.putVarInt(len).putStringData(className, len);
         if (statefulDataType != null) {
-            statefulDataType.save(buff, this);
+            statefulDataType.save(writeBuffer, this);
         }
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public DataType<?> read(ByteBuffer buff) {
-        int len = DataUtils.readVarInt(buff);
-        String className = DataUtils.readString(buff, len);
+    public DataType<?> read(ByteBuffer byteBuffer) {
+        int len = DataUtils.readVarInt(byteBuffer);
+        String className = DataUtils.readString(byteBuffer, len);
         try {
             Object o = cache.get(className);
             if (o != null) {
                 if (o instanceof StatefulDataType.Factory) {
-                    return ((StatefulDataType.Factory<D>) o).create(buff, this, database);
+                    return ((StatefulDataType.Factory<D>) o).create(byteBuffer, this, database);
                 }
                 return (DataType<?>) o;
             }
@@ -85,7 +85,7 @@ public final class MetaType<D> extends BasicDataType<DataType<?>> {
             if (obj instanceof StatefulDataType.Factory) {
                 StatefulDataType.Factory<D> factory = (StatefulDataType.Factory<D>) obj;
                 cache.put(className, factory);
-                return factory.create(buff, this, database);
+                return factory.create(byteBuffer, this, database);
             }
             if (singleton) {
                 cache.put(className, obj);

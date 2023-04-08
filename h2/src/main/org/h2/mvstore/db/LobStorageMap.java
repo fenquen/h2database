@@ -544,18 +544,18 @@ public final class LobStorageMap implements LobStorageInterface
             }
 
             @Override
-            public void write(WriteBuffer buff, BlobReference blobReference) {
-                buff.putVarInt(blobReference.streamStoreId.length);
-                buff.put(blobReference.streamStoreId);
-                buff.putVarLong(blobReference.lobId);
+            public void write(WriteBuffer writeBuffer, BlobReference blobReference) {
+                writeBuffer.putVarInt(blobReference.streamStoreId.length);
+                writeBuffer.put(blobReference.streamStoreId);
+                writeBuffer.putVarLong(blobReference.lobId);
             }
 
             @Override
-            public BlobReference read(ByteBuffer buff) {
-                int len = DataUtils.readVarInt(buff);
+            public BlobReference read(ByteBuffer byteBuffer) {
+                int len = DataUtils.readVarInt(byteBuffer);
                 byte[] streamStoreId = new byte[len];
-                buff.get(streamStoreId);
-                long blobId = DataUtils.readVarLong(buff);
+                byteBuffer.get(streamStoreId);
+                long blobId = DataUtils.readVarLong(byteBuffer);
                 return new BlobReference(streamStoreId, blobId);
             }
 
@@ -595,22 +595,22 @@ public final class LobStorageMap implements LobStorageInterface
             }
 
             @Override
-            public void write(WriteBuffer buff, BlobMeta blobMeta) {
-                buff.putVarInt(blobMeta.streamStoreId.length);
-                buff.put(blobMeta.streamStoreId);
-                buff.putVarInt(blobMeta.tableId);
-                buff.putVarLong(blobMeta.byteCount);
-                buff.putLong(blobMeta.hash);
+            public void write(WriteBuffer writeBuffer, BlobMeta blobMeta) {
+                writeBuffer.putVarInt(blobMeta.streamStoreId.length);
+                writeBuffer.put(blobMeta.streamStoreId);
+                writeBuffer.putVarInt(blobMeta.tableId);
+                writeBuffer.putVarLong(blobMeta.byteCount);
+                writeBuffer.putLong(blobMeta.hash);
             }
 
             @Override
-            public BlobMeta read(ByteBuffer buff) {
-                int len = DataUtils.readVarInt(buff);
+            public BlobMeta read(ByteBuffer byteBuffer) {
+                int len = DataUtils.readVarInt(byteBuffer);
                 byte[] streamStoreId = new byte[len];
-                buff.get(streamStoreId);
-                int tableId = DataUtils.readVarInt(buff);
-                long byteCount = DataUtils.readVarLong(buff);
-                long hash = buff.getLong();
+                byteBuffer.get(streamStoreId);
+                int tableId = DataUtils.readVarInt(byteBuffer);
+                long byteCount = DataUtils.readVarLong(byteBuffer);
+                long hash = byteBuffer.getLong();
                 return new BlobMeta(streamStoreId, tableId, byteCount, hash);
             }
 

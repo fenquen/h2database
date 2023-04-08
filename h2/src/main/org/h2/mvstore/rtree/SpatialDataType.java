@@ -83,10 +83,10 @@ public class SpatialDataType extends BasicDataType<Spatial> {
     }
 
     @Override
-    public void write(WriteBuffer buff, Spatial k) {
+    public void write(WriteBuffer writeBuffer, Spatial k) {
         if (k.isNull()) {
-            buff.putVarInt(-1);
-            buff.putVarLong(k.getId());
+            writeBuffer.putVarInt(-1);
+            writeBuffer.putVarLong(k.getId());
             return;
         }
         int flags = 0;
@@ -95,36 +95,36 @@ public class SpatialDataType extends BasicDataType<Spatial> {
                 flags |= 1 << i;
             }
         }
-        buff.putVarInt(flags);
+        writeBuffer.putVarInt(flags);
         for (int i = 0; i < dimensions; i++) {
-            buff.putFloat(k.min(i));
+            writeBuffer.putFloat(k.min(i));
             if ((flags & (1 << i)) == 0) {
-                buff.putFloat(k.max(i));
+                writeBuffer.putFloat(k.max(i));
             }
         }
-        buff.putVarLong(k.getId());
+        writeBuffer.putVarLong(k.getId());
     }
 
     @Override
-    public Spatial read(ByteBuffer buff) {
-        int flags = DataUtils.readVarInt(buff);
+    public Spatial read(ByteBuffer byteBuffer) {
+        int flags = DataUtils.readVarInt(byteBuffer);
         if (flags == -1) {
-            long id = DataUtils.readVarLong(buff);
+            long id = DataUtils.readVarLong(byteBuffer);
             return create(id);
         }
         float[] minMax = new float[dimensions * 2];
         for (int i = 0; i < dimensions; i++) {
-            float min = buff.getFloat();
+            float min = byteBuffer.getFloat();
             float max;
             if ((flags & (1 << i)) != 0) {
                 max = min;
             } else {
-                max = buff.getFloat();
+                max = byteBuffer.getFloat();
             }
             minMax[i + i] = min;
             minMax[i + i + 1] = max;
         }
-        long id = DataUtils.readVarLong(buff);
+        long id = DataUtils.readVarLong(byteBuffer);
         return create(id, minMax);
     }
 

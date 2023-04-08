@@ -231,7 +231,7 @@ public class MVStore implements AutoCloseable {
 
     private final int pageSplitSize;
 
-    private final int keysPerPage;
+    public final int keysPerPage;
 
     /**
      * 不会通过get之类的对外暴露
@@ -433,6 +433,7 @@ public class MVStore implements AutoCloseable {
         }
         pageSplitSize = pgSplitSize;
         keysPerPage = DataUtils.getConfigIntParam(config, "keysPerPage", 48);
+        // todo rust略过
         backgroundExceptionHandler = (UncaughtExceptionHandler) config.get("backgroundExceptionHandler");
         layout = new MVMap<>(this, 0, StringDataType.INSTANCE, StringDataType.INSTANCE);
 
@@ -2679,10 +2680,6 @@ public class MVStore implements AutoCloseable {
         return pageSplitSize;
     }
 
-    public int getKeysPerPage() {
-        return keysPerPage;
-    }
-
     public long getMaxPageSize() {
         return pageCache == null ? Long.MAX_VALUE : pageCache.getMaxItemSize() >> 4;
     }
@@ -2889,7 +2886,7 @@ public class MVStore implements AutoCloseable {
                 // condition below is to prevent potential deadlock,
                 // because we should never seek storeLock while holding
                 // map root lock
-                (storeLock.isHeldByCurrentThread() || !map.getRoot().isLockedByCurrentThread()) &&
+                (storeLock.isHeldByCurrentThread() || !map.getRootReference().isLockedByCurrentThread()) &&
                 // to avoid infinite recursion via store() -> dropUnusedChunks() -> layout.remove()
                 map != layout) {
 
@@ -3066,8 +3063,7 @@ public class MVStore implements AutoCloseable {
     }
 
     /**
-     * Get the current version of the data. When a new store is created, the
-     * version is 0.
+     * get the current version of the data. When a new store is created the version is 0
      *
      * @return the version
      */
@@ -3545,14 +3541,14 @@ public class MVStore implements AutoCloseable {
     public double getUpdateFailureRatio() {
         long updateCounter = this.updateCounter;
         long updateAttemptCounter = this.updateAttemptCounter;
-        RootReference<?, ?> rootReference = layout.getRoot();
+        RootReference<?, ?> rootReference = layout.getRootReference();
         updateCounter += rootReference.updateCounter;
         updateAttemptCounter += rootReference.updateAttemptCounter;
-        rootReference = meta.getRoot();
+        rootReference = meta.getRootReference();
         updateCounter += rootReference.updateCounter;
         updateAttemptCounter += rootReference.updateAttemptCounter;
         for (MVMap<?, ?> map : maps.values()) {
-            RootReference<?, ?> root = map.getRoot();
+            RootReference<?, ?> root = map.getRootReference();
             updateCounter += root.updateCounter;
             updateAttemptCounter += root.updateAttemptCounter;
         }

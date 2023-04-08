@@ -13,8 +13,7 @@ import java.nio.ByteBuffer;
 public class WriteBuffer {
 
     /**
-     * The maximum size of the buffer in order to be re-used after a clear
-     * operation.
+     * The maximum size of the buffer in order to be re-used after a clear operation.
      */
     private static final int MAX_REUSE_CAPACITY = 4 * 1024 * 1024;
 
@@ -306,23 +305,28 @@ public class WriteBuffer {
 
     private void grow(int additional) {
         ByteBuffer temp = buff;
+
         int needed = additional - temp.remaining();
         // grow at least MIN_GROW
         long grow = Math.max(needed, MIN_GROW);
         // grow at least 50% of the current size
         grow = Math.max(temp.capacity() / 2, grow);
+
         // the new capacity is at most Integer.MAX_VALUE
         int newCapacity = (int) Math.min(Integer.MAX_VALUE, temp.capacity() + grow);
         if (newCapacity < needed) {
             throw new OutOfMemoryError("Capacity: " + newCapacity + " needed: " + needed);
         }
+
         try {
             buff = ByteBuffer.allocate(newCapacity);
         } catch (OutOfMemoryError e) {
             throw new OutOfMemoryError("Capacity: " + newCapacity);
         }
+
         temp.flip();
         buff.put(temp);
+
         if (newCapacity <= MAX_REUSE_CAPACITY) {
             reuse = buff;
         }

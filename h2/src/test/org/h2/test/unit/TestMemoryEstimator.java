@@ -108,10 +108,10 @@ public class TestMemoryEstimator extends TestBase {
         }
 
         @Override
-        public void write(WriteBuffer buff, Integer obj) {}
+        public void write(WriteBuffer writeBuffer, Integer obj) {}
 
         @Override
-        public Integer read(ByteBuffer buff) { return null; }
+        public Integer read(ByteBuffer byteBuffer) { return null; }
 
         @Override
         public Integer[] createStorage(int size) { return new Integer[size]; }

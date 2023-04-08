@@ -33,7 +33,7 @@ public final class NullValueDataType implements DataType<Value> {
     }
 
     @Override
-    public int binarySearch(Value key, Object storage, int size, int initialGuess) {
+    public int binarySearch(Value key, Value[] storage, int size, int initialGuess) {
         return 0;
     }
 
@@ -48,21 +48,21 @@ public final class NullValueDataType implements DataType<Value> {
     }
 
     @Override
-    public void write(WriteBuffer buff, Value obj) {
+    public void write(WriteBuffer writeBuffer, Value obj) {
     }
 
     @Override
-    public void write(WriteBuffer buff, Object storage, int len) {
+    public void write(WriteBuffer writeBuffer, Value[] storage, int len) {
     }
 
     @Override
-    public Value read(ByteBuffer buff) {
+    public Value read(ByteBuffer byteBuffer) {
         return ValueNull.INSTANCE;
     }
 
     @Override
-    public void read(ByteBuffer buff, Object storage, int len) {
-        Arrays.fill((Value[]) storage, 0, len, ValueNull.INSTANCE);
+    public void read(ByteBuffer byteBuffer, Value[] storage, int len) {
+        Arrays.fill(storage, 0, len, ValueNull.INSTANCE);
     }
 
     @Override
