@@ -318,9 +318,9 @@ public final class Store {
     }
 
     public InputStream getInputStream() {
-        FileChannel fc = mvStore.getFileStore().getEncryptedFile();
+        FileChannel fc = mvStore.getFileStore().getEncryptedFileChannel();
         if (fc == null) {
-            fc = mvStore.getFileStore().getFile();
+            fc = mvStore.getFileStore().getFileChannel();
         }
         return new FileChannelInputStream(fc, false);
     }

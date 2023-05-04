@@ -67,7 +67,7 @@ public class CreateUser extends DefineCommand {
             return b == null ? new byte[0] : b;
         }
         String s = value.getString();
-        return s == null ? new byte[0] : StringUtils.convertHex2ByteArr(s);
+        return s == null ? new byte[0] : StringUtils.convertHexString2ByteArr(s);
     }
 
     /**

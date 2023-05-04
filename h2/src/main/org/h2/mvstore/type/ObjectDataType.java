@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.UUID;
+
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
 import org.h2.util.Utils;
@@ -87,12 +88,12 @@ public class ObjectDataType extends BasicDataType<Object> {
     static final long DOUBLE_ZERO_BITS = Double.doubleToLongBits(0.0d);
     static final long DOUBLE_ONE_BITS = Double.doubleToLongBits(1.0d);
 
-    static final Class<?>[] COMMON_CLASSES = { boolean.class, byte.class,
+    static final Class<?>[] COMMON_CLASSES = {boolean.class, byte.class,
             short.class, char.class, int.class, long.class, float.class,
             double.class, Object.class, Boolean.class, Byte.class, Short.class,
             Character.class, Integer.class, Long.class, BigInteger.class,
             Float.class, Double.class, BigDecimal.class, String.class,
-            UUID.class, Date.class };
+            UUID.class, Date.class};
 
     private static class Holder {
         private static final HashMap<Class<?>, Integer> COMMON_CLASSES_MAP = new HashMap<>(32);
@@ -153,41 +154,41 @@ public class ObjectDataType extends BasicDataType<Object> {
     @SuppressWarnings("rawtypes")
     private AutoDetectDataType selectDataType(int typeId) {
         switch (typeId) {
-        case TYPE_NULL:
-            return NullType.INSTANCE;
-        case TYPE_BOOLEAN:
-            return BooleanType.INSTANCE;
-        case TYPE_BYTE:
-            return ByteType.INSTANCE;
-        case TYPE_SHORT:
-            return ShortType.INSTANCE;
-        case TYPE_CHAR:
-            return  CharacterType.INSTANCE;
-        case TYPE_INT:
-            return IntegerType.INSTANCE;
-        case TYPE_LONG:
-            return LongType.INSTANCE;
-        case TYPE_FLOAT:
-            return FloatType.INSTANCE;
-        case TYPE_DOUBLE:
-            return DoubleType.INSTANCE;
-        case TYPE_BIG_INTEGER:
-            return BigIntegerType.INSTANCE;
-        case TYPE_BIG_DECIMAL:
-            return BigDecimalType.INSTANCE;
-        case TYPE_STRING:
-            return StringType.INSTANCE;
-        case TYPE_UUID:
-            return UUIDType.INSTANCE;
-        case TYPE_DATE:
-            return DateType.INSTANCE;
-        case TYPE_ARRAY:
-            return new ObjectArrayType();
-        case TYPE_SERIALIZED_OBJECT:
-            return new SerializedObjectType(this);
-        default:
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_INTERNAL,
-                    "Unsupported type {0}", typeId);
+            case TYPE_NULL:
+                return NullType.INSTANCE;
+            case TYPE_BOOLEAN:
+                return BooleanType.INSTANCE;
+            case TYPE_BYTE:
+                return ByteType.INSTANCE;
+            case TYPE_SHORT:
+                return ShortType.INSTANCE;
+            case TYPE_CHAR:
+                return CharacterType.INSTANCE;
+            case TYPE_INT:
+                return IntegerType.INSTANCE;
+            case TYPE_LONG:
+                return LongType.INSTANCE;
+            case TYPE_FLOAT:
+                return FloatType.INSTANCE;
+            case TYPE_DOUBLE:
+                return DoubleType.INSTANCE;
+            case TYPE_BIG_INTEGER:
+                return BigIntegerType.INSTANCE;
+            case TYPE_BIG_DECIMAL:
+                return BigDecimalType.INSTANCE;
+            case TYPE_STRING:
+                return StringType.INSTANCE;
+            case TYPE_UUID:
+                return UUIDType.INSTANCE;
+            case TYPE_DATE:
+                return DateType.INSTANCE;
+            case TYPE_ARRAY:
+                return new ObjectArrayType();
+            case TYPE_SERIALIZED_OBJECT:
+                return new SerializedObjectType(this);
+            default:
+                throw DataUtils.newMVStoreException(DataUtils.ERROR_INTERNAL,
+                        "Unsupported type {0}", typeId);
         }
     }
 
@@ -199,54 +200,51 @@ public class ObjectDataType extends BasicDataType<Object> {
             typeId = tag;
         } else {
             switch (tag) {
-            case TAG_BOOLEAN_TRUE:
-                typeId = TYPE_BOOLEAN;
-                break;
-            case TAG_INTEGER_NEGATIVE:
-            case TAG_INTEGER_FIXED:
-                typeId = TYPE_INT;
-                break;
-            case TAG_LONG_NEGATIVE:
-            case TAG_LONG_FIXED:
-                typeId = TYPE_LONG;
-                break;
-            case TAG_BIG_INTEGER_0:
-            case TAG_BIG_INTEGER_1:
-            case TAG_BIG_INTEGER_SMALL:
-                typeId = TYPE_BIG_INTEGER;
-                break;
-            case TAG_FLOAT_0:
-            case TAG_FLOAT_1:
-            case TAG_FLOAT_FIXED:
-                typeId = TYPE_FLOAT;
-                break;
-            case TAG_DOUBLE_0:
-            case TAG_DOUBLE_1:
-            case TAG_DOUBLE_FIXED:
-                typeId = TYPE_DOUBLE;
-                break;
-            case TAG_BIG_DECIMAL_0:
-            case TAG_BIG_DECIMAL_1:
-            case TAG_BIG_DECIMAL_SMALL:
-            case TAG_BIG_DECIMAL_SMALL_SCALED:
-                typeId = TYPE_BIG_DECIMAL;
-                break;
-            default:
-                if (tag >= TAG_INTEGER_0_15 && tag <= TAG_INTEGER_0_15 + 15) {
+                case TAG_BOOLEAN_TRUE:
+                    typeId = TYPE_BOOLEAN;
+                    break;
+                case TAG_INTEGER_NEGATIVE:
+                case TAG_INTEGER_FIXED:
                     typeId = TYPE_INT;
-                } else if (tag >= TAG_STRING_0_15
-                        && tag <= TAG_STRING_0_15 + 15) {
-                    typeId = TYPE_STRING;
-                } else if (tag >= TAG_LONG_0_7 && tag <= TAG_LONG_0_7 + 7) {
+                    break;
+                case TAG_LONG_NEGATIVE:
+                case TAG_LONG_FIXED:
                     typeId = TYPE_LONG;
-                } else if (tag >= TAG_BYTE_ARRAY_0_15
-                        && tag <= TAG_BYTE_ARRAY_0_15 + 15) {
-                    typeId = TYPE_ARRAY;
-                } else {
-                    throw DataUtils.newMVStoreException(
-                            DataUtils.ERROR_FILE_CORRUPT, "Unknown tag {0}",
-                            tag);
-                }
+                    break;
+                case TAG_BIG_INTEGER_0:
+                case TAG_BIG_INTEGER_1:
+                case TAG_BIG_INTEGER_SMALL:
+                    typeId = TYPE_BIG_INTEGER;
+                    break;
+                case TAG_FLOAT_0:
+                case TAG_FLOAT_1:
+                case TAG_FLOAT_FIXED:
+                    typeId = TYPE_FLOAT;
+                    break;
+                case TAG_DOUBLE_0:
+                case TAG_DOUBLE_1:
+                case TAG_DOUBLE_FIXED:
+                    typeId = TYPE_DOUBLE;
+                    break;
+                case TAG_BIG_DECIMAL_0:
+                case TAG_BIG_DECIMAL_1:
+                case TAG_BIG_DECIMAL_SMALL:
+                case TAG_BIG_DECIMAL_SMALL_SCALED:
+                    typeId = TYPE_BIG_DECIMAL;
+                    break;
+                default:
+                    if (tag >= TAG_INTEGER_0_15 && tag <= TAG_INTEGER_0_15 + 15) {
+                        typeId = TYPE_INT;
+                    } else if (tag >= TAG_STRING_0_15
+                            && tag <= TAG_STRING_0_15 + 15) {
+                        typeId = TYPE_STRING;
+                    } else if (tag >= TAG_LONG_0_7 && tag <= TAG_LONG_0_7 + 7) {
+                        typeId = TYPE_LONG;
+                    } else if (tag >= TAG_BYTE_ARRAY_0_15 && tag <= TAG_BYTE_ARRAY_0_15 + 15) {
+                        typeId = TYPE_ARRAY;
+                    } else {
+                        throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "Unknown tag {0}", tag);
+                    }
             }
         }
         AutoDetectDataType<Object> t = last;
@@ -259,33 +257,47 @@ public class ObjectDataType extends BasicDataType<Object> {
     private static int getTypeId(Object obj) {
         if (obj instanceof Integer) {
             return TYPE_INT;
-        } else if (obj instanceof String) {
+        }
+        if (obj instanceof String) {
             return TYPE_STRING;
-        } else if (obj instanceof Long) {
+        }
+        if (obj instanceof Long) {
             return TYPE_LONG;
-        } else if (obj instanceof Double) {
+        }
+        if (obj instanceof Double) {
             return TYPE_DOUBLE;
-        } else if (obj instanceof Float) {
+        }
+        if (obj instanceof Float) {
             return TYPE_FLOAT;
-        } else if (obj instanceof Boolean) {
+        }
+        if (obj instanceof Boolean) {
             return TYPE_BOOLEAN;
-        } else if (obj instanceof UUID) {
+        }
+        if (obj instanceof UUID) {
             return TYPE_UUID;
-        } else if (obj instanceof Byte) {
+        }
+        if (obj instanceof Byte) {
             return TYPE_BYTE;
-        } else if (obj instanceof Short) {
+        }
+        if (obj instanceof Short) {
             return TYPE_SHORT;
-        } else if (obj instanceof Character) {
+        }
+        if (obj instanceof Character) {
             return TYPE_CHAR;
-        } else if (obj == null) {
+        }
+        if (obj == null) {
             return TYPE_NULL;
-        } else if (isDate(obj)) {
+        }
+        if (isDate(obj)) {
             return TYPE_DATE;
-        } else if (isBigInteger(obj)) {
+        }
+        if (isBigInteger(obj)) {
             return TYPE_BIG_INTEGER;
-        } else if (isBigDecimal(obj)) {
+        }
+        if (isBigDecimal(obj)) {
             return TYPE_BIG_DECIMAL;
-        } else if (obj.getClass().isArray()) {
+        }
+        if (obj.getClass().isArray()) {
             return TYPE_ARRAY;
         }
         return TYPE_SERIALIZED_OBJECT;
@@ -454,7 +466,7 @@ public class ObjectDataType extends BasicDataType<Object> {
          * Read an object from the buffer.
          *
          * @param buff the buffer
-         * @param tag the first byte of the object (usually the type)
+         * @param tag  the first byte of the object (usually the type)
          * @return the read object
          */
         abstract Object read(ByteBuffer buff, int tag);
@@ -748,12 +760,12 @@ public class ObjectDataType extends BasicDataType<Object> {
         @Override
         public Integer read(ByteBuffer buff, int tag) {
             switch (tag) {
-            case TYPE_INT:
-                return DataUtils.readVarInt(buff);
-            case TAG_INTEGER_NEGATIVE:
-                return -DataUtils.readVarInt(buff);
-            case TAG_INTEGER_FIXED:
-                return buff.getInt();
+                case TYPE_INT:
+                    return DataUtils.readVarInt(buff);
+                case TAG_INTEGER_NEGATIVE:
+                    return -DataUtils.readVarInt(buff);
+                case TAG_INTEGER_FIXED:
+                    return buff.getInt();
             }
             return tag - TAG_INTEGER_0_15;
         }
@@ -819,12 +831,12 @@ public class ObjectDataType extends BasicDataType<Object> {
         @Override
         public Long read(ByteBuffer buff, int tag) {
             switch (tag) {
-            case TYPE_LONG:
-                return DataUtils.readVarLong(buff);
-            case TAG_LONG_NEGATIVE:
-                return -DataUtils.readVarLong(buff);
-            case TAG_LONG_FIXED:
-                return buff.getLong();
+                case TYPE_LONG:
+                    return DataUtils.readVarLong(buff);
+                case TAG_LONG_NEGATIVE:
+                    return -DataUtils.readVarLong(buff);
+                case TAG_LONG_FIXED:
+                    return buff.getLong();
             }
             return (long) (tag - TAG_LONG_0_7);
         }
@@ -885,12 +897,12 @@ public class ObjectDataType extends BasicDataType<Object> {
         @Override
         public Float read(ByteBuffer buff, int tag) {
             switch (tag) {
-            case TAG_FLOAT_0:
-                return 0f;
-            case TAG_FLOAT_1:
-                return 1f;
-            case TAG_FLOAT_FIXED:
-                return buff.getFloat();
+                case TAG_FLOAT_0:
+                    return 0f;
+                case TAG_FLOAT_1:
+                    return 1f;
+                case TAG_FLOAT_FIXED:
+                    return buff.getFloat();
             }
             return Float.intBitsToFloat(Integer.reverse(DataUtils
                     .readVarInt(buff)));
@@ -955,12 +967,12 @@ public class ObjectDataType extends BasicDataType<Object> {
         @Override
         public Double read(ByteBuffer buff, int tag) {
             switch (tag) {
-            case TAG_DOUBLE_0:
-                return 0d;
-            case TAG_DOUBLE_1:
-                return 1d;
-            case TAG_DOUBLE_FIXED:
-                return buff.getDouble();
+                case TAG_DOUBLE_0:
+                    return 0d;
+                case TAG_DOUBLE_1:
+                    return 1d;
+                case TAG_DOUBLE_FIXED:
+                    return buff.getDouble();
             }
             return Double.longBitsToDouble(Long.reverse(DataUtils
                     .readVarLong(buff)));
@@ -1023,12 +1035,12 @@ public class ObjectDataType extends BasicDataType<Object> {
         @Override
         public BigInteger read(ByteBuffer buff, int tag) {
             switch (tag) {
-            case TAG_BIG_INTEGER_0:
-                return BigInteger.ZERO;
-            case TAG_BIG_INTEGER_1:
-                return BigInteger.ONE;
-            case TAG_BIG_INTEGER_SMALL:
-                return BigInteger.valueOf(DataUtils.readVarLong(buff));
+                case TAG_BIG_INTEGER_0:
+                    return BigInteger.ZERO;
+                case TAG_BIG_INTEGER_1:
+                    return BigInteger.ONE;
+                case TAG_BIG_INTEGER_SMALL:
+                    return BigInteger.valueOf(DataUtils.readVarLong(buff));
             }
             int len = DataUtils.readVarInt(buff);
             byte[] bytes = Utils.newBytes(len);
@@ -1100,15 +1112,15 @@ public class ObjectDataType extends BasicDataType<Object> {
         @Override
         public BigDecimal read(ByteBuffer buff, int tag) {
             switch (tag) {
-            case TAG_BIG_DECIMAL_0:
-                return BigDecimal.ZERO;
-            case TAG_BIG_DECIMAL_1:
-                return BigDecimal.ONE;
-            case TAG_BIG_DECIMAL_SMALL:
-                return BigDecimal.valueOf(DataUtils.readVarLong(buff));
-            case TAG_BIG_DECIMAL_SMALL_SCALED:
-                int scale = DataUtils.readVarInt(buff);
-                return BigDecimal.valueOf(DataUtils.readVarLong(buff), scale);
+                case TAG_BIG_DECIMAL_0:
+                    return BigDecimal.ZERO;
+                case TAG_BIG_DECIMAL_1:
+                    return BigDecimal.ONE;
+                case TAG_BIG_DECIMAL_SMALL:
+                    return BigDecimal.valueOf(DataUtils.readVarLong(buff));
+                case TAG_BIG_DECIMAL_SMALL_SCALED:
+                    int scale = DataUtils.readVarInt(buff);
+                    return BigDecimal.valueOf(DataUtils.readVarLong(buff), scale);
             }
             int scale = DataUtils.readVarInt(buff);
             int len = DataUtils.readVarInt(buff);

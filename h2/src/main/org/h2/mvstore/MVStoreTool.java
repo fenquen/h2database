@@ -153,12 +153,12 @@ public class MVStoreTool {
                     pos += blockSize;
                     continue;
                 }
-                if (c.len <= 0) {
+                if (c.blockCount <= 0) {
                     // not a chunk
                     pos += blockSize;
                     continue;
                 }
-                int length = c.len * MVStore.BLOCK_SIZE;
+                int length = c.blockCount * MVStore.BLOCK_SIZE;
                 pw.printf("%n%0" + len + "x chunkHeader %s%n",
                         pos, c.toString());
                 ByteBuffer chunk = ByteBuffer.allocate(length);
@@ -363,7 +363,7 @@ public class MVStoreTool {
                 if (k.startsWith(DataUtils.META_CHUNK)) {
                     Chunk c = Chunk.fromString(e.getValue());
                     chunks.put(c.id, c);
-                    chunkLength += c.len * MVStore.BLOCK_SIZE;
+                    chunkLength += c.blockCount * MVStore.BLOCK_SIZE;
                     maxLength += c.maxLen;
                     maxLengthLive += c.maxLenLive;
                     if (c.maxLenLive > 0) {
@@ -390,7 +390,7 @@ public class MVStoreTool {
                 pw.printf("  Chunk %d: %s, %d%% used, %d blocks",
                         c.id, formatTimestamp(created, fileCreated),
                         getPercent(c.maxLenLive, c.maxLen),
-                        c.len
+                        c.blockCount
                         );
                 if (c.maxLenLive == 0) {
                     pw.printf(", unused: %s",
@@ -652,12 +652,12 @@ public class MVStoreTool {
                     pos += blockSize;
                     continue;
                 }
-                if (c.len <= 0) {
+                if (c.blockCount <= 0) {
                     // not a chunk
                     pos += blockSize;
                     continue;
                 }
-                int length = c.len * MVStore.BLOCK_SIZE;
+                int length = c.blockCount * MVStore.BLOCK_SIZE;
                 ByteBuffer chunk = ByteBuffer.allocate(length);
                 DataUtils.readFully(file, pos, chunk);
                 if (c.version > targetVersion) {
@@ -673,7 +673,7 @@ public class MVStoreTool {
                 }
                 pos += length;
             }
-            int length = newestChunk.len * MVStore.BLOCK_SIZE;
+            int length = newestChunk.blockCount * MVStore.BLOCK_SIZE;
             ByteBuffer chunk = ByteBuffer.allocate(length);
             DataUtils.readFully(file, newestChunk.block * MVStore.BLOCK_SIZE, chunk);
             chunk.rewind();

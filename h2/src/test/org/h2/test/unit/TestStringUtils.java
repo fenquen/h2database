@@ -76,14 +76,14 @@ public class TestStringUtils extends TestBase {
                 StringUtils.convertBytesToHex(new byte[]
                         { (byte) 0xfa, (byte) 0xce }));
         assertEquals(new byte[] { (byte) 0xfa, (byte) 0xce },
-                StringUtils.convertHex2ByteArr("face"));
+                StringUtils.convertHexString2ByteArr("face"));
         assertEquals(new byte[] { (byte) 0xfa, (byte) 0xce },
-                StringUtils.convertHex2ByteArr("fAcE"));
+                StringUtils.convertHexString2ByteArr("fAcE"));
         assertEquals(new byte[] { (byte) 0xfa, (byte) 0xce },
-                StringUtils.convertHex2ByteArr("FaCe"));
-        assertThrows(DbException.class, () -> StringUtils.convertHex2ByteArr("120"));
-        assertThrows(DbException.class, () -> StringUtils.convertHex2ByteArr("fast"));
-        assertThrows(DbException.class, () -> StringUtils.convertHex2ByteArr("012=abcf"));
+                StringUtils.convertHexString2ByteArr("FaCe"));
+        assertThrows(DbException.class, () -> StringUtils.convertHexString2ByteArr("120"));
+        assertThrows(DbException.class, () -> StringUtils.convertHexString2ByteArr("fast"));
+        assertThrows(DbException.class, () -> StringUtils.convertHexString2ByteArr("012=abcf"));
     }
 
     private void testPad() {

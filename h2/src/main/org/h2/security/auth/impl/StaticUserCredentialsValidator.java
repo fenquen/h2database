@@ -63,11 +63,11 @@ public class StaticUserCredentialsValidator implements CredentialsValidator {
         password=configProperties.getStringValue("password",password);
         String saltString =configProperties.getStringValue("salt",null);
         if (saltString!=null) {
-            salt=StringUtils.convertHex2ByteArr(saltString);
+            salt=StringUtils.convertHexString2ByteArr(saltString);
         }
         String hashString=configProperties.getStringValue("hash", null);
         if (hashString!=null) {
-            hashWithSalt = SHA256.getHashWithSalt(StringUtils.convertHex2ByteArr(hashString), salt);
+            hashWithSalt = SHA256.getHashWithSalt(StringUtils.convertHexString2ByteArr(hashString), salt);
         }
     }
 

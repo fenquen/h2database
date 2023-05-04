@@ -231,9 +231,9 @@ public class CacheLongKeyLIRS<V> {
      */
     public V get(long key) {
         int hash = getHash(key);
-        Segment<V> s = getSegment(hash);
-        Entry<V> e = s.find(key, hash);
-        return s.get(e);
+        Segment<V> segment = getSegment(hash);
+        Entry<V> entry = segment.find(key, hash);
+        return segment.get(entry);
     }
 
     private Segment<V> getSegment(int hash) {
@@ -253,8 +253,7 @@ public class CacheLongKeyLIRS<V> {
      */
     static int getHash(long key) {
         int hash = (int) ((key >>> 32) ^ key);
-        // a supplemental secondary hash function
-        // to protect against hash codes that don't differ much
+        // a supplemental secondary hash function to protect against hash codes that don't differ much
         hash = ((hash >>> 16) ^ hash) * 0x45d9f3b;
         hash = ((hash >>> 16) ^ hash) * 0x45d9f3b;
         hash = (hash >>> 16) ^ hash;
@@ -366,7 +365,7 @@ public class CacheLongKeyLIRS<V> {
     public long getHits() {
         long x = 0;
         for (Segment<V> s : segmentArr) {
-            x += s.hits;
+            x += s.hitCount;
         }
         return x;
     }
@@ -379,7 +378,7 @@ public class CacheLongKeyLIRS<V> {
     public long getMisses() {
         int x = 0;
         for (Segment<V> s : segmentArr) {
-            x += s.misses;
+            x += s.missCount;
         }
         return x;
     }
@@ -507,12 +506,12 @@ public class CacheLongKeyLIRS<V> {
         /**
          * The number of cache hits.
          */
-        long hits;
+        long hitCount;
 
         /**
          * The number of cache misses.
          */
-        long misses;
+        long missCount;
 
         /**
          * The map array. The size is always a power of 2.
@@ -525,8 +524,7 @@ public class CacheLongKeyLIRS<V> {
         long usedMemory;
 
         /**
-         * How many other item are to be moved to the top of the stack before
-         * the current item is moved.
+         * How many other item are to be moved to the top of the stack before the current item is moved.
          */
         private final int stackMoveDistance;
 
@@ -557,10 +555,9 @@ public class CacheLongKeyLIRS<V> {
         private final int nonResidentQueueSizeHigh;
 
         /**
-         * The stack of recently referenced elements. This includes all hot
-         * entries, and the recently referenced cold entries. Resident cold
-         * entries that were not recently referenced, as well as non-resident
-         * cold entries, are not in the stack.
+         * The stack of recently referenced elements.
+         * This includes hot entries , recently referenced cold entries.
+         * not include Resident cold entries that were not recently referenced,non-resident cold entries
          * <p>
          * There is always at least one entry: the head entry.
          */
@@ -586,9 +583,10 @@ public class CacheLongKeyLIRS<V> {
         private final Entry<V> queue2;
 
         /**
+         * 发生过多少趟有entry移动到stack顶部,对应entry的topMove <br>
          * The number of times any item was moved to the top of the stack.
          */
-        private int stackMoveCounter;
+        private int stackMoveRoundCount;
 
         /**
          * Create a new cache segment.
@@ -638,8 +636,8 @@ public class CacheLongKeyLIRS<V> {
          */
         Segment(Segment<V> old, int len) {
             this(old.maxMemory, old.stackMoveDistance, len, old.nonResidentQueueSize, old.nonResidentQueueSizeHigh);
-            hits = old.hits;
-            misses = old.misses;
+            hitCount = old.hitCount;
+            missCount = old.missCount;
             Entry<V> s = old.stack.stackPrev;
             while (s != old.stack) {
                 Entry<V> e = new Entry<>(s);
@@ -670,8 +668,7 @@ public class CacheLongKeyLIRS<V> {
         }
 
         /**
-         * Calculate the new number of hash table buckets if the internal map
-         * should be re-sized.
+         * Calculate the new number of hash table buckets if the internal map should be re-sized.
          *
          * @return 0 if no resizing is needed, or the new length
          */
@@ -680,10 +677,13 @@ public class CacheLongKeyLIRS<V> {
             if (len * 3 < mapSize * 4 && len < (1 << 28)) {
                 // more than 75% usage
                 return len * 2;
-            } else if (len > 32 && len / 8 > mapSize) {
+            }
+
+            if (len > 32 && len / 8 > mapSize) {
                 // less than 12% usage
                 return len / 2;
             }
+
             return 0;
         }
 
@@ -700,72 +700,79 @@ public class CacheLongKeyLIRS<V> {
          * This method adjusts the internal state of the cache sometimes,
          * to ensure commonly used entries stay in the cache.
          *
-         * @param e the entry
+         * @param entry the entry
          * @return the value, or null if there is no resident entry
          */
-        synchronized V get(Entry<V> e) {
-            V value = e == null ? null : e.getValue();
+        synchronized V get(Entry<V> entry) {
+            V value = entry == null ? null : entry.getValue();
+
+            // the entry was not found, or it was a non-resident entry
             if (value == null) {
-                // the entry was not found
-                // or it was a non-resident entry
-                misses++;
+                missCount++;
             } else {
-                access(e);
-                hits++;
+                access(entry);
+                hitCount++;
             }
+
             return value;
         }
 
         /**
-         * Access an item, moving the entry to the top of the stack or front of
-         * the queue if found.
-         *
-         * @param e entry to record access for
+         * Access an item, moving the entry to the top of the stack or front of the queue if found.
          */
-        private void access(Entry<V> e) {
-            if (e.isHot()) {
-                if (e != stack.stackNext && e.stackNext != null) {
-                    if (stackMoveCounter - e.topMove > stackMoveDistance) {
-                        // move a hot entry to the top of the stack
-                        // unless it is already there
-                        boolean wasEnd = e == stack.stackPrev;
-                        removeFromStack(e);
+        private void access(Entry<V> entry) {
+            if (entry.isHot()) { // stack体系动手
+                if (entry != stack.stackNext && entry.stackNext != null) {
+                    // 需要移动到stack顶部
+                    if (stackMoveRoundCount - entry.topMove > stackMoveDistance) {
+                        // move a hot entry to the top of the stack unless it is already there
+                        boolean wasEnd = entry == stack.stackPrev;
+
+                        removeFromStack(entry);
+
+                        // if moving the last entry, the last entry could now be cold, which is not allowed
                         if (wasEnd) {
-                            // if moving the last entry, the last entry
-                            // could now be cold, which is not allowed
                             pruneStack();
                         }
-                        addToStack(e);
+
+                        addToStack(entry);
                     }
                 }
-            } else {
-                V v = e.getValue();
-                if (v != null) {
-                    removeFromQueue(e);
-                    if (e.reference != null) {
-                        e.value = v;
-                        e.reference = null;
-                        usedMemory += e.memory;
-                    }
-                    if (e.stackNext != null) {
-                        // resident, or even non-resident (weak value reference),
-                        // cold entries become hot if they are on the stack
-                        removeFromStack(e);
-                        // which means a hot entry needs to become cold
-                        // (this entry is cold, that means there is at least one
-                        // more entry in the stack, which must be hot)
-                        convertOldestHotToCold();
-                    } else {
-                        // cold entries that are not on the stack
-                        // move to the front of the queue
-                        addToQueue(queue, e);
-                    }
-                    // in any case, the cold entry is moved to the top of the stack
-                    addToStack(e);
-                    // but if newly promoted cold/non-resident is the only entry on a stack now
-                    // that means last one is cold, need to prune
-                    pruneStack();
+            } else { // queue体系动手
+                V value = entry.getValue();
+                if (value == null) {
+                    return;
                 }
+
+                removeFromQueue(entry);
+
+                // todo rust略过
+                if (entry.reference != null) {
+                    entry.value = value;
+                    entry.reference = null;
+                    usedMemory += entry.memory;
+                }
+
+                if (entry.stackNext != null) {
+                    // resident, or even non-resident (weak value reference),
+                    // cold entries become hot if they are on the stack
+                    removeFromStack(entry);
+
+                    // which means a hot entry needs to become cold
+                    // (this entry is cold, that means there is at least one
+                    // more entry in the stack, which must be hot)
+                    convertOldestHotToCold();
+                } else {
+                    // cold entries that are not on the stack move to the front of the queue
+                    addToQueue(queue, entry);
+                }
+
+                // in any case, the cold entry is moved to the top of the stack
+                addToStack(entry);
+
+                // but if newly promoted cold/non-resident is the only entry on a stack now
+                // that means last one is cold, need to prune
+                pruneStack();
             }
         }
 
@@ -910,6 +917,7 @@ public class CacheLongKeyLIRS<V> {
                         break;  // stop trimming if entry holds a value
                     }
                 }
+
                 int hash = getHash(e.key);
                 remove(e.key, hash);
             }
@@ -918,16 +926,18 @@ public class CacheLongKeyLIRS<V> {
         private void convertOldestHotToCold() {
             // the last entry of the stack is known to be hot
             Entry<V> last = stack.stackPrev;
+
+            // never remove the stack head itself,mean the internal structure of the cache is corrupt
             if (last == stack) {
-                // never remove the stack head itself (this would mean the
-                // internal structure of the cache is corrupt)
                 throw new IllegalStateException();
             }
-            // remove from stack - which is done anyway in the stack pruning,
-            // but we can do it here as well
+
+            // remove from stack - which is done anyway in the stack pruning,but we can do it here as well
             removeFromStack(last);
+
             // adding an entry to the queue will make it cold
             addToQueue(queue, last);
+
             pruneStack();
         }
 
@@ -937,12 +947,13 @@ public class CacheLongKeyLIRS<V> {
         private void pruneStack() {
             while (true) {
                 Entry<V> last = stack.stackPrev;
+
                 // must stop at a hot entry or the stack head,
-                // but the stack head itself is also hot, so we
-                // don't have to test it
+                // but the stack head itself is also hot, so we don't have to test it
                 if (last.isHot()) {
                     break;
                 }
+
                 // the cold entry is still in the queue
                 removeFromStack(last);
             }
@@ -957,20 +968,22 @@ public class CacheLongKeyLIRS<V> {
          */
         Entry<V> find(long key, int hash) {
             int index = hash & mask;
-            Entry<V> e = entries[index];
-            while (e != null && e.key != key) {
-                e = e.mapNext;
+            Entry<V> entry = entries[index];
+            while (entry != null && entry.key != key) {
+                entry = entry.mapNext;
             }
-            return e;
+            return entry;
         }
 
-        private void addToStack(Entry<V> e) {
-            e.stackPrev = stack;
-            e.stackNext = stack.stackNext;
-            e.stackNext.stackPrev = e;
-            stack.stackNext = e;
+        private void addToStack(Entry<V> entry) {
+            entry.stackPrev = stack;
+            entry.stackNext = stack.stackNext;
+            entry.stackNext.stackPrev = entry;
+
+            stack.stackNext = entry;
             stackSize++;
-            e.topMove = stackMoveCounter++;
+
+            entry.topMove = stackMoveRoundCount++;
         }
 
         private void addToStackBottom(Entry<V> e) {
@@ -983,33 +996,32 @@ public class CacheLongKeyLIRS<V> {
 
         /**
          * Remove the entry from the stack. The head itself must not be removed.
-         *
-         * @param e the entry
          */
-        private void removeFromStack(Entry<V> e) {
-            e.stackPrev.stackNext = e.stackNext;
-            e.stackNext.stackPrev = e.stackPrev;
-            e.stackPrev = e.stackNext = null;
+        private void removeFromStack(Entry<V> entry) {
+            entry.stackPrev.stackNext = entry.stackNext;
+            entry.stackNext.stackPrev = entry.stackPrev;
+            entry.stackPrev = entry.stackNext = null;
             stackSize--;
         }
 
-        private void addToQueue(Entry<V> q, Entry<V> e) {
-            e.queuePrev = q;
-            e.queueNext = q.queueNext;
-            e.queueNext.queuePrev = e;
-            q.queueNext = e;
-            if (e.value != null) {
+        private void addToQueue(Entry<V> queue, Entry<V> entry) {
+            entry.queuePrev = queue;
+            entry.queueNext = queue.queueNext;
+            entry.queueNext.queuePrev = entry;
+            queue.queueNext = entry;
+
+            if (entry.value != null) {
                 queueSize++;
             } else {
                 queue2Size++;
             }
         }
 
-        private void removeFromQueue(Entry<V> e) {
-            e.queuePrev.queueNext = e.queueNext;
-            e.queueNext.queuePrev = e.queuePrev;
-            e.queuePrev = e.queueNext = null;
-            if (e.value != null) {
+        private void removeFromQueue(Entry<V> entry) {
+            entry.queuePrev.queueNext = entry.queueNext;
+            entry.queueNext.queuePrev = entry.queuePrev;
+            entry.queuePrev = entry.queueNext = null;
+            if (entry.value != null) {
                 queueSize--;
             } else {
                 queue2Size--;
@@ -1017,8 +1029,7 @@ public class CacheLongKeyLIRS<V> {
         }
 
         /**
-         * Get the list of keys. This method allows to read the internal state
-         * of the cache.
+         * Get the list of keys. This method allows to read the internal state of the cache.
          *
          * @param cold        if true, only keys for the cold entries are returned
          * @param nonResident true for non-resident entries
@@ -1090,6 +1101,7 @@ public class CacheLongKeyLIRS<V> {
         final int memory;
 
         /**
+         * 是在对应隶属的segment第几趟有entry移动到stack顶部时候该entry移动到顶部的<br>
          * When the item was last moved to the top of the stack.
          */
         int topMove;

@@ -28,16 +28,16 @@ public class OffHeapStore extends FileStore {
     }
 
     @Override
-    public ByteBuffer readFully(long pos, int len) {
-        Entry<Long, ByteBuffer> memEntry = memory.floorEntry(pos);
+    public ByteBuffer readFully(long position, int len) {
+        Entry<Long, ByteBuffer> memEntry = memory.floorEntry(position);
         if (memEntry == null) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED, "Could not read from position {0}", pos);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_READING_FAILED, "Could not read from position {0}", position);
         }
         readCount.incrementAndGet();
         readByteCount.addAndGet(len);
         ByteBuffer buff = memEntry.getValue();
         ByteBuffer read = buff.duplicate();
-        int offset = (int) (pos - memEntry.getKey());
+        int offset = (int) (position - memEntry.getKey());
         read.position(offset);
         read.limit(len + offset);
         return read.slice();

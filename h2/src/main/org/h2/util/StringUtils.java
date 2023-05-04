@@ -1062,26 +1062,22 @@ public class StringUtils {
         return result;
     }
 
-    /**
-     * Convert a hex encoded string to a byte array.
-     *
-     * @param s the hex encoded string
-     * @return the byte array
-     */
-    public static byte[] convertHex2ByteArr(String s) {
+    public static byte[] convertHexString2ByteArr(String s) {
         int len = s.length();
         if (len % 2 != 0) {
             throw DbException.get(ErrorCode.HEX_STRING_ODD_1, s);
         }
 
         len /= 2;
-        byte[] buff = new byte[len];
+        byte[] byteArr = new byte[len];
+
         int mask = 0;
+
         try {
             for (int i = 0; i < len; i++) {
                 int d = HEX_DECODE[s.charAt(i + i)] << 4 | HEX_DECODE[s.charAt(i + i + 1)];
                 mask |= d;
-                buff[i] = (byte) d;
+                byteArr[i] = (byte) d;
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             throw DbException.get(ErrorCode.HEX_STRING_WRONG_1, s);
@@ -1091,7 +1087,7 @@ public class StringUtils {
             throw DbException.get(ErrorCode.HEX_STRING_WRONG_1, s);
         }
 
-        return buff;
+        return byteArr;
     }
 
     /**
@@ -1102,13 +1098,12 @@ public class StringUtils {
      * @param s     the hex encoded string
      * @param start the start index
      * @param end   the end index, exclusive
-     * @return the specified output stream or a new output stream
      */
-    public static ByteArrayOutputStream convertHexWithSpacesToBytes(ByteArrayOutputStream baos, String s, int start,
-                                                                    int end) {
+    public static void convertHexWithSpacesToBytes(ByteArrayOutputStream baos, String s, int start, int end) {
         if (baos == null) {
             baos = new ByteArrayOutputStream((end - start) >>> 1);
         }
+
         int mask = 0;
         int[] hex = HEX_DECODE;
         try {
@@ -1140,7 +1135,6 @@ public class StringUtils {
         if ((mask & ~255) != 0) {
             throw getHexStringException(ErrorCode.HEX_STRING_WRONG_1, s, start, end);
         }
-        return baos;
     }
 
     private static DbException getHexStringException(int code, String s, int start, int end) {

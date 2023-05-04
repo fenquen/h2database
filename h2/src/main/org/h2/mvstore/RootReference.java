@@ -57,11 +57,11 @@ public final class RootReference<K, V> {
     RootReference(Page<K, V> root, long version) {
         this.root = root;
         this.version = version;
+        this.holdCount = 0;
+        this.ownerId = 0;
         this.previous = null;
         this.updateCounter = 1;
         this.updateAttemptCounter = 1;
-        this.holdCount = 0;
-        this.ownerId = 0;
         this.appendCounter = 0;
     }
 

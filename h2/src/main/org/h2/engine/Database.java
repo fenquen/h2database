@@ -415,6 +415,7 @@ public final class Database implements DataHandler, CastDataProvider {
             }
 
             lobStorage = new LobStorageMap(this);
+
             lobSession.commit(true);
             systemSession.commit(true);
 

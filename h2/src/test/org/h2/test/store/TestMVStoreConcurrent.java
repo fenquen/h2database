@@ -614,7 +614,7 @@ public class TestMVStoreConcurrent extends TestMVStore {
                     OutputStream out = new BufferedOutputStream(
                             new FileOutputStream(fileNameRestore));
                     long len = s.getFileStore().size();
-                    copyFileSlowly(s.getFileStore().getFile(),
+                    copyFileSlowly(s.getFileStore().getFileChannel(),
                             len, out);
                     out.close();
                     s.setReuseSpace(true);

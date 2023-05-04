@@ -120,12 +120,12 @@ public class FilePathReorderWrites extends FilePathWrapper {
     @Override
     public FileChannel open(String mode) throws IOException {
         InputStream in = newInputStream();
-        FilePath copy = FilePath.get(getBase().toString() + ".copy");
+        FilePath copy = FilePath.get(getFilePath().toString() + ".copy");
         OutputStream out = copy.newOutputStream(false);
         IOUtils.copy(in, out);
         in.close();
         out.close();
-        FileChannel base = getBase().open(mode);
+        FileChannel base = getFilePath().open(mode);
         FileChannel readBase = copy.open(mode);
         return new FileReorderWrites(this, base, readBase);
     }
@@ -143,7 +143,7 @@ public class FilePathReorderWrites extends FilePathWrapper {
     @Override
     public void delete() {
         super.delete();
-        FilePath.get(getBase().toString() + ".copy").delete();
+        FilePath.get(getFilePath().toString() + ".copy").delete();
     }
 }
 

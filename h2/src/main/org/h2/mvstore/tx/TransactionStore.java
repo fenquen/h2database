@@ -98,8 +98,7 @@ public class TransactionStore {
      * Position in array is "transaction id".
      * VolatileReferenceArray would do the job here, but there is no such thing in Java yet
      */
-    private final AtomicReferenceArray<Transaction> transactionArr =
-            new AtomicReferenceArray<>(MAX_OPEN_TRANSACTIONS + 1);
+    private final AtomicReferenceArray<Transaction> transactionArr = new AtomicReferenceArray<>(MAX_OPEN_TRANSACTIONS + 1);
 
     private static final String TYPE_REGISTRY_NAME = "_";
 
@@ -194,9 +193,9 @@ public class TransactionStore {
      * If the transaction store is corrupt, this method can throw an exception,
      * in which case the store can only be used for reading.
      *
-     * @param listener to notify about transaction rollback
+     * @param rollbackListener to notify about transaction rollback
      */
-    public void init(RollbackListener listener) {
+    public void init(RollbackListener rollbackListener) {
         if (init) {
             return;
         }
@@ -211,6 +210,7 @@ public class TransactionStore {
                     boolean committed = mapName.charAt(UNDO_LOG_NAME_PREFIX.length()) == UNDO_LOG_COMMITTED;
                     if (mvStore.hasData(mapName)) {
                         int transactionId = StringUtils.parseUInt31(mapName, UNDO_LOG_NAME_PREFIX.length() + 1, mapName.length());
+
                         VersionedBitSet openTxBitSet = openTransactions.get();
                         if (!openTxBitSet.get(transactionId)) {
                             Object[] data = preparedTransactions.get(transactionId);
@@ -226,8 +226,10 @@ public class TransactionStore {
                             MVMap<Long, Record<?, ?>> undoLog = mvStore.openMap(mapName, undoLogBuilder);
                             undoLogs[transactionId] = undoLog;
                             Long lastUndoKey = undoLog.lastKey();
+
                             assert lastUndoKey != null;
                             assert getTransactionId(lastUndoKey) == transactionId;
+
                             long logId = getLogId(lastUndoKey) + 1;
                             if (committed) {
                                 // give it a proper name and used marker record instead
@@ -236,14 +238,24 @@ public class TransactionStore {
                             } else {
                                 committed = logId > LOG_ID_MASK;
                             }
+
                             if (committed) {
                                 status = Transaction.STATUS_COMMITTED;
                                 lastUndoKey = undoLog.lowerKey(lastUndoKey);
                                 assert lastUndoKey == null || getTransactionId(lastUndoKey) == transactionId;
                                 logId = lastUndoKey == null ? 0 : getLogId(lastUndoKey) + 1;
                             }
-                            registerTransaction(transactionId, status, name, logId, timeoutMillis, 0,
-                                    IsolationLevel.READ_COMMITTED, listener);
+
+                            registerTransaction(
+                                    transactionId,
+                                    status,
+                                    name,
+                                    logId,
+                                    timeoutMillis,
+                                    0,
+                                    IsolationLevel.READ_COMMITTED,
+                                    rollbackListener);
+
                             continue;
                         }
                     }
@@ -315,10 +327,8 @@ public class TransactionStore {
      * @return the operation id
      */
     static long getOperationId(int transactionId, long logId) {
-        DataUtils.checkArgument(transactionId >= 0 && transactionId < (1 << (64 - LOG_ID_BITS)),
-                "Transaction id out of range: {0}", transactionId);
-        DataUtils.checkArgument(logId >= 0 && logId <= LOG_ID_MASK,
-                "Transaction log id out of range: {0}", logId);
+        DataUtils.checkArgument(transactionId >= 0 && transactionId < (1 << (64 - LOG_ID_BITS)), "Transaction id out of range: {0}", transactionId);
+        DataUtils.checkArgument(logId >= 0 && logId <= LOG_ID_MASK, "Transaction log id out of range: {0}", logId);
         return ((long) transactionId << LOG_ID_BITS) | logId;
     }
 
@@ -875,14 +885,16 @@ public class TransactionStore {
          * @param existingValue value in the map (null if delete is rolled back)
          * @param restoredValue value to be restored (null if add is rolled back)
          */
-        void onRollback(MVMap<Object, VersionedValue<Object>> map,
+        void onRollback(MVMap<Object,
+                VersionedValue<Object>> map,
                         Object key,
                         VersionedValue<Object> existingValue,
                         VersionedValue<Object> restoredValue);
     }
 
-    private static final RollbackListener ROLLBACK_LISTENER_NONE = (map, key, existingValue, restoredValue) -> {
-    };
+    private static final RollbackListener ROLLBACK_LISTENER_NONE =
+            (map, key, existingValue, restoredValue) -> {
+            };
 
     private static final class TxMapBuilder<K, V> extends MVMap.Builder<K, V> {
 
@@ -915,9 +927,9 @@ public class TransactionStore {
                 if (keyTypeKey != null) {
                     keyType = (DataType<K>) typeRegistry.get(keyTypeKey);
                     if (keyType == null) {
-                        throw DataUtils.newMVStoreException(DataUtils.ERROR_UNKNOWN_DATA_TYPE,
-                                "Data type with hash {0} can not be found", keyTypeKey);
+                        throw DataUtils.newMVStoreException(DataUtils.ERROR_UNKNOWN_DATA_TYPE, "Data type with hash {0} can not be found", keyTypeKey);
                     }
+
                     setKeyType(keyType);
                 }
             } else {
@@ -930,9 +942,9 @@ public class TransactionStore {
                 if (valueTypeKey != null) {
                     valueType = (DataType<V>) typeRegistry.get(valueTypeKey);
                     if (valueType == null) {
-                        throw DataUtils.newMVStoreException(DataUtils.ERROR_UNKNOWN_DATA_TYPE,
-                                "Data type with hash {0} can not be found", valueTypeKey);
+                        throw DataUtils.newMVStoreException(DataUtils.ERROR_UNKNOWN_DATA_TYPE, "Data type with hash {0} can not be found", valueTypeKey);
                     }
+
                     setValueType(valueType);
                 }
             } else {
@@ -958,9 +970,9 @@ public class TransactionStore {
         @SuppressWarnings("unchecked")
         protected MVMap<K, V> create(Map<String, Object> config) {
             if ("rtree".equals(config.get("type"))) {
-                return (MVMap<K, V>) new MVRTreeMap<>(config, (SpatialDataType) getKeyType(),
-                        getValueType());
+                return (MVMap<K, V>) new MVRTreeMap<>(config, (SpatialDataType) getKeyType(), getValueType());
             }
+
             return new TMVMap<>(config, getKeyType(), getValueType());
         }
 
@@ -989,11 +1001,11 @@ public class TransactionStore {
 
             @Override
             protected String asString(String name) {
-                StringBuilder buff = new StringBuilder();
-                buff.append(super.asString(name));
-                DataUtils.appendMap(buff, "key", getDataTypeRegistrationKey(getKeyType()));
-                DataUtils.appendMap(buff, "val", getDataTypeRegistrationKey(getValueType()));
-                return buff.toString();
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.append(super.asString(name));
+                DataUtils.appendMap(stringBuilder, "key", getDataTypeRegistrationKey(getKeyType()));
+                DataUtils.appendMap(stringBuilder, "val", getDataTypeRegistrationKey(getValueType()));
+                return stringBuilder.toString();
             }
         }
     }

@@ -19,8 +19,7 @@ import java.nio.channels.WritableByteChannel;
 public abstract class FileBase extends FileChannel {
 
     @Override
-    public synchronized int read(ByteBuffer dst, long position)
-            throws IOException {
+    public synchronized int read(ByteBuffer dst, long position) throws IOException {
         long oldPos = position();
         position(position);
         int len = read(dst);
@@ -29,8 +28,7 @@ public abstract class FileBase extends FileChannel {
     }
 
     @Override
-    public synchronized int write(ByteBuffer src, long position)
-            throws IOException {
+    public synchronized int write(ByteBuffer src, long position) throws IOException {
         long oldPos = position();
         position(position);
         int len = write(src);
@@ -49,45 +47,37 @@ public abstract class FileBase extends FileChannel {
     }
 
     @Override
-    public FileLock lock(long position, long size, boolean shared)
-            throws IOException {
+    public FileLock lock(long position, long size, boolean shared) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public MappedByteBuffer map(MapMode mode, long position, long size)
-            throws IOException {
+    public MappedByteBuffer map(MapMode mode, long position, long size) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long read(ByteBuffer[] dsts, int offset, int length)
-            throws IOException {
+    public long read(ByteBuffer[] dsts, int offset, int length) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferFrom(ReadableByteChannel src, long position, long count)
-            throws IOException {
+    public long transferFrom(ReadableByteChannel src, long position, long count) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferTo(long position, long count, WritableByteChannel target)
-            throws IOException {
+    public long transferTo(long position, long count, WritableByteChannel target) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public FileLock tryLock(long position, long size, boolean shared)
-            throws IOException {
+    public FileLock tryLock(long position, long size, boolean shared) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long write(ByteBuffer[] srcs, int offset, int length)
-            throws IOException {
+    public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
         throw new UnsupportedOperationException();
     }
-
 }

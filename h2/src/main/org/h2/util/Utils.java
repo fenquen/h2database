@@ -686,8 +686,9 @@ public class Utils {
         long maxMemory = Runtime.getRuntime().maxMemory();
         if (maxMemory != Long.MAX_VALUE) {
             // we are limited by an -XmX parameter
-            return (int) (value * maxMemory / (1024 * 1024 * 1024));
+            return (int) (value * (maxMemory / (1024 * 1024 * 1024)));
         }
+
         try {
             OperatingSystemMXBean mxBean = ManagementFactory.getOperatingSystemMXBean();
             // this method is only available on the class
@@ -696,7 +697,7 @@ public class Utils {
             // Android and other JDK's
             Method method = Class.forName("com.sun.management.OperatingSystemMXBean").getMethod("getTotalPhysicalMemorySize");
             long physicalMemorySize = ((Number) method.invoke(mxBean)).longValue();
-            return (int) (value * physicalMemorySize / (1024 * 1024 * 1024));
+            return (int) (value * (physicalMemorySize / (1024 * 1024 * 1024)));
         } catch (Exception e) {
             // ignore
         } catch (Error error) {

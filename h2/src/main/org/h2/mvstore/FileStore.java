@@ -65,15 +65,13 @@ public class FileStore {
      */
     protected final FreeSpaceBitSet freeSpaceBitSet = new FreeSpaceBitSet(2, MVStore.BLOCK_SIZE);
 
-    /**
-     * The file.
-     */
-    private FileChannel file;
+
+    private FileChannel fileChannel;
 
     /**
      * The encrypted file (if encryption is used).
      */
-    private FileChannel encryptedFile;
+    private FileChannel encryptedFileChannel;
 
     /**
      * The file lock.
@@ -88,16 +86,14 @@ public class FileStore {
     /**
      * Read from the file.
      *
-     * @param pos the write position
-     * @param len the number of bytes to read
      * @return the byte buffer
      */
-    public ByteBuffer readFully(long pos, int len) {
-        ByteBuffer dst = ByteBuffer.allocate(len);
-        DataUtils.readFully(file, pos, dst);
+    public ByteBuffer readFully(long position, int len) {
+        ByteBuffer dest = ByteBuffer.allocate(len);
+        DataUtils.readFully(fileChannel, position, dest);
         readCount.incrementAndGet();
         readByteCount.addAndGet(len);
-        return dst;
+        return dest;
     }
 
     /**
@@ -109,7 +105,7 @@ public class FileStore {
     public void writeFully(long pos, ByteBuffer src) {
         int len = src.remaining();
         fileSize = Math.max(fileSize, pos + len);
-        DataUtils.writeFully(file, pos, src);
+        DataUtils.writeFully(fileChannel, pos, src);
         writeCount.incrementAndGet();
         writeByteCount.addAndGet(len);
     }
@@ -118,29 +114,26 @@ public class FileStore {
      * Try to open the file.
      *
      * @param fileName      the file name
-     * @param readOnly      whether the file should only be opened in read-only mode,
-     *                      even if the file is writable
-     * @param encryptionKey the encryption key, or null if encryption is not
-     *                      used
+     * @param readOnly      whether the file should only be opened in read-only mode, even if the file is writable
+     * @param encryptionKey the encryption key, or null if encryption is not used
      */
     public void open(String fileName, boolean readOnly, char[] encryptionKey) {
         open(fileName, readOnly,
-                encryptionKey == null ? null
-                        : fileChannel -> new FileEncrypt(fileName, FilePathEncrypt.getPasswordBytes(encryptionKey),
-                        fileChannel));
+                encryptionKey == null ?
+                        null :
+                        fileChannel -> new FileEncrypt(fileName, FilePathEncrypt.getPasswordBytes(encryptionKey), fileChannel));
     }
 
     public FileStore open(String fileName, boolean readOnly) {
-
         FileStore result = new FileStore();
-        result.open(fileName, readOnly, encryptedFile == null ? null : fileChannel -> new FileEncrypt(fileName, (FileEncrypt) file, fileChannel));
+        result.open(fileName, readOnly, encryptedFileChannel == null ? null : fileChannel -> new FileEncrypt(fileName, (FileEncrypt) this.fileChannel, fileChannel));
         return result;
     }
 
     private void open(String fileName,
                       boolean readOnly,
                       Function<FileChannel, FileChannel> encryptionTransformer) {
-        if (file != null) {
+        if (fileChannel != null) {
             return;
         }
 
@@ -162,21 +155,22 @@ public class FileStore {
         this.readOnly = readOnly;
 
         try {
-            file = filePath.open(readOnly ? "r" : "rw");
+            fileChannel = filePath.open(readOnly ? "r" : "rw");
 
+            // todo rust略过
             if (encryptionTransformer != null) {
-                encryptedFile = file;
-                file = encryptionTransformer.apply(file);
+                encryptedFileChannel = fileChannel;
+                fileChannel = encryptionTransformer.apply(fileChannel);
             }
 
             try {
                 if (readOnly) {
-                    fileLock = file.tryLock(0, Long.MAX_VALUE, true);
+                    fileLock = fileChannel.tryLock(0, Long.MAX_VALUE, true);
                 } else {
-                    fileLock = file.tryLock();
+                    fileLock = fileChannel.tryLock(0L, Long.MAX_VALUE, false);
                 }
             } catch (OverlappingFileLockException e) {
-                throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_LOCKED, "The file is locked: {0}", fileName, e);
+                throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_LOCKED, "The file is already locked: {0}", fileName, e);
             }
 
             if (fileLock == null) {
@@ -184,10 +178,10 @@ public class FileStore {
                     close();
                 } catch (Exception ignore) {
                 }
-                throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_LOCKED, "The file is locked: {0}", fileName);
+                throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_LOCKED, "The file is already locked: {0}", fileName);
             }
 
-            fileSize = file.size();
+            fileSize = fileChannel.size();
         } catch (IOException e) {
             try {
                 close();
@@ -203,17 +197,18 @@ public class FileStore {
      */
     public void close() {
         try {
-            if (file != null && file.isOpen()) {
+            if (fileChannel != null && fileChannel.isOpen()) {
                 if (fileLock != null) {
                     fileLock.release();
                 }
-                file.close();
+
+                fileChannel.close();
             }
         } catch (Exception e) {
             throw DataUtils.newMVStoreException(DataUtils.ERROR_WRITING_FAILED, "Closing failed for file {0}", fileName, e);
         } finally {
             fileLock = null;
-            file = null;
+            fileChannel = null;
         }
     }
 
@@ -221,9 +216,9 @@ public class FileStore {
      * Flush all changes.
      */
     public void sync() {
-        if (file != null) {
+        if (fileChannel != null) {
             try {
-                file.force(true);
+                fileChannel.force(true);
             } catch (IOException e) {
                 throw DataUtils.newMVStoreException(DataUtils.ERROR_WRITING_FAILED, "Could not sync file {0}", fileName, e);
             }
@@ -249,7 +244,7 @@ public class FileStore {
         while (true) {
             try {
                 writeCount.incrementAndGet();
-                file.truncate(size);
+                fileChannel.truncate(size);
                 fileSize = Math.min(fileSize, size);
                 return;
             } catch (IOException e) {
@@ -273,8 +268,8 @@ public class FileStore {
      *
      * @return the file
      */
-    public FileChannel getFile() {
-        return file;
+    public FileChannel getFileChannel() {
+        return fileChannel;
     }
 
     /**
@@ -285,8 +280,8 @@ public class FileStore {
      *
      * @return the encrypted file, or null if encryption is not used
      */
-    public FileChannel getEncryptedFile() {
-        return encryptedFile;
+    public FileChannel getEncryptedFileChannel() {
+        return encryptedFileChannel;
     }
 
     /**

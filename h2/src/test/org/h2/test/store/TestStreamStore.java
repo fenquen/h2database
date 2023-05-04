@@ -289,7 +289,7 @@ public class TestStreamStore extends TestBase {
         id = store.put(new ByteArrayInputStream(new byte[10]));
         assertEquals("010a8901", StringUtils.convertBytesToHex(id));
 
-        byte[] combined = StringUtils.convertHex2ByteArr("0001aa0002bbcc");
+        byte[] combined = StringUtils.convertHexString2ByteArr("0001aa0002bbcc");
         assertEquals(3, store.length(combined));
         InputStream in = store.get(combined);
         assertEquals(1, in.skip(1));

@@ -1479,11 +1479,12 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public void waitIfExclusiveModeEnabled() {
         transitionToState(State.RUNNING, true);
-        // Even in exclusive mode, we have to let the LOB session proceed, or we
-        // will get deadlocks.
+
+        // Even in exclusive mode, we have to let the LOB session proceed, or we will get deadlocks.
         if (database.getLobSession() == this) {
             return;
         }
+
         while (isOpen()) {
             SessionLocal exclusive = database.getExclusiveSession();
             if (exclusive == null || exclusive == this) {
@@ -1752,19 +1753,21 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     }
 
     @Override
-    public void onRollback(MVMap<Object, VersionedValue<Object>> map, Object key,
+    public void onRollback(MVMap<Object,
+            VersionedValue<Object>> map,
+                           Object key,
                            VersionedValue<Object> existingValue,
                            VersionedValue<Object> restoredValue) {
         // Here we are relying on the fact that map which backs table's primary index
         // has the same name as the table itself
         Store store = database.getStore();
-        MVTable table = store.getTable(map.getName());
-        if (table != null) {
+        MVTable mvTable = store.getTable(map.getName());
+        if (mvTable != null) {
             Row oldRow = existingValue == null ? null : (Row) existingValue.getCurrentValue();
             Row newRow = restoredValue == null ? null : (Row) restoredValue.getCurrentValue();
-            table.fireAfterRow(this, oldRow, newRow, true);
+            mvTable.fireAfterRow(this, oldRow, newRow, true);
 
-            if (table.getContainsLargeObject()) {
+            if (mvTable.getContainsLargeObject()) {
                 if (oldRow != null) {
                     for (int i = 0, len = oldRow.getColumnCount(); i < len; i++) {
                         Value v = oldRow.getValue(i);

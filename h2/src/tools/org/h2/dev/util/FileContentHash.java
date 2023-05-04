@@ -96,7 +96,7 @@ public class FileContentHash {
                             "-size_" + info.size;
                 } else {
                     totalSize += length;
-                    checkCollision(f, length, StringUtils.convertHex2ByteArr(hash));
+                    checkCollision(f, length, StringUtils.convertHexString2ByteArr(hash));
                 }
                 propNew.put(entry, hash);
                 mdDir.update(entry.getBytes(StandardCharsets.UTF_8));

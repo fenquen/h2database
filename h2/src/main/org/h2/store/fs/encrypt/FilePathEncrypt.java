@@ -55,7 +55,7 @@ public class FilePathEncrypt extends FilePathWrapper {
 
     @Override
     public long size() {
-        long size = getBase().size() - FileEncrypt.HEADER_LENGTH;
+        long size = getFilePath().size() - FileEncrypt.HEADER_LENGTH;
         size = Math.max(0, size);
         if ((size & FileEncrypt.BLOCK_SIZE_MASK) != 0) {
             size -= FileEncrypt.BLOCK_SIZE;

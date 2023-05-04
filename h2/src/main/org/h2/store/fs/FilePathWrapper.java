@@ -12,12 +12,11 @@ import java.nio.channels.FileChannel;
 import java.util.List;
 
 /**
- * The base class for wrapping / delegating file systems such as
- * the split file system.
+ * The base class for wrapping / delegating file systems such as the split file system.
  */
 public abstract class FilePathWrapper extends FilePath {
 
-    private FilePath base;
+    private FilePath filePath;
 
     @Override
     public FilePathWrapper getPath(String path) {
@@ -43,7 +42,7 @@ public abstract class FilePathWrapper extends FilePath {
         try {
             FilePathWrapper p = getClass().getDeclaredConstructor().newInstance();
             p.name = path;
-            p.base = base;
+            p.filePath = base;
             return p;
         } catch (Exception e) {
             throw new IllegalArgumentException("Path: " + path, e);
@@ -64,68 +63,68 @@ public abstract class FilePathWrapper extends FilePath {
         return FilePath.get(path.substring(getScheme().length() + 1));
     }
 
-    protected FilePath getBase() {
-        return base;
+    protected FilePath getFilePath() {
+        return filePath;
     }
 
     @Override
     public boolean canWrite() {
-        return base.canWrite();
+        return filePath.canWrite();
     }
 
     @Override
     public void createDirectory() {
-        base.createDirectory();
+        filePath.createDirectory();
     }
 
     @Override
     public boolean createFile() {
-        return base.createFile();
+        return filePath.createFile();
     }
 
     @Override
     public void delete() {
-        base.delete();
+        filePath.delete();
     }
 
     @Override
     public boolean exists() {
-        return base.exists();
+        return filePath.exists();
     }
 
     @Override
     public FilePath getParent() {
-        return wrap(base.getParent());
+        return wrap(filePath.getParent());
     }
 
     @Override
     public boolean isAbsolute() {
-        return base.isAbsolute();
+        return filePath.isAbsolute();
     }
 
     @Override
     public boolean isDirectory() {
-        return base.isDirectory();
+        return filePath.isDirectory();
     }
 
     @Override
     public boolean isRegularFile() {
-        return base.isRegularFile();
+        return filePath.isRegularFile();
     }
 
     @Override
     public long lastModified() {
-        return base.lastModified();
+        return filePath.lastModified();
     }
 
     @Override
     public FilePath toRealPath() {
-        return wrap(base.toRealPath());
+        return wrap(filePath.toRealPath());
     }
 
     @Override
     public List<FilePath> newDirectoryStream() {
-        List<FilePath> list = base.newDirectoryStream();
+        List<FilePath> list = filePath.newDirectoryStream();
         for (int i = 0, len = list.size(); i < len; i++) {
             list.set(i, wrap(list.get(i)));
         }
@@ -134,37 +133,37 @@ public abstract class FilePathWrapper extends FilePath {
 
     @Override
     public void moveTo(FilePath newName, boolean atomicReplace) {
-        base.moveTo(((FilePathWrapper) newName).base, atomicReplace);
+        filePath.moveTo(((FilePathWrapper) newName).filePath, atomicReplace);
     }
 
     @Override
     public InputStream newInputStream() throws IOException {
-        return base.newInputStream();
+        return filePath.newInputStream();
     }
 
     @Override
     public OutputStream newOutputStream(boolean append) throws IOException {
-        return base.newOutputStream(append);
+        return filePath.newOutputStream(append);
     }
 
     @Override
     public FileChannel open(String mode) throws IOException {
-        return base.open(mode);
+        return filePath.open(mode);
     }
 
     @Override
     public boolean setReadOnly() {
-        return base.setReadOnly();
+        return filePath.setReadOnly();
     }
 
     @Override
     public long size() {
-        return base.size();
+        return filePath.size();
     }
 
     @Override
     public FilePath createTempFile(String suffix, boolean inTempDir) throws IOException {
-        return wrap(base.createTempFile(suffix, inTempDir));
+        return wrap(filePath.createTempFile(suffix, inTempDir));
     }
 
 }

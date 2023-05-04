@@ -45,7 +45,7 @@ public class TestObjectDeserialization extends TestBase {
         usesThreadContextClassLoader = false;
         Thread.currentThread().setContextClassLoader(new TestClassLoader());
         assertThrows(ErrorCode.DESERIALIZATION_FAILED_1,
-                () -> JdbcUtils.deserialize(StringUtils.convertHex2ByteArr(OBJECT), null));
+                () -> JdbcUtils.deserialize(StringUtils.convertHexString2ByteArr(OBJECT), null));
         assertTrue(usesThreadContextClassLoader);
     }
 

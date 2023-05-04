@@ -1176,7 +1176,7 @@ public final class Tokenizer {
             if (i <= end && Character.isJavaIdentifierPart(sql.codePointAt(i))) {
                 throw DbException.get(ErrorCode.HEX_STRING_WRONG_1, sql.substring(start, i + 1));
             }
-            tokens.add(new Token.BinaryStringToken(start, StringUtils.convertHex2ByteArr(sql.substring(start, i))));
+            tokens.add(new Token.BinaryStringToken(start, StringUtils.convertHexString2ByteArr(sql.substring(start, i))));
             return i;
         } else {
             if (i > end) {

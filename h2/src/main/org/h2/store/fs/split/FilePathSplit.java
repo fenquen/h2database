@@ -93,7 +93,7 @@ public class FilePathSplit extends FilePathWrapper {
 
     @Override
     public ArrayList<FilePath> newDirectoryStream() {
-        List<FilePath> list = getBase().newDirectoryStream();
+        List<FilePath> list = getFilePath().newDirectoryStream();
         ArrayList<FilePath> newList = new ArrayList<>();
         for (FilePath f : list) {
             if (!f.getName().endsWith(PART_SUFFIX)) {
@@ -105,7 +105,7 @@ public class FilePathSplit extends FilePathWrapper {
 
     @Override
     public InputStream newInputStream() throws IOException {
-        InputStream input = getBase().newInputStream();
+        InputStream input = getFilePath().newInputStream();
         for (int i = 1;; i++) {
             FilePath f = getBase(i);
             if (f.exists()) {
@@ -121,7 +121,7 @@ public class FilePathSplit extends FilePathWrapper {
     @Override
     public FileChannel open(String mode) throws IOException {
         ArrayList<FileChannel> list = new ArrayList<>();
-        list.add(getBase().open(mode));
+        list.add(getFilePath().open(mode));
         for (int i = 1;; i++) {
             FilePath f = getBase(i);
             if (f.exists()) {
@@ -231,7 +231,7 @@ public class FilePathSplit extends FilePathWrapper {
     }
 
     private String getName(int id) {
-        return id > 0 ? getBase().name + "." + id + PART_SUFFIX : getBase().name;
+        return id > 0 ? getFilePath().name + "." + id + PART_SUFFIX : getFilePath().name;
     }
 
     @Override

@@ -36,10 +36,10 @@ public interface Compressor {
     /**
      * Compress a number of bytes.
      *
-     * @param in the input data
-     * @param inPos the offset at the input array
-     * @param inLen the number of bytes to compress
-     * @param out the output area
+     * @param in     the input data
+     * @param inPos  the offset at the input array
+     * @param inLen  the number of bytes to compress
+     * @param out    the output area
      * @param outPos the offset at the output array
      * @return the end position
      */
@@ -48,15 +48,15 @@ public interface Compressor {
     /**
      * Expand a number of compressed bytes.
      *
-     * @param in the compressed data
-     * @param inPos the offset at the input array
-     * @param inLen the number of bytes to read
-     * @param out the output area
+     * @param in     the compressed data
+     * @param inPos  the offset at the input array
+     * @param inLen  the number of bytes to read
+     * @param out    the output area
      * @param outPos the offset at the output array
      * @param outLen the size of the uncompressed data
      */
     void expand(byte[] in, int inPos, int inLen, byte[] out, int outPos,
-            int outLen);
+                int outLen);
 
     /**
      * Set the compression options. This may include settings for

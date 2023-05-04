@@ -393,7 +393,7 @@ public class ConnectionInfo implements Cloneable {
 
     private static byte[] hashPassword(boolean passwordHash, String userName, char[] password) {
         if (passwordHash) {
-            return StringUtils.convertHex2ByteArr(new String(password));
+            return StringUtils.convertHexString2ByteArr(new String(password));
         }
 
         // todo rust略过以下

@@ -177,8 +177,7 @@ public class FreeSpaceBitSet {
         int blocks = getBlockCount(length);
         // this is not an assert because we get called during file opening
         if (bitSet.nextSetBit(start) != -1 && bitSet.nextSetBit(start) < start + blocks) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_FILE_CORRUPT,
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
                     "Double mark: " + Integer.toHexString(start) +
                             "/" + Integer.toHexString(blocks) + " " + this);
         }

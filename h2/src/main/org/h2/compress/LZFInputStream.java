@@ -7,6 +7,7 @@ package org.h2.compress;
 
 import java.io.IOException;
 import java.io.InputStream;
+
 import org.h2.mvstore.DataUtils;
 import org.h2.util.Utils;
 

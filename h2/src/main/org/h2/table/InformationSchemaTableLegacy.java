@@ -1140,7 +1140,7 @@ public final class InformationSchemaTableLegacy extends MetaTable {
                         "info.CHUNKS_FILL_RATE_RW", Integer.toString(mvStore.getRewritableChunksFillRate()));
                 try {
                     add(session, rows,
-                            "info.FILE_SIZE", Long.toString(fs.getFile().size()));
+                            "info.FILE_SIZE", Long.toString(fs.getFileChannel().size()));
                 } catch (IOException ignore) {/**/}
                 add(session, rows,
                         "info.CHUNK_COUNT", Long.toString(mvStore.getChunkCount()));

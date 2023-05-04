@@ -348,7 +348,7 @@ public final class Transaction {
 
                 for (MVMap<Object, VersionedValue<Object>> mvMap : mvMaps) {
                     TransactionMap<?, ?> txMap = openMapX(mvMap);
-                    txMap.statementSnapshot = new Snapshot(mvMap.flushAndGetRoot(), committingTxs);
+                    txMap.statementSnapshot = new Snapshot(mvMap.flushAndGetRootReference(), committingTxs);
                 }
 
                 if (isolationLevel == IsolationLevel.READ_COMMITTED) {

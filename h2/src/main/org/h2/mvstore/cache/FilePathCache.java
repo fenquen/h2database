@@ -18,14 +18,8 @@ import org.h2.store.fs.FilePathWrapper;
  */
 public class FilePathCache extends FilePathWrapper {
 
-    /**
-     * The instance.
-     */
     public static final FilePathCache INSTANCE = new FilePathCache();
 
-    /**
-     * Register the file system.
-     */
     static {
         FilePath.register(INSTANCE);
     }
@@ -36,7 +30,7 @@ public class FilePathCache extends FilePathWrapper {
 
     @Override
     public FileChannel open(String mode) throws IOException {
-        return new FileCache(getBase().open(mode));
+        return new FileCache(getFilePath().open(mode));
     }
 
     @Override
@@ -44,71 +38,71 @@ public class FilePathCache extends FilePathWrapper {
         return "cache";
     }
 
-    /**
-     * A file with a read cache.
-     */
     public static class FileCache extends FileBase {
 
         private static final int CACHE_BLOCK_SIZE = 4 * 1024;
-        private final FileChannel base;
+        private final FileChannel fileChannel;
 
         private final CacheLongKeyLIRS<ByteBuffer> cache;
 
         {
-            CacheLongKeyLIRS.Config cc = new CacheLongKeyLIRS.Config();
+            CacheLongKeyLIRS.Config config = new CacheLongKeyLIRS.Config();
             // 1 MB cache size
-            cc.maxMemory = 1024 * 1024;
-            cache = new CacheLongKeyLIRS<>(cc);
+            config.maxMemory = 1024 * 1024;
+            cache = new CacheLongKeyLIRS<>(config);
         }
 
-        FileCache(FileChannel base) {
-            this.base = base;
+        FileCache(FileChannel fileChannel) {
+            this.fileChannel = fileChannel;
         }
 
         @Override
         protected void implCloseChannel() throws IOException {
-            base.close();
+            fileChannel.close();
         }
 
         @Override
         public FileChannel position(long newPosition) throws IOException {
-            base.position(newPosition);
+            fileChannel.position(newPosition);
             return this;
         }
 
         @Override
         public long position() throws IOException {
-            return base.position();
+            return fileChannel.position();
         }
 
         @Override
         public int read(ByteBuffer dst) throws IOException {
-            return base.read(dst);
+            return fileChannel.read(dst);
         }
 
         @Override
-        public synchronized int read(ByteBuffer dst, long position) throws IOException {
+        public synchronized int read(ByteBuffer dest, long position) throws IOException {
             long cachePos = getCachePos(position);
             int off = (int) (position - cachePos);
             int len = CACHE_BLOCK_SIZE - off;
-            len = Math.min(len, dst.remaining());
-            ByteBuffer buff = cache.get(cachePos);
-            if (buff == null) {
-                buff = ByteBuffer.allocate(CACHE_BLOCK_SIZE);
+            len = Math.min(len, dest.remaining());
+
+            ByteBuffer byteBuffer = cache.get(cachePos);
+            if (byteBuffer == null) {
+                byteBuffer = ByteBuffer.allocate(CACHE_BLOCK_SIZE);
                 long pos = cachePos;
+
                 while (true) {
-                    int read = base.read(buff, pos);
+                    int read = fileChannel.read(byteBuffer, pos);
                     if (read <= 0) {
                         break;
                     }
-                    if (buff.remaining() == 0) {
+                    if (byteBuffer.remaining() == 0) {
                         break;
                     }
                     pos += read;
                 }
-                int read = buff.position();
+
+                int read = byteBuffer.position();
                 if (read == CACHE_BLOCK_SIZE) {
-                    cache.put(cachePos, buff, CACHE_BLOCK_SIZE);
+                    cache.put(cachePos, byteBuffer, CACHE_BLOCK_SIZE);
                 } else {
                     if (read <= 0) {
                         return -1;
@@ -116,7 +110,9 @@ public class FilePathCache extends FilePathWrapper {
                     len = Math.min(len, read - off);
                 }
             }
-            dst.put(buff.array(), off, len);
+
+            dest.put(byteBuffer.array(), off, len);
+
             return len == 0 ? -1 : len;
         }
 
@@ -126,26 +122,26 @@ public class FilePathCache extends FilePathWrapper {
 
         @Override
         public long size() throws IOException {
-            return base.size();
+            return fileChannel.size();
         }
 
         @Override
         public synchronized FileChannel truncate(long newSize) throws IOException {
             cache.clear();
-            base.truncate(newSize);
+            fileChannel.truncate(newSize);
             return this;
         }
 
         @Override
         public synchronized int write(ByteBuffer src, long position) throws IOException {
             clearCache(src, position);
-            return base.write(src, position);
+            return fileChannel.write(src, position);
         }
 
         @Override
         public synchronized int write(ByteBuffer src) throws IOException {
             clearCache(src, position());
-            return base.write(src);
+            return fileChannel.write(src);
         }
 
         private void clearCache(ByteBuffer src, long position) {
@@ -162,20 +158,17 @@ public class FilePathCache extends FilePathWrapper {
 
         @Override
         public void force(boolean metaData) throws IOException {
-            base.force(metaData);
+            fileChannel.force(metaData);
         }
 
         @Override
-        public FileLock tryLock(long position, long size, boolean shared)
-                throws IOException {
-            return base.tryLock(position, size, shared);
+        public FileLock tryLock(long position, long size, boolean shared) throws IOException {
+            return fileChannel.tryLock(position, size, shared);
         }
 
         @Override
         public String toString() {
-            return "cache:" + base.toString();
+            return "cache:" + fileChannel.toString();
         }
-
     }
-
 }
