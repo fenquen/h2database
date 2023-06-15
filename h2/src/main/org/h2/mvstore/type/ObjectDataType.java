@@ -72,8 +72,7 @@ public class ObjectDataType extends BasicDataType<Object> {
     static final int TAG_BIG_DECIMAL_SMALL_SCALED = 49;
 
     /**
-     * For small-values/small-arrays, we encode the value/array-length in the
-     * tag.
+     * For small-values/small-arrays, we encode the value/array-length in the tag.
      */
     static final int TAG_INTEGER_0_15 = 64;
     static final int TAG_LONG_0_7 = 80;
@@ -1178,14 +1177,14 @@ public class ObjectDataType extends BasicDataType<Object> {
         }
 
         @Override
-        public String read(ByteBuffer buff, int tag) {
+        public String read(ByteBuffer byteBuffer, int tag) {
             int len;
             if (tag == TYPE_STRING) {
-                len = DataUtils.readVarInt(buff);
+                len = DataUtils.readVarInt(byteBuffer);
             } else {
                 len = tag - TAG_STRING_0_15;
             }
-            return DataUtils.readString(buff, len);
+            return DataUtils.readString(byteBuffer, len);
         }
 
     }

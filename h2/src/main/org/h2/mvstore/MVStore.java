@@ -262,7 +262,7 @@ public class MVStore implements AutoCloseable {
     private long updateAttemptCounter = 0;
 
     /**
-     * The layout map. Contains chunks metadata and root locations for all maps.
+     * a layout map, contain chunks metadata and root locations for all maps.
      * This is relatively fast changing part of metadata
      */
     private final MVMap<String, String> layout;
@@ -299,7 +299,7 @@ public class MVStore implements AutoCloseable {
 
     public final UncaughtExceptionHandler backgroundExceptionHandler;
 
-    private volatile long currentVersion;
+    public volatile long currentVersion;
 
     /**
      * Oldest store version in use. All version beyond this can be safely dropped
@@ -840,8 +840,7 @@ public class MVStore implements AutoCloseable {
     }
 
     private void markMetaChanged() {
-        // changes in the metadata alone are usually not detected, as the meta
-        // map is changed after storing
+        // changes in the metadata alone are usually not detected, as the meta map is changed after storing
         metaChanged = true;
     }
 
@@ -1465,7 +1464,7 @@ public class MVStore implements AutoCloseable {
      * @return the new version (incremented if there were changes)
      */
     public long commit() {
-        return commit(x -> true);
+        return commit(mvStore -> true);
     }
 
     private long commit(Predicate<MVStore> check) {
@@ -2872,26 +2871,23 @@ public class MVStore implements AutoCloseable {
     }
 
     /**
-     * This method is called before writing to a map.
-     *
-     * @param map the map
+     * this method is called before writing to a map.
      */
-    void beforeWrite(MVMap<?, ?> map) {
+    void beforeWrite(MVMap<?, ?> mvMap) {
         if (saveNeeded && fileStore != null && isOpenOrStopping() &&
                 // condition below is to prevent potential deadlock,
-                // because we should never seek storeLock while holding
-                // map root lock
-                (storeLock.isHeldByCurrentThread() || !map.getRootReference().isLockedByCurrentThread()) &&
+                // because we should never seek storeLock while holding map root lock
+                (storeLock.isHeldByCurrentThread() || !mvMap.getRootReference().isLockedByCurrentThread()) &&
                 // to avoid infinite recursion via store() -> dropUnusedChunks() -> layout.remove()
-                map != layout) {
+                mvMap != layout) {
 
             saveNeeded = false;
+
             // check again, because it could have been written by now
             if (autoCommitMemory > 0 && needStore()) {
                 // if unsaved memory creation rate is to high,
-                // some back pressure need to be applied
-                // to slow things down and avoid OOME
-                if (requireStore() && !map.isSingleWriter()) {
+                // some back pressure need to be applied to slow things down and avoid OOME
+                if (requireStore() && !mvMap.isSingleWriter()) {
                     commit(MVStore::requireStore);
                 } else {
                     tryCommit(MVStore::needStore);
@@ -3181,8 +3177,9 @@ public class MVStore implements AutoCloseable {
      * @return the name, or null if not found
      */
     public String getMapName(int id) {
-        String m = meta.get(MVMap.getMapKey(id));
-        return m == null ? null : DataUtils.getMapName(m);
+        // meta data是用string表现
+        String metadataString = meta.get(MVMap.getMapKey(id));
+        return metadataString == null ? null : DataUtils.getMapName(metadataString);
     }
 
     private int getMapId(String name) {

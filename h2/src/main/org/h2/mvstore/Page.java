@@ -75,7 +75,7 @@ public abstract class Page<K, V> implements Cloneable {
     private int memory;
 
     /**
-     * Amount of used disk space by this page only in persistent case.
+     * amount of used disk space by this page only in persistent case.
      */
     private int diskSpaceUsed;
 
@@ -287,11 +287,11 @@ public abstract class Page<K, V> implements Cloneable {
      * to be filled-in later to copying procedure. This way it can be saved
      * mid-process without tree integrity violation
      *
-     * @param map               new map to own resulting page
+     * @param mvMap               new map to own resulting page
      * @param eraseChildrenRefs whether cloned Page should have no child references or keep originals
      * @return the page
      */
-    abstract Page<K, V> copy(MVMap<K, V> map, boolean eraseChildrenRefs);
+    abstract Page<K, V> copy(MVMap<K, V> mvMap, boolean eraseChildrenRefs);
 
     /**
      * Get the key at the given index.
@@ -308,7 +308,6 @@ public abstract class Page<K, V> implements Cloneable {
     /**
      * Get the position of the child.
      *
-     * @param index the index
      * @return the position
      */
     public abstract long getChildPagePos(int index);
@@ -318,11 +317,6 @@ public abstract class Page<K, V> implements Cloneable {
      */
     public abstract V getValue(int index);
 
-    /**
-     * Get the number of keys in this page.
-     *
-     * @return the number of keys
-     */
     public final int getKeyCount() {
         return keys.length;
     }
@@ -538,8 +532,6 @@ public abstract class Page<K, V> implements Cloneable {
 
     /**
      * Remove the key and value (or child) at the given index.
-     *
-     * @param index the index
      */
     public void remove(int index) {
         int keyCount = getKeyCount();
@@ -560,22 +552,21 @@ public abstract class Page<K, V> implements Cloneable {
     /**
      * Read the page from the buffer.
      *
-     * @param buff the buffer to read from
+     * @param byteBuffer the buffer to read from
      */
-    private void readFromByteBuffer(ByteBuffer buff) {
+    private void readFromByteBuffer(ByteBuffer byteBuffer) {
         int chunkId = DataUtils.getPageChunkId(position);
         int offset = DataUtils.getPageOffset(position);
 
-        int start = buff.position();
-        int pageLength = buff.getInt(); // does not include optional part (pageNo)
-        int remaining = buff.remaining() + 4;
+        int start = byteBuffer.position();
+        int pageLength = byteBuffer.getInt(); // does not include optional part (pageNo)
+        int remaining = byteBuffer.remaining() + 4;
         if (pageLength > remaining || pageLength < 4) {
             throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                    "File corrupted in chunk {0}, expected page length 4..{1}, got {2}", chunkId, remaining,
-                    pageLength);
+                    "File corrupted in chunk {0}, expected page length 4..{1}, got {2}", chunkId, remaining, pageLength);
         }
 
-        short check = buff.getShort();
+        short check = byteBuffer.getShort();
         int checkTest = DataUtils.getCheckValue(chunkId)
                 ^ DataUtils.getCheckValue(offset)
                 ^ DataUtils.getCheckValue(pageLength);
@@ -584,34 +575,37 @@ public abstract class Page<K, V> implements Cloneable {
                     "File corrupted in chunk {0}, expected check value {1}, got {2}", chunkId, checkTest, check);
         }
 
-        pageNo = DataUtils.readVarInt(buff);
+        // pageNo
+        pageNo = DataUtils.readVarInt(byteBuffer);
         if (pageNo < 0) {
             throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
                     "File corrupted in chunk {0}, got negative page No {1}", chunkId, pageNo);
         }
 
-        int mapId = DataUtils.readVarInt(buff);
-        if (mapId != mvMap.getId()) {
+        // mapId
+        int mvMapId = DataUtils.readVarInt(byteBuffer);
+        if (mvMapId != mvMap.getId()) {
             throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                    "File corrupted in chunk {0}, expected map id {1}, got {2}", chunkId, mvMap.getId(), mapId);
+                    "File corrupted in chunk {0}, expected map id {1}, got {2}", chunkId, mvMap.getId(), mvMapId);
         }
 
-        int keyCount = DataUtils.readVarInt(buff);
+        // keyCount
+        int keyCount = DataUtils.readVarInt(byteBuffer);
         keys = createKeyStorage(keyCount);
-        int type = buff.get();
+        int type = byteBuffer.get();
         if (isLeaf() != ((type & 1) == PAGE_TYPE_LEAF)) {
             throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                    "File corrupted in chunk {0}, expected node type {1}, got {2}",
-                    chunkId, isLeaf() ? "0" : "1", type);
+                    "File corrupted in chunk {0}, expected node type {1}, got {2}", chunkId, isLeaf() ? "0" : "1", type);
         }
 
         // to restrain hacky GenericDataType, which grabs the whole remainder of the buffer
-        buff.limit(start + pageLength);
+        byteBuffer.limit(start + pageLength);
 
         if (!isLeaf()) {
-            readPayLoad(buff);
+            readPayLoad(byteBuffer);
         }
 
+        // todo rust略过
         boolean compressed = (type & DataUtils.PAGE_COMPRESSED) != 0;
         if (compressed) {
             Compressor compressor;
@@ -621,26 +615,26 @@ public abstract class Page<K, V> implements Cloneable {
                 compressor = mvMap.getMvStore().getCompressorFast();
             }
 
-            int lenAdd = DataUtils.readVarInt(buff);
-            int compLen = buff.remaining();
+            int lenAdd = DataUtils.readVarInt(byteBuffer);
+            int compLen = byteBuffer.remaining();
             byte[] comp;
             int pos = 0;
-            if (buff.hasArray()) {
-                comp = buff.array();
-                pos = buff.arrayOffset() + buff.position();
+            if (byteBuffer.hasArray()) {
+                comp = byteBuffer.array();
+                pos = byteBuffer.arrayOffset() + byteBuffer.position();
             } else {
                 comp = Utils.newBytes(compLen);
-                buff.get(comp);
+                byteBuffer.get(comp);
             }
             int l = compLen + lenAdd;
-            buff = ByteBuffer.allocate(l);
-            compressor.expand(comp, pos, compLen, buff.array(), buff.arrayOffset(), l);
+            byteBuffer = ByteBuffer.allocate(l);
+            compressor.expand(comp, pos, compLen, byteBuffer.array(), byteBuffer.arrayOffset(), l);
         }
 
-        mvMap.getKeyType().read(buff, keys, keyCount);
+        mvMap.getKeyType().read(byteBuffer, keys, keyCount);
 
         if (isLeaf()) {
-            readPayLoad(buff);
+            readPayLoad(byteBuffer);
         }
 
         diskSpaceUsed = pageLength;
@@ -651,9 +645,9 @@ public abstract class Page<K, V> implements Cloneable {
     /**
      * Read the page payload from the buffer.
      *
-     * @param buff the buffer
+     * @param byteBuffer the buffer
      */
-    protected abstract void readPayLoad(ByteBuffer buff);
+    protected abstract void readPayLoad(ByteBuffer byteBuffer);
 
     public final boolean isSaved() {
         return DataUtils.isPageSaved(position);
@@ -817,10 +811,9 @@ public abstract class Page<K, V> implements Cloneable {
 
     public final int getMemory() {
         if (isPersistent()) {
-//            assert memory == calculateMemory() :
-//               "Memory calculation error " + memory + " != " + calculateMemory();
             return memory;
         }
+
         return 0;
     }
 
@@ -956,14 +949,6 @@ public abstract class Page<K, V> implements Cloneable {
         return mvMap.getValueType().createStorage(size);
     }
 
-    /**
-     * Create an array of page references.
-     *
-     * @param <K>  the key class
-     * @param <V>  the value class
-     * @param size the number of entries
-     * @return the array
-     */
     @SuppressWarnings("unchecked")
     public static <K, V> PageReference<K, V>[] createRefStorage(int size) {
         return new PageReference[size];
@@ -1106,10 +1091,10 @@ public abstract class Page<K, V> implements Cloneable {
         }
 
         @Override
-        public Page<K, V> copy(MVMap<K, V> map, boolean eraseChildrenRefs) {
+        public Page<K, V> copy(MVMap<K, V> mvMap, boolean eraseChildrenRefs) {
             return eraseChildrenRefs ?
-                    new IncompleteNonLeaf<>(map, this) :
-                    new NonLeaf<>(map, this, children, totalCount);
+                    new IncompleteNonLeaf<>(mvMap, this) :
+                    new NonLeaf<>(mvMap, this, children, totalCount);
         }
 
         @Override
@@ -1282,23 +1267,28 @@ public abstract class Page<K, V> implements Cloneable {
         }
 
         @Override
-        protected void readPayLoad(ByteBuffer buff) {
+        protected void readPayLoad(ByteBuffer byteBuffer) {
             int keyCount = getKeyCount();
             children = createRefStorage(keyCount + 1);
-            long[] p = new long[keyCount + 1];
-            for (int i = 0; i <= keyCount; i++) {
-                p[i] = buff.getLong();
+
+            long[] positions = new long[keyCount + 1];
+            for (int a = 0; a <= keyCount; a++) {
+                positions[a] = byteBuffer.getLong();
             }
+
             long total = 0;
-            for (int i = 0; i <= keyCount; i++) {
-                long s = DataUtils.readVarLong(buff);
-                long position = p[i];
-                assert position == 0 ? s == 0 : s >= 0;
-                total += s;
-                children[i] = position == 0 ?
-                        PageReference.empty() :
-                        new PageReference<>(position, s);
+
+            for (int a = 0; a <= keyCount; a++) {
+                long count = DataUtils.readVarLong(byteBuffer);
+
+                long position = positions[a];
+                assert position == 0 ? count == 0 : count >= 0;
+
+                total += count;
+
+                children[a] = position == 0 ? PageReference.empty() : new PageReference<>(position, count);
             }
+
             totalCount = total;
         }
 
@@ -1447,8 +1437,8 @@ public abstract class Page<K, V> implements Cloneable {
         }
 
         @Override
-        public Page<K, V> copy(MVMap<K, V> map, boolean eraseChildrenRefs) {
-            return new Leaf<>(map, this);
+        public Page<K, V> copy(MVMap<K, V> mvMap, boolean eraseChildrenRefs) {
+            return new Leaf<>(mvMap, this);
         }
 
         @Override
@@ -1558,6 +1548,7 @@ public abstract class Page<K, V> implements Cloneable {
         @Override
         public void remove(int index) {
             int keyCount = getKeyCount();
+
             super.remove(index);
             if (values != null) {
                 if (isPersistent()) {
@@ -1591,10 +1582,10 @@ public abstract class Page<K, V> implements Cloneable {
         }
 
         @Override
-        protected void readPayLoad(ByteBuffer buff) {
+        protected void readPayLoad(ByteBuffer byteBuffer) {
             int keyCount = getKeyCount();
             values = createValueStorage(keyCount);
-            mvMap.getValueType().read(buff, values, getKeyCount());
+            mvMap.getValueType().read(byteBuffer, values, getKeyCount());
         }
 
         @Override

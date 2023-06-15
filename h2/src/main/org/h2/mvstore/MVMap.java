@@ -658,26 +658,29 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     /**
      * Set the position of the root page.
      *
-     * @param rootPos the position, 0 for empty
-     * @param version to set for this map
+     * @param rootPosition the position, 0 for empty
+     * @param version      to set for this map
      */
-    final void setRootPos(long rootPos, long version) {
-        Page<K, V> root = readOrCreateRootPage(rootPos);
+    final void setRootPos(long rootPosition, long version) {
+        Page<K, V> root = readOrCreateRootPage(rootPosition);
         if (root.mvMap != this) {
             // this can only happen on concurrent opening of existing map,
             // when second thread picks up some cached page already owned by
             // the first map's instantiation (both maps share the same id)
             assert id == root.mvMap.id;
+
             // since it is unknown which one will win the race,
-            // let each map instance to have it's own copy
+            // let each map instance to have its own copy
             root = root.copy(this, false);
         }
+
         setInitialRoot(root, version);
+
         setWriteVersion(mvStore.getCurrentVersion());
     }
 
-    private Page<K, V> readOrCreateRootPage(long rootPos) {
-        return rootPos == 0 ? createEmptyLeaf() : readPage(rootPos);
+    private Page<K, V> readOrCreateRootPage(long rootPosition) {
+        return rootPosition == 0 ? createEmptyLeaf() : readPage(rootPosition);
     }
 
     /**
@@ -950,8 +953,6 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
     /**
      * Set the volatile flag of the map.
-     *
-     * @param isVolatile the volatile flag
      */
     public final void setVolatile(boolean isVolatile) {
         this.isVolatile = isVolatile;
@@ -961,8 +962,6 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * Whether this is volatile map, meaning that changes
      * are not persisted. By default (even if the store is not persisted),
      * maps are not volatile.
-     *
-     * @return whether this map is volatile
      */
     public final boolean isVolatile() {
         return isVolatile;
@@ -970,24 +969,22 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
     /**
      * This method is called before writing to the map. The default
-     * implementation checks whether writing is allowed, and tries
-     * to detect concurrent modification.
+     * implementation checks whether writing is allowed, and tries to detect concurrent modification.
      *
-     * @throws UnsupportedOperationException if the map is read-only,
-     *                                       or if another thread is concurrently writing
+     * @throws UnsupportedOperationException if the map is read-only, or if another thread is concurrently writing
      */
     protected final void beforeWrite() {
         assert !getRootReference().isLockedByCurrentThread() : getRootReference();
+
         if (closed) {
-            int id = getId();
             String mapName = mvStore.getMapName(id);
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_CLOSED, "Map {0}({1}) is closed. {2}", mapName, id, mvStore.getPanicException());
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_CLOSED, "map {0}({1}) is closed. {2}", mapName, id, mvStore.getPanicException());
         }
+
         if (readOnly) {
-            throw DataUtils.newUnsupportedOperationException(
-                    "This map is read-only");
+            throw DataUtils.newUnsupportedOperationException("this map is read only");
         }
+
         mvStore.beforeWrite(this);
     }
 
@@ -1153,7 +1150,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 return rootReference;
             }
 
-            if (isClosed()) {
+            if (closed) {
                 // map was closed a while back and can not possibly be in use by now
                 // it's time to remove it completely from the store (it was anonymous already)
                 if (rootReference.getVersion() + 1 < mvStore.getOldestVersionToKeep()) {
@@ -1291,6 +1288,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     } else {
                         p.expand(available, keysBuffer, valuesBuffer);
                         keyCount -= available;
+
                         if (fullFlush) {
                             K[] keys = p.createKeyStorage(keyCount);
                             V[] values = p.createValueStorage(keyCount);
@@ -1376,7 +1374,8 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         return rootReference;
     }
 
-    private static <K, V> Page<K, V> replacePage(CursorPos<K, V> path, Page<K, V> replacement,
+    private static <K, V> Page<K, V> replacePage(CursorPos<K, V> path,
+                                                 Page<K, V> replacement,
                                                  IntValueHolder unsavedMemoryHolder) {
         int unsavedMemory = replacement.isSaved() ? 0 : replacement.getMemory();
         while (path != null) {
@@ -1504,6 +1503,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     public abstract static class BasicBuilder<M extends MVMap<K, V>, K, V> implements MapBuilder<M, K, V> {
 
         private DataType<K> keyType;
+
         private DataType<V> valueType;
 
         /**
@@ -1562,6 +1562,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             if (getKeyType() == null) {
                 setKeyType(new ObjectDataType());
             }
+
             if (getValueType() == null) {
                 setValueType(new ObjectDataType());
             }
@@ -1730,7 +1731,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
          * @param tip           the cursor position
          * @return the decision
          */
-        public Decision decide(V existingValue, V providedValue, CursorPos<?, ?> tip) {
+        public Decision decide(V existingValue,
+                               V providedValue,
+                               CursorPos<?, ?> tip) {
             return decide(existingValue, providedValue);
         }
 
@@ -1789,6 +1792,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 if (attempt++ == 0) {
                     beforeWrite();
                 }
+
                 if (attempt > 3 || rootReference.isLocked()) {
                     rootReference = lockRoot(rootReference, attempt);
                     locked = true;

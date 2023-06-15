@@ -232,35 +232,40 @@ public final class DataUtils {
     /**
      * Read a variable size int.
      *
-     * @param buff the source buffer
+     * @param byteBuffer the source buffer
      * @return the value
      */
-    public static int readVarInt(ByteBuffer buff) {
-        int b = buff.get();
+    public static int readVarInt(ByteBuffer byteBuffer) {
+        int b = byteBuffer.get();
         if (b >= 0) {
             return b;
         }
+
         // a separate function so that this one can be inlined
-        return readVarIntRest(buff, b);
+        return readVarIntRest(byteBuffer, b);
     }
 
-    private static int readVarIntRest(ByteBuffer buff, int b) {
+    private static int readVarIntRest(ByteBuffer byteBuffer, int b) {
         int x = b & 0x7f;
-        b = buff.get();
+        b = byteBuffer.get();
         if (b >= 0) {
             return x | (b << 7);
         }
+
         x |= (b & 0x7f) << 7;
-        b = buff.get();
+        b = byteBuffer.get();
         if (b >= 0) {
             return x | (b << 14);
         }
+
         x |= (b & 0x7f) << 14;
-        b = buff.get();
+        b = byteBuffer.get();
         if (b >= 0) {
             return x | b << 21;
         }
-        x |= ((b & 0x7f) << 21) | (buff.get() << 28);
+
+        x |= ((b & 0x7f) << 21) | (byteBuffer.get() << 28);
+
         return x;
     }
 
@@ -275,14 +280,18 @@ public final class DataUtils {
         if (x >= 0) {
             return x;
         }
+
         x &= 0x7f;
+
         for (int s = 7; s < 64; s += 7) {
             long b = buff.get();
             x |= (b & 0x7f) << s;
+
             if (b >= 0) {
                 break;
             }
         }
+
         return x;
     }
 
@@ -339,34 +348,20 @@ public final class DataUtils {
         }
     }
 
-    /**
-     * Read a string.
-     *
-     * @param buff the source buffer
-     * @return the value
-     */
     public static String readString(ByteBuffer buff) {
         return readString(buff, readVarInt(buff));
     }
 
-    /**
-     * Read a string.
-     *
-     * @param buff the source buffer
-     * @param len  the number of characters
-     * @return the value
-     */
-    public static String readString(ByteBuffer buff, int len) {
+    public static String readString(ByteBuffer byteBuffer, int len) {
         char[] chars = new char[len];
         for (int i = 0; i < len; i++) {
-            int x = buff.get() & 0xff;
+            int x = byteBuffer.get() & 0xff;
             if (x < 0x80) {
                 chars[i] = (char) x;
             } else if (x >= 0xe0) {
-                chars[i] = (char) (((x & 0xf) << 12)
-                        + ((buff.get() & 0x3f) << 6) + (buff.get() & 0x3f));
+                chars[i] = (char) ((x & 0xf) << 12 + (byteBuffer.get() & 0x3f) << 6 + byteBuffer.get() & 0x3f);
             } else {
-                chars[i] = (char) (((x & 0x1f) << 6) + (buff.get() & 0x3f));
+                chars[i] = (char) ((x & 0x1f) << 6 + byteBuffer.get() & 0x3f);
             }
         }
         return new String(chars);
@@ -861,54 +856,60 @@ public final class DataUtils {
     /**
      * Parse a name from key-value pair list.
      *
-     * @param s the list
+     * @param metadataString the list
      * @return value of name item, or {@code null}
      * @throws MVStoreException if parsing failed
      */
-    public static String getMapName(String s) {
-        return getFromMap(s, "name");
+    public static String getMapName(String metadataString) {
+        return getFromMap(metadataString, "name");
     }
 
     /**
      * Parse a specified pair from key-value pair list.
      *
-     * @param s   the list
+     * @param metadataString   the list
      * @param key the name of the key
      * @return value of the specified item, or {@code null}
      * @throws MVStoreException if parsing failed
      */
-    public static String getFromMap(String s, String key) {
+    public static String getFromMap(String metadataString, String key) {
         int keyLength = key.length();
-        for (int i = 0, size = s.length(); i < size; ) {
-            int startKey = i;
-            i = s.indexOf(':', i);
-            if (i < 0) {
-                throw newMVStoreException(ERROR_FILE_CORRUPT, "Not a map: {0}", s);
+        for (int a = 0, metadataStringLength = metadataString.length(); a < metadataStringLength; ) {
+            int startKey = a;
+            a = metadataString.indexOf(':', a);
+
+            if (a < 0) {
+                throw newMVStoreException(ERROR_FILE_CORRUPT, "not a map: {0}", metadataString);
             }
-            if (i++ - startKey == keyLength && s.regionMatches(startKey, key, 0, keyLength)) {
+
+            if (a++ - startKey == keyLength && metadataString.regionMatches(startKey, key, 0, keyLength)) {
                 StringBuilder buff = new StringBuilder();
-                parseMapValue(buff, s, i, size);
+                parseMapValue(buff, metadataString, a, metadataStringLength);
                 return buff.toString();
-            } else {
-                while (i < size) {
-                    char c = s.charAt(i++);
-                    if (c == ',') {
-                        break;
-                    } else if (c == '\"') {
-                        while (i < size) {
-                            c = s.charAt(i++);
-                            if (c == '\\') {
-                                if (i++ == size) {
-                                    throw newMVStoreException(ERROR_FILE_CORRUPT, "Not a map: {0}", s);
-                                }
-                            } else if (c == '\"') {
-                                break;
+            }
+
+            while (a < metadataStringLength) {
+                char c = metadataString.charAt(a++);
+                if (c == ',') {
+                    break;
+                }
+
+                if (c == '\"') {
+                    while (a < metadataStringLength) {
+                        c = metadataString.charAt(a++);
+
+                        if (c == '\\') {
+                            if (a++ == metadataStringLength) {
+                                throw newMVStoreException(ERROR_FILE_CORRUPT, "not a map: {0}", metadataString);
                             }
+                        } else if (c == '\"') {
+                            break;
                         }
                     }
                 }
             }
         }
+
         return null;
     }
 
