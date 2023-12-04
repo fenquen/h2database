@@ -6004,14 +6004,14 @@ public class Parser {
     /**
      * 得到 tokenList和parameterList
      */
-    private void initialize(String sql, ArrayList<Token> tokens, boolean stopOnCloseParen) {
+    private void initialize(String sql, ArrayList<Token> tokenList, boolean stopOnCloseParen) {
         if (sql == null) {
             sql = "";
         }
 
         sqlStr = sql;
 
-        if (tokens == null) {
+        if (tokenList == null) {
             BitSet usedParameters = new BitSet();
 
             Tokenizer tokenizer = new Tokenizer(database, identifiersToUpper, identifiersToLower, nonKeywords);
@@ -6022,6 +6022,7 @@ public class Parser {
                 if (l > Constants.MAX_PARAMETER_INDEX) {
                     throw DbException.getInvalidValueException("parameter index", l);
                 }
+
                 if (l > 0) {
                     parameterList = new ArrayList<>(l);
                     for (int i = 0; i < l; i++) {
@@ -6036,7 +6037,7 @@ public class Parser {
                 }
             }
         } else {
-            this.tokenList = tokens;
+            this.tokenList = tokenList;
         }
 
         resetTokenIndex();

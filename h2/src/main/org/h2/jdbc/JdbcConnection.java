@@ -288,25 +288,14 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
             int id = getNextId(TraceObject.PREPARED_STATEMENT);
 
             if (isDebugEnabled()) {
-                debugCodeAssign(
-                        "PreparedStatement",
-                        TraceObject.PREPARED_STATEMENT,
-                        id,
-                        "prepareStatement(" + quote(sql) + ')'
-                );
+                debugCodeAssign("PreparedStatement", TraceObject.PREPARED_STATEMENT, id, "prepareStatement(" + quote(sql) + ')');
             }
 
             checkClosed();
 
             sql = translateSQL(sql);
 
-            return new JdbcPreparedStatement(
-                    this,
-                    sql,
-                    id,
-                    ResultSet.TYPE_FORWARD_ONLY,
-                    Constants.DEFAULT_RESULT_SET_CONCURRENCY,
-                    null);
+            return new JdbcPreparedStatement(this, sql, id, ResultSet.TYPE_FORWARD_ONLY, Constants.DEFAULT_RESULT_SET_CONCURRENCY, null);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1223,9 +1212,11 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
         if (sql == null) {
             throw DbException.getInvalidValueException("SQL", null);
         }
+
         if (!escapeProcessing || sql.indexOf('{') < 0) {
             return sql;
         }
+
         return translateSQLImpl(sql);
     }
 

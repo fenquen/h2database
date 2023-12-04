@@ -603,8 +603,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public Command prepareLocal(String sql) {
         if (isClosed()) {
-            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1,
-                    "session closed");
+            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "session closed");
         }
 
         Command command;
