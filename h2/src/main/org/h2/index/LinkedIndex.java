@@ -58,7 +58,7 @@ public class LinkedIndex extends Index {
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
+    public void add(SessionLocal sessionLocal, Row row) {
         ArrayList<Value> params = Utils.newSmallArrayList();
         StringBuilder buff = new StringBuilder("INSERT INTO ");
         buff.append(targetTableName).append(" VALUES(");
@@ -79,7 +79,7 @@ public class LinkedIndex extends Index {
         buff.append(')');
         String sql = buff.toString();
         try {
-            link.execute(sql, params, true, session);
+            link.execute(sql, params, true, sessionLocal);
             rowCount++;
         } catch (Exception e) {
             throw TableLink.wrapException(sql, e);

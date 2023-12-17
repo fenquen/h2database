@@ -129,7 +129,7 @@ public class TableValueConstructor extends Query {
         long fetch = offsetFetch.fetch;
         boolean fetchPercent = offsetFetch.fetchPercent;
         int visibleColumnCount = this.visibleColumnCount, resultColumnCount = this.resultColumnCount;
-        LocalResult result = new LocalResult(sessionLocal, expressionArray, visibleColumnCount, resultColumnCount);
+        LocalResult result = new LocalResult(sessionLocal, expressions, visibleColumnCount, resultColumnCount);
         if (sort != null) {
             result.setSortOrder(sort);
         }
@@ -147,7 +147,7 @@ public class TableValueConstructor extends Query {
                 }
                 columnResolver.currentRow = values;
                 for (int i = visibleColumnCount; i < resultColumnCount; i++) {
-                    values[i] = expressionArray[i].getValue(sessionLocal);
+                    values[i] = expressions[i].getValue(sessionLocal);
                 }
                 result.addRow(values);
             }
@@ -191,7 +191,7 @@ public class TableValueConstructor extends Query {
         if (sort != null) {
             cleanupOrder();
         }
-        expressionArray = expressionList.toArray(new Expression[0]);
+        expressions = expressionList.toArray(new Expression[0]);
     }
 
     @Override
@@ -294,7 +294,7 @@ public class TableValueConstructor extends Query {
     @Override
     public boolean isEverything(ExpressionVisitor expressionVisitor) {
         ExpressionVisitor v2 = expressionVisitor.incrementQueryLevel(1);
-        for (Expression e : expressionArray) {
+        for (Expression e : expressions) {
             if (!e.isEverything(v2)) {
                 return false;
             }
@@ -321,7 +321,7 @@ public class TableValueConstructor extends Query {
     public String getPlanSQL(int sqlFlags) {
         StringBuilder builder = new StringBuilder();
         getValuesSQL(builder, sqlFlags, rows);
-        appendEndOfQueryToSQL(builder, sqlFlags, expressionArray);
+        appendEndOfQueryToSQL(builder, sqlFlags, expressions);
         return builder.toString();
     }
 

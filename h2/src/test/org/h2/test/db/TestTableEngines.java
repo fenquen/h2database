@@ -601,7 +601,7 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public void add(SessionLocal session, Row r) {
+                public void add(SessionLocal sessionLocal, Row r) {
                     // do nothing
                 }
             }
@@ -936,7 +936,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public void add(SessionLocal session, Row row) {
+        public void add(SessionLocal sessionLocal, Row row) {
             set.add(row);
         }
 

@@ -397,7 +397,9 @@ public abstract class Prepared {
         if ((++rowScanCount & 127) == 0) {
             checkCanceled();
         }
+
         this.currentRowNumber = rowNumber;
+
         setProgress();
     }
 

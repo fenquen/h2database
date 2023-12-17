@@ -43,7 +43,7 @@ final class RollbackDecisionMaker extends MVMap.DecisionMaker<Record<?,?>> {
                     (operationId = valueToRestore.getOperationId()) == 0 ||
                     TransactionStore.getTransactionId(operationId) == transactionId
                             && TransactionStore.getLogId(operationId) < toLogId) {
-                int mapId = existingValue.mapId;
+                int mapId = existingValue.mvMapId;
                 MVMap<Object, VersionedValue<Object>> map = store.openMap(mapId);
                 if (map != null && !map.isClosed()) {
                     Object key = existingValue.key;

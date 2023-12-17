@@ -1,0 +1,32 @@
+meta = {MVMap@1849}  size = 20
+ "map.2" -> "name:_"
+ "map.3" -> "name:openTransactions"
+ "map.5" -> "name:table.0,key:8fa25204,val:5803b3f1"
+ "map.6" -> "name:lobMap,key:8fa25204,val:f4470498"
+ "map.7" -> "name:tempLobMap,key:8fa25204,val:59a6a071"
+ "map.8" -> "name:lobRef,key:eabe0274,val:27f8302d"
+ "map.9" -> "name:lobData,key:8fa25204,val:59a6a071"
+ "map.b" -> "name:table.3,createVersion:1,key:8fa25204,val:5eb3a958"
+ "map.e" -> "name:undoLog.1,createVersion:3"
+ "map.f" -> "name:undoLog.2,createVersion:3"
+ "name._" -> "2"
+ "name.lobData" -> "9"
+ "name.lobMap" -> "6"
+ "name.lobRef" -> "8"
+ "name.openTransactions" -> "3"
+ "name.table.0" -> "5"
+ "name.table.3" -> "b"
+ "name.tempLobMap" -> "7"
+ "name.undoLog.1" -> "e"
+ "name.undoLog.2" -> "f"
+
+layout = {MVMap@1862}  size = 7
+ "chunk.1" -> "chunk:1,block:2,len:1,liveMax:0,livePages:0,map:9,max:410,next:3,pages:4,root:400000f746,time:1f,unused:52,unusedAtVersion:1,version:1,toc:427,occupancy:0f"
+ "chunk.2" -> "chunk:2,block:3,len:1,liveMax:120,livePages:2,map:b,max:7a0,next:4,pages:5,root:800001654e,time:52,unusedAtVersion:2,version:2,toc:696,occupancy:19"
+ "meta.id" -> "1"
+ "root.1" -> "c00000a852"
+ "root.2" -> "c000002b10"
+ "root.5" -> "8000009c8c"
+ "root.b" -> "800000d780"
+
+getOperationId(transactionId, logId);

@@ -14,11 +14,12 @@ package org.h2.mvstore;
 public final class CursorPos<K, V> {
 
     /**
-     * The page at the current level.
+     * 对应的page
      */
     public Page<K, V> page;
 
     /**
+     * page上的index
      * Index of the key (within page above) used to go down to a lower level
      * in case of intermediate nodes, or index of the target key for leaf a node.
      * In a later case, it could be negative, if the key is not present.
@@ -56,6 +57,7 @@ public final class CursorPos<K, V> {
             if (index < 0) {
                 index = -index;
             }
+
             cursorPos = new CursorPos<>(page, index, cursorPos);
             page = page.getChildPage(index);
         }

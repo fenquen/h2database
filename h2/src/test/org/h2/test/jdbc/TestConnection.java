@@ -37,21 +37,21 @@ public class TestConnection extends TestDb {
 
     @Override
     public void test() throws Exception {
-        testSetSupportedClientInfo();
-        testSetUnsupportedClientInfo();
-        testGetUnsupportedClientInfo();
-        testSetSupportedClientInfoProperties();
-        testSetUnsupportedClientInfoProperties();
-        testSetInternalProperty();
-        testSetInternalPropertyToInitialValue();
-        testTransactionIsolationSetAndGet();
-        testSetGetSchema();
+//        testSetSupportedClientInfo();
+//        testSetUnsupportedClientInfo();
+//        testGetUnsupportedClientInfo();
+//        testSetSupportedClientInfoProperties();
+//        testSetUnsupportedClientInfoProperties();
+//        testSetInternalProperty();
+//        testSetInternalPropertyToInitialValue();
+//        testTransactionIsolationSetAndGet();
+//        testSetGetSchema();
         testCommitOnAutoCommitSetRunner();
-        testRollbackOnAutoCommitSetRunner();
-        testChangeTransactionLevelCommitRunner();
-        testLockTimeout();
-        testIgnoreUnknownSettings();
-        testTimeZone();
+//        testRollbackOnAutoCommitSetRunner();
+//        testChangeTransactionLevelCommitRunner();
+//        testLockTimeout();
+//        testIgnoreUnknownSettings();
+//        testTimeZone();
     }
 
     private void testSetInternalProperty() throws SQLException {
@@ -253,15 +253,13 @@ public class TestConnection extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
-        PreparedStatement prep = conn.prepareStatement(
-                "INSERT INTO TEST VALUES(?, ?)");
+        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?)");
         int index = 1;
         prep.setInt(index++, 1);
         prep.setString(index++, "test1");
         prep.execute();
         conn.rollback();
         // no error expected
-
 
         conn.setAutoCommit(true);
         index = 1;

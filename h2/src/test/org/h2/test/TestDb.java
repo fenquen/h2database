@@ -28,8 +28,7 @@ public abstract class TestDb extends TestBase {
      * @return the connection
      */
     public Connection getConnection(String name) throws SQLException {
-        return getConnectionInternal(getURL(name, true), getUser(),
-                getPassword());
+        return getConnectionInternal(getURL(name, true), getUser(), getPassword());
     }
 
     /**
@@ -137,8 +136,7 @@ public abstract class TestDb extends TestBase {
         return url;
     }
 
-    private static Connection getConnectionInternal(String url, String user,
-            String password) throws SQLException {
+    private static Connection getConnectionInternal(String url, String user, String password) throws SQLException {
         org.h2.Driver.load();
         // url += ";DEFAULT_TABLE_TYPE=1";
         // Class.forName("org.hsqldb.jdbcDriver");

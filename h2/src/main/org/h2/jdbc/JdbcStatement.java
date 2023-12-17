@@ -87,32 +87,42 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     public ResultSet executeQuery(String sql) throws SQLException {
         try {
             int id = getNextId(TraceObject.RESULT_SET);
+
             if (isDebugEnabled()) {
                 debugCodeAssign("ResultSet", TraceObject.RESULT_SET, id, "executeQuery(" + quote(sql) + ')');
             }
+
             synchronized (session) {
                 checkClosed();
+
                 closeOldResultSet();
+
                 sql = JdbcConnection.translateSQL(sql, escapeProcessing);
-                CommandInterface command = jdbcConnection.prepareCommand(sql, fetchSize);
-                ResultInterface result;
+                CommandInterface commandInterface = jdbcConnection.prepareCommand(sql, fetchSize);
+
                 boolean lazy = false;
                 boolean scrollable = resultSetType != ResultSet.TYPE_FORWARD_ONLY;
                 boolean updatable = resultSetConcurrency == ResultSet.CONCUR_UPDATABLE;
-                setExecutingStatement(command);
+
+                setExecutingStatement(commandInterface);
+
+                ResultInterface resultInterface;
                 try {
-                    result = command.executeQuery(maxRows, scrollable);
-                    lazy = result.isLazy();
+                    resultInterface = commandInterface.executeQuery(maxRows, scrollable);
+                    lazy = resultInterface.isLazy();
                 } finally {
                     if (!lazy) {
                         setExecutingStatement(null);
                     }
                 }
+
                 if (!lazy) {
-                    command.close();
+                    commandInterface.close();
                 }
-                resultSet = new JdbcResultSet(jdbcConnection, this, command, result, id, scrollable, updatable, false);
+
+                resultSet = new JdbcResultSet(jdbcConnection, this, commandInterface, resultInterface, id, scrollable, updatable, false);
             }
+
             return resultSet;
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -235,30 +245,37 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
         if (getClass() != JdbcStatement.class) {
             throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
         }
+
         int id = getNextId(TraceObject.RESULT_SET);
+
         checkClosed();
+
         closeOldResultSet();
+
         sql = JdbcConnection.translateSQL(sql, escapeProcessing);
-        CommandInterface command = jdbcConnection.prepareCommand(sql, fetchSize);
+
+        CommandInterface commandInterface = jdbcConnection.prepareCommand(sql, fetchSize);
+
         boolean lazy = false;
         boolean returnsResultSet;
         synchronized (session) {
-            setExecutingStatement(command);
+            setExecutingStatement(commandInterface);
+
             try {
-                if (command.isQuery()) {
+                if (commandInterface.isQuery()) {
                     returnsResultSet = true;
                     boolean scrollable = resultSetType != ResultSet.TYPE_FORWARD_ONLY;
                     boolean updatable = resultSetConcurrency == ResultSet.CONCUR_UPDATABLE;
-                    ResultInterface result = command.executeQuery(maxRows, scrollable);
+                    ResultInterface result = commandInterface.executeQuery(maxRows, scrollable);
                     lazy = result.isLazy();
-                    resultSet = new JdbcResultSet(jdbcConnection, this, command, result, id, scrollable, updatable, false);
+                    resultSet = new JdbcResultSet(jdbcConnection, this, commandInterface, result, id, scrollable, updatable, false);
                 } else {
                     returnsResultSet = false;
-                    ResultWithGeneratedKeys result = command.executeUpdate(generatedKeysRequest);
+                    ResultWithGeneratedKeys result = commandInterface.executeUpdate(generatedKeysRequest);
                     updateCount = result.getUpdateCount();
                     ResultInterface gk = result.getGeneratedKeys();
                     if (gk != null) {
-                        generatedKeys = new JdbcResultSet(jdbcConnection, this, command, gk, id, true, false, false);
+                        generatedKeys = new JdbcResultSet(jdbcConnection, this, commandInterface, gk, id, true, false, false);
                     }
                 }
             } finally {
@@ -267,9 +284,11 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
                 }
             }
         }
+
         if (!lazy) {
-            command.close();
+            commandInterface.close();
         }
+
         return returnsResultSet;
     }
 
@@ -1276,6 +1295,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
             if (resultSet != null) {
                 resultSet.closeInternal(true);
             }
+
             if (generatedKeys != null) {
                 generatedKeys.closeInternal(true);
             }

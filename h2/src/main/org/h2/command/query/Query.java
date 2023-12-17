@@ -84,7 +84,7 @@ public abstract class Query extends Prepared {
      *
      * @see #expressionList
      */
-    Expression[] expressionArray;
+    Expression[] expressions;
 
     /**
      * Describes elements of the ORDER BY clause of a query.
@@ -172,7 +172,7 @@ public abstract class Query extends Prepared {
 
     @Override
     public ResultInterface queryMeta() {
-        LocalResult result = new LocalResult(sessionLocal, expressionArray, visibleColumnCount, resultColumnCount);
+        LocalResult result = new LocalResult(sessionLocal, expressions, visibleColumnCount, resultColumnCount);
         result.done();
         return result;
     }
@@ -304,9 +304,9 @@ public abstract class Query extends Prepared {
      */
     public TypeInfo getRowDataType() {
         if (visibleColumnCount == 1) {
-            return expressionArray[0].getType();
+            return expressions[0].getType();
         }
-        return TypeInfo.getTypeInfo(Value.ROW, -1L, -1, new ExtTypeInfoRow(expressionArray, visibleColumnCount));
+        return TypeInfo.getTypeInfo(Value.ROW, -1L, -1, new ExtTypeInfoRow(expressions, visibleColumnCount));
     }
 
     /**
@@ -491,17 +491,16 @@ public abstract class Query extends Prepared {
 
         fireBeforeSelectTriggers();
 
-        if (noCache ||
-                !sessionLocal.database.getOptimizeReuseResults() ||
-                (sessionLocal.isLazyQueryExecution() && !neverLazy)) {
+        if (noCache || !sessionLocal.database.getOptimizeReuseResults() || (sessionLocal.isLazyQueryExecution() && !neverLazy)) {
             return queryWithoutCacheLazyCheck(limit, resultTarget);
         }
 
         Value[] params = getParameterValues();
-        long now = sessionLocal.getDatabase().getModificationDataId();
+
+        long now = sessionLocal.database.modificationDataId.get();
+
         if (isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR)) {
-            if (lastResult != null && !lastResult.isClosed() &&
-                    limit == lastLimit) {
+            if (lastResult != null && !lastResult.isClosed() && limit == lastLimit) {
                 if (sameResultAsLast(params, lastParameters, lastEvaluated)) {
                     lastResult = lastResult.createShallowCopy(sessionLocal);
                     if (lastResult != null) {
@@ -939,39 +938,51 @@ public abstract class Query extends Prepared {
     }
 
     /**
-     * Applies limits, if any, to a result and makes it ready for value
-     * retrieval.
+     * applies limits, if any, to a result and makes it ready for value retrieval
      *
-     * @param result       the result
+     * @param localResult  the result
      * @param offset       OFFSET value
      * @param fetch        FETCH value
      * @param fetchPercent whether FETCH value is a PERCENT value
-     * @param target       target result or null
+     * @param resultTarget target result or null
      * @return the result or null
      */
-    LocalResult finishResult(LocalResult result, long offset, long fetch, boolean fetchPercent, ResultTarget target) {
+    LocalResult finishResult(LocalResult localResult,
+                             long offset,
+                             long fetch,
+                             boolean fetchPercent,
+                             ResultTarget resultTarget) {
         if (offset != 0) {
-            result.setOffset(offset);
+            localResult.setOffset(offset);
         }
+
         if (fetch >= 0) {
-            result.setLimit(fetch);
-            result.setFetchPercent(fetchPercent);
+            localResult.setLimit(fetch);
+            localResult.setFetchPercent(fetchPercent);
+
             if (withTies) {
-                result.setWithTies(sort);
+                localResult.setWithTies(sort);
             }
         }
-        result.done();
+
+        localResult.done();
+
         if (randomAccessResult && !distinct) {
-            result = convertToDistinct(result);
+            localResult = convertToDistinct(localResult);
         }
-        if (target != null) {
-            while (result.next()) {
-                target.addRow(result.currentRow());
+
+        // 要是resultTarget不是null 那么localResult内容迁移到resultTarget
+        if (resultTarget != null) {
+            while (localResult.next()) {
+                resultTarget.addRow(localResult.currentRow());
             }
-            result.close();
+
+            localResult.close();
+
             return null;
         }
-        return result;
+
+        return localResult;
     }
 
     /**
@@ -981,7 +992,7 @@ public abstract class Query extends Prepared {
      * @return the distinct result
      */
     LocalResult convertToDistinct(ResultInterface result) {
-        LocalResult distinctResult = new LocalResult(sessionLocal, expressionArray, visibleColumnCount, resultColumnCount);
+        LocalResult distinctResult = new LocalResult(sessionLocal, expressions, visibleColumnCount, resultColumnCount);
         distinctResult.setDistinct();
         result.reset();
         while (result.next()) {

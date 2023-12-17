@@ -72,7 +72,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
      */
     void prepareAndExecute(Database db, SessionLocal systemSession, DatabaseEventListener listener) {
         try {
-            Prepared command = systemSession.prepare(sql);
+            Prepared command = systemSession.prepare(sql);// create cached table TEST
             command.setPersistedObjectId(id);
             command.update();
         } catch (DbException e) {

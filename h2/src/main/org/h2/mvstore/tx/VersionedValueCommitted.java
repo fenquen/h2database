@@ -16,10 +16,10 @@ class VersionedValueCommitted<T> extends VersionedValue<T> {
     /**
      * The current value.
      */
-    public final T value;
+    public final T currentValue;
 
-    VersionedValueCommitted(T value) {
-        this.value = value;
+    VersionedValueCommitted(T currentValue) {
+        this.currentValue = currentValue;
     }
 
     /**
@@ -38,16 +38,16 @@ class VersionedValueCommitted<T> extends VersionedValue<T> {
 
     @Override
     public T getCurrentValue() {
-        return value;
+        return currentValue;
     }
 
     @Override
     public T getCommittedValue() {
-        return value;
+        return currentValue;
     }
 
     @Override
     public String toString() {
-        return String.valueOf(value);
+        return String.valueOf(currentValue);
     }
 }

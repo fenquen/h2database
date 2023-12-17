@@ -66,7 +66,7 @@ public final class Chunk {
     /**
      * The start block number within the file.
      */
-    public volatile long block;
+    public volatile long startBlockNumInFile;
 
     /**
      * 占有了多少个block
@@ -168,7 +168,7 @@ public final class Chunk {
     private Chunk(Map<String, String> map, boolean full) {
         this(DataUtils.readHexInt(map, ATTR_CHUNK, 0));
 
-        block = DataUtils.readHexLong(map, ATTR_BLOCK, 0);
+        startBlockNumInFile = DataUtils.readHexLong(map, ATTR_BLOCK, 0);
         version = DataUtils.readHexLong(map, ATTR_VERSION, id);
 
         if (full) {
@@ -192,8 +192,7 @@ public final class Chunk {
             } else {
                 occupancy = BitSet.valueOf(StringUtils.convertHexString2ByteArr(v));
                 if (pageCount - pageCountLive != occupancy.cardinality()) {
-                    throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                            "inconsistent occupancy info {0} - {1} != {2} {3}", pageCount, pageCountLive, occupancy.cardinality(), this);
+                    throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "inconsistent occupancy info {0} - {1} != {2} {3}", pageCount, pageCountLive, occupancy.cardinality(), this);
                 }
             }
         }
@@ -252,10 +251,7 @@ public final class Chunk {
     }
 
     /**
-     * Get the metadata key for the given chunk id.
-     *
-     * @param chunkId the chunk id
-     * @return the metadata key
+     * "chunk.chunkId"
      */
     static String getMetaKey(int chunkId) {
         return ATTR_CHUNK + "." + Integer.toHexString(chunkId);
@@ -294,52 +290,63 @@ public final class Chunk {
     }
 
     /**
-     * Get the chunk data as a string.
-     *
-     * @return the string
+     * get the chunk data as a string
      */
     public String asString() {
         StringBuilder stringBuilder = new StringBuilder(240);
+
         DataUtils.appendMap(stringBuilder, ATTR_CHUNK, id);
-        DataUtils.appendMap(stringBuilder, ATTR_BLOCK, block);
+        DataUtils.appendMap(stringBuilder, ATTR_BLOCK, startBlockNumInFile);
         DataUtils.appendMap(stringBuilder, ATTR_LEN, blockCount);
+
         if (maxLen != maxLenLive) {
             DataUtils.appendMap(stringBuilder, ATTR_LIVE_MAX, maxLenLive);
         }
+
         if (pageCount != pageCountLive) {
             DataUtils.appendMap(stringBuilder, ATTR_LIVE_PAGES, pageCountLive);
         }
+
         DataUtils.appendMap(stringBuilder, ATTR_MAP, mapId);
         DataUtils.appendMap(stringBuilder, ATTR_MAX, maxLen);
+
         if (next != 0) {
             DataUtils.appendMap(stringBuilder, ATTR_NEXT, next);
         }
+
         DataUtils.appendMap(stringBuilder, ATTR_PAGES, pageCount);
         DataUtils.appendMap(stringBuilder, ATTR_ROOT, layoutRootPos);
         DataUtils.appendMap(stringBuilder, ATTR_TIME, time);
+
         if (unused != 0) {
             DataUtils.appendMap(stringBuilder, ATTR_UNUSED, unused);
         }
+
         if (unusedAtVersion != 0) {
             DataUtils.appendMap(stringBuilder, ATTR_UNUSED_AT_VERSION, unusedAtVersion);
         }
+
         DataUtils.appendMap(stringBuilder, ATTR_VERSION, version);
+
         if (pinCount > 0) {
             DataUtils.appendMap(stringBuilder, ATTR_PIN_COUNT, pinCount);
         }
+
         if (tocPos > 0) {
             DataUtils.appendMap(stringBuilder, ATTR_TOC, tocPos);
         }
+
         if (!occupancy.isEmpty()) {
             DataUtils.appendMap(stringBuilder, ATTR_OCCUPANCY, StringUtils.convertBytesToHex(occupancy.toByteArray()));
         }
+
         return stringBuilder.toString();
     }
 
     byte[] getFooterBytes() {
         StringBuilder buff = new StringBuilder(FOOTER_LENGTH);
         DataUtils.appendMap(buff, ATTR_CHUNK, id);
-        DataUtils.appendMap(buff, ATTR_BLOCK, block);
+        DataUtils.appendMap(buff, ATTR_BLOCK, startBlockNumInFile);
         DataUtils.appendMap(buff, ATTR_VERSION, version);
         byte[] bytes = buff.toString().getBytes(StandardCharsets.ISO_8859_1);
         int checksum = DataUtils.getFletcher32(bytes, 0, bytes.length);
@@ -352,7 +359,7 @@ public final class Chunk {
     }
 
     boolean isSaved() {
-        return block != Long.MAX_VALUE;
+        return startBlockNumInFile != Long.MAX_VALUE;
     }
 
     boolean isLive() {
@@ -373,50 +380,52 @@ public final class Chunk {
     /**
      * Read a page of data into a ByteBuffer.
      *
-     * @param fileStore to use
-     * @param offset    of the page data
-     * @param position  page pos
+     * @param fileStore         to use
+     * @param pageOffsetInChunk of the page data
+     * @param position          page pos
      * @return ByteBuffer containing page data.
      */
-    ByteBuffer readBufferForPage(FileStore fileStore, int offset, long position) {
+    ByteBuffer readBufferForPage(FileStore fileStore, int pageOffsetInChunk, long position) {
         assert isSaved() : this;
 
         while (true) {
-            long originalBlock = block;
+            long startBlockNumInFileOriginal = startBlockNumInFile;
 
             try {
-                long positionInFile = originalBlock * MVStore.BLOCK_SIZE;
-                long maxPos = positionInFile + (long) blockCount * MVStore.BLOCK_SIZE;
+                // 当前是该chunk在file的起始的绝对position
+                long chunkStartPosInFile = startBlockNumInFileOriginal * MVStore.BLOCK_SIZE;
 
-                positionInFile += offset;
-                if (positionInFile < 0) {
-                    throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                            "negative positionInFile:{0}; position:{1}, c={2}", positionInFile, position, toString());
+                // 该chunk在file的最大的绝对position
+                long chunkEndPosInFile = chunkStartPosInFile + (long) blockCount * MVStore.BLOCK_SIZE;
+
+                long pagePosInFile = chunkStartPosInFile + pageOffsetInChunk;
+                if (pagePosInFile < 0) {
+                    throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "negative positionInFile:{0}; position:{1}, c={2}", pagePosInFile, position, toString());
                 }
 
                 int length = DataUtils.getPageMaxLength(position);
                 if (length == DataUtils.PAGE_LARGE) {
                     // read the first bytes to figure out actual length
-                    length = fileStore.readFully(positionInFile, 128).getInt();
+                    length = fileStore.readFully(pagePosInFile, 128).getInt();
 
                     // pageNo is deliberately not included into length to preserve compatibility
                     // TODO: remove this adjustment when page on disk format is re-organized
                     length += 4;
                 }
 
-                length = (int) Math.min(maxPos - positionInFile, length);
+                length = (int) Math.min(chunkEndPosInFile - pagePosInFile, length);
                 if (length < 0) {
-                    throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                            "Illegal page length {0} reading at {1}; max pos {2} ", length, positionInFile, maxPos);
+                    throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "Illegal page length {0} reading at {1}; max pos {2} ", length, pagePosInFile, chunkEndPosInFile);
                 }
 
-                ByteBuffer byteBuffer = fileStore.readFully(positionInFile, length);
+                ByteBuffer byteBuffer = fileStore.readFully(pagePosInFile, length);
 
-                if (originalBlock == block) {
+                // 要是中途有变化需要不断循环
+                if (startBlockNumInFileOriginal == startBlockNumInFile) {
                     return byteBuffer;
                 }
             } catch (MVStoreException ex) {
-                if (originalBlock == block) {
+                if (startBlockNumInFileOriginal == startBlockNumInFile) {
                     throw ex;
                 }
             }
@@ -427,17 +436,17 @@ public final class Chunk {
         assert isSaved() : this;
         assert tocPos > 0;
         while (true) {
-            long originalBlock = block;
+            long originalBlock = startBlockNumInFile;
             try {
                 long filePos = originalBlock * MVStore.BLOCK_SIZE + tocPos;
                 int length = pageCount * 8;
                 long[] toc = new long[pageCount];
                 fileStore.readFully(filePos, length).asLongBuffer().get(toc);
-                if (originalBlock == block) {
+                if (originalBlock == startBlockNumInFile) {
                     return toc;
                 }
             } catch (MVStoreException ex) {
-                if (originalBlock == block) {
+                if (originalBlock == startBlockNumInFile) {
                     throw ex;
                 }
             }
@@ -461,8 +470,7 @@ public final class Chunk {
         if (singleWriter) {
             pinCount++;
         }
-        assert pageCount - pageCountLive == occupancy.cardinality()
-                : pageCount + " - " + pageCountLive + " <> " + occupancy.cardinality() + " : " + occupancy;
+        assert pageCount - pageCountLive == occupancy.cardinality() : pageCount + " - " + pageCountLive + " <> " + occupancy.cardinality() + " : " + occupancy;
     }
 
     /**
@@ -527,7 +535,7 @@ public final class Chunk {
 
         @Override
         public int compare(Chunk one, Chunk two) {
-            return Long.compare(one.block, two.block);
+            return Long.compare(one.startBlockNumInFile, two.startBlockNumInFile);
         }
     }
 }

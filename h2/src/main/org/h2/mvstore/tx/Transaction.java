@@ -68,9 +68,8 @@ public final class Transaction {
      */
     private static final int STATUS_ROLLED_BACK = 5;
 
-    private static final String[] STATUS_NAMES = {
-            "CLOSED", "OPEN", "PREPARED", "COMMITTED", "ROLLING_BACK", "ROLLED_BACK"
-    };
+    private static final String[] STATUS_NAMES = {"CLOSED", "OPEN", "PREPARED", "COMMITTED", "ROLLING_BACK", "ROLLED_BACK"};
+
     /**
      * How many bits of the "operation id" we store in the transaction belong to the
      * log id (the rest belong to the transaction id).
@@ -164,7 +163,7 @@ public final class Transaction {
     /**
      * RootReferences for undo log snapshots
      */
-    private RootReference<Long, Record<?, ?>>[] undoLogRootReferences;
+    public RootReference<Long, Record<?, ?>>[] undoLogRootReferences;
 
     /**
      * Map of transactional maps for this transaction
@@ -174,12 +173,18 @@ public final class Transaction {
     /**
      * The current isolation level.
      */
-    final IsolationLevel isolationLevel;
+    public final IsolationLevel isolationLevel;
 
-
-    Transaction(TransactionStore transactionStore, int transactionId, long sequenceNum, int status,
-                String name, long logId, int timeoutMillis, int ownerId,
-                IsolationLevel isolationLevel, TransactionStore.RollbackListener listener) {
+    Transaction(TransactionStore transactionStore,
+                int transactionId,
+                long sequenceNum,
+                int status,
+                String name,
+                long logId,
+                int timeoutMillis,
+                int ownerId,
+                IsolationLevel isolationLevel,
+                TransactionStore.RollbackListener listener) {
         this.transactionStore = transactionStore;
         this.transactionId = transactionId;
         this.sequenceNum = sequenceNum;
@@ -216,8 +221,10 @@ public final class Transaction {
     private long setStatus(int status) {
         while (true) {
             long currentState = statusAndLogId.get();
+
             long logId = getLogId(currentState);
             int currentStatus = getStatus(currentState);
+
             boolean valid;
             switch (status) {
                 case STATUS_ROLLING_BACK:
@@ -247,13 +254,16 @@ public final class Transaction {
                     valid = false;
                     break;
             }
+
             if (!valid) {
                 throw DataUtils.newMVStoreException(
                         DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE,
-                        "Transaction was illegally transitioned from {0} to {1}",
+                        "transaction was illegally transitioned from {0} to {1}",
                         getStatusName(currentStatus), getStatusName(status));
             }
+
             long newState = composeState(status, logId, hasRollback(currentState));
+
             if (statusAndLogId.compareAndSet(currentState, newState)) {
                 return currentState;
             }
@@ -347,11 +357,12 @@ public final class Transaction {
                 committingTxs = transactionStore.committingTransactions.get();
 
                 for (MVMap<Object, VersionedValue<Object>> mvMap : mvMaps) {
-                    TransactionMap<?, ?> txMap = openMapX(mvMap);
-                    txMap.statementSnapshot = new Snapshot(mvMap.flushAndGetRootReference(), committingTxs);
+                    TransactionMap<?, ?> transactionMap = openMapX(mvMap);
+                    transactionMap.statementSnapshot = new Snapshot(mvMap.flushAndGetRootReference(), committingTxs);
                 }
 
                 if (isolationLevel == IsolationLevel.READ_COMMITTED) {
+                    // openTransactions对应的各个事务的undoLog对应的rootReference
                     undoLogRootReferences = transactionStore.collectUndoLogRootReferences();
                 }
             } while (committingTxs != transactionStore.committingTransactions.get());
@@ -362,8 +373,8 @@ public final class Transaction {
             // should be considered as committed.
             // Subsequent processing uses this snapshot info only.
             for (MVMap<Object, VersionedValue<Object>> mvMap : mvMaps) {
-                TransactionMap<?, ?> txMap = openMapX(mvMap);
-                txMap.promoteSnapshot();
+                TransactionMap<?, ?> transactionMap = openMapX(mvMap);
+                transactionMap.promoteSnapshot();
             }
         }
     }
@@ -377,7 +388,7 @@ public final class Transaction {
         }
 
         for (TransactionMap<?, ?> transactionMap : transactionMaps.values()) {
-            transactionMap.setStatementSnapshot(null);
+            transactionMap.statementSnapshot = null;
         }
     }
 
@@ -404,18 +415,17 @@ public final class Transaction {
      * @return key for the newly added undo log entry
      */
     long log(Record<?, ?> logRecord) {
-        long currentState = statusAndLogId.getAndIncrement();
-        long logId = getLogId(currentState);
+        long statusAndLogId = this.statusAndLogId.getAndIncrement();
+
+        long logId = getLogId(statusAndLogId);
         if (logId >= LOG_ID_LIMIT) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_TRANSACTION_TOO_BIG,
-                    "Transaction {0} has too many changes",
-                    transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_TOO_BIG, "transaction {0} has too many changes", transactionId);
         }
-        int currentStatus = getStatus(currentState);
+
+        int currentStatus = getStatus(statusAndLogId);
         checkOpen(currentStatus);
-        long undoKey = transactionStore.addUndoLogRecord(transactionId, logId, logRecord);
-        return undoKey;
+
+        return transactionStore.addUndoLogRecord(transactionId, logId, logRecord);
     }
 
     /**
@@ -425,10 +435,7 @@ public final class Transaction {
         long currentState = statusAndLogId.decrementAndGet();
         long logId = getLogId(currentState);
         if (logId >= LOG_ID_LIMIT) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_TRANSACTION_CORRUPT,
-                    "Transaction {0} has internal error",
-                    transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_CORRUPT, "transaction {0} has internal error", transactionId);
         }
         int currentStatus = getStatus(currentState);
         checkOpen(currentStatus);
@@ -460,16 +467,16 @@ public final class Transaction {
     public <K, V> TransactionMap<K, V> openMap(String name,
                                                DataType<K> keyType,
                                                DataType<V> valueType) {
-        MVMap<K, VersionedValue<V>> map = transactionStore.openVersionedMap(name, keyType, valueType);
-        return openMapX(map);
+        MVMap<K, VersionedValue<V>> mvMap = transactionStore.openVersionedMap(name, keyType, valueType);
+        return openMapX(mvMap);
     }
 
     /**
      * Open the transactional version of the given map.
      *
-     * @param <K> the key type
-     * @param <V> the value type
-     * @param mvMap the base map
+     * @param <K>   the key type
+     * @param <V>   the value type
+     * @param mvMap the base map 来源是transactionMap
      * @return the transactional map
      */
     @SuppressWarnings("unchecked")
@@ -501,14 +508,18 @@ public final class Transaction {
      */
     public void commit() {
         assert transactionStore.openTransactions.get().get(transactionId);
+
         markTransactionEnd();
+
         Throwable ex = null;
         boolean hasChanges = false;
         int previousStatus = STATUS_OPEN;
+
         try {
-            long state = setStatus(STATUS_COMMITTED);
-            hasChanges = hasChanges(state);
-            previousStatus = getStatus(state);
+            long statusAndLogId = setStatus(STATUS_COMMITTED);
+            hasChanges = hasChanges(statusAndLogId);
+            previousStatus = getStatus(statusAndLogId);
+
             if (hasChanges) {
                 transactionStore.commit(this, previousStatus == STATUS_COMMITTED);
             }
@@ -605,8 +616,7 @@ public final class Transaction {
      * given savepoint (in reverse order than they occurred). The value of
      * the change is the value before the change was applied.
      *
-     * @param savepointId the savepoint id, 0 meaning the beginning of the
-     *                    transaction
+     * @param savepointId the savepoint id, 0 meaning the beginning of the transaction
      * @return the changes
      */
     public Iterator<TransactionStore.Change> getChanges(long savepointId) {
@@ -631,9 +641,7 @@ public final class Transaction {
      */
     private void checkOpen(int status) {
         if (status != STATUS_OPEN) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE,
-                    "Transaction {0} has status {1}, not OPEN", transactionId, getStatusName(status));
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE, "transaction {0} has status {1}, not OPEN", transactionId, getStatusName(status));
         }
     }
 
@@ -642,8 +650,7 @@ public final class Transaction {
      */
     private void checkNotClosed() {
         if (getStatus() == STATUS_CLOSED) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_CLOSED, "Transaction {0} is closed", transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_CLOSED, "Transaction {0} is closed", transactionId);
         }
     }
 
@@ -808,6 +815,7 @@ public final class Transaction {
         if (hasRollback) {
             status |= 1 << STATUS_BITS;
         }
+
         return ((long) status << LOG_ID_BITS1) | logId;
     }
 

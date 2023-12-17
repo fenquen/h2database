@@ -23,7 +23,7 @@ import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreException;
 import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionMap;
-import org.h2.mvstore.tx.TransactionMap.TMIterator;
+import org.h2.mvstore.tx.TransactionMap.TransactionMapIterator;
 import org.h2.mvstore.type.DataType;
 import org.h2.result.Row;
 import org.h2.result.RowFactory;
@@ -175,12 +175,12 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
-        TransactionMap<SearchRow,Value> map = getMap(session);
+    public void add(SessionLocal sessionLocal, Row row) {
+        TransactionMap<SearchRow,Value> map = getMap(sessionLocal);
         SearchRow key = convertToKey(row, null);
         boolean checkRequired = uniqueColumnColumn > 0 && !mayHaveNullDuplicates(row);
         if (checkRequired) {
-            boolean repeatableRead = !session.getTransaction().allowNonRepeatableRead();
+            boolean repeatableRead = !sessionLocal.getTransaction().allowNonRepeatableRead();
             checkUnique(repeatableRead, map, row, Long.MIN_VALUE);
         }
 
@@ -208,14 +208,14 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
             // In order to guarantee repeatable reads, snapshot taken at the beginning of the statement or transaction
             // need to be checked additionally, because existence of the key should be accounted for,
             // even if since then, it was already deleted by another (possibly committed) transaction.
-            TMIterator<SearchRow, Value, SearchRow> it = map.keyIterator(from, to);
+            TransactionMapIterator<SearchRow, Value, SearchRow> it = map.keyIterator(from, to);
             for (SearchRow k; (k = it.fetchNext()) != null;) {
                 if (newKey != k.getKey() && !map.isDeletedByCurrentTransaction(k)) {
                     throw getDuplicateKeyException(k.toString());
                 }
             }
         }
-        TMIterator<SearchRow, Value, SearchRow> it = map.keyIteratorUncommitted(from, to);
+        TransactionMapIterator<SearchRow, Value, SearchRow> it = map.keyIteratorUncommitted(from, to);
         for (SearchRow k; (k = it.fetchNext()) != null;) {
             if (newKey != k.getKey()) {
                 if (map.getImmediate(k) != null) {
@@ -328,7 +328,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
 
     @Override
     public Cursor findFirstOrLast(SessionLocal session, boolean first) {
-        TMIterator<SearchRow, Value, SearchRow> iter = getMap(session).keyIterator(null, !first);
+        TransactionMapIterator<SearchRow, Value, SearchRow> iter = getMap(session).keyIterator(null, !first);
         for (SearchRow key; (key = iter.fetchNext()) != null;) {
             if (key.getValue(columnIds[0]) != ValueNull.INSTANCE) {
                 return new SingleRowCursor(mvTable.getRow(session, key.getKey()));
@@ -402,12 +402,12 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     static final class MVStoreCursor implements Cursor {
 
         private final SessionLocal             session;
-        private final TMIterator<SearchRow, Value, SearchRow> it;
+        private final TransactionMapIterator<SearchRow, Value, SearchRow> it;
         private final MVTable             mvTable;
         private       SearchRow           current;
         private       Row                 row;
 
-        MVStoreCursor(SessionLocal session, TMIterator<SearchRow, Value, SearchRow> it, MVTable mvTable) {
+        MVStoreCursor(SessionLocal session, TransactionMapIterator<SearchRow, Value, SearchRow> it, MVTable mvTable) {
             this.session = session;
             this.it = it;
             this.mvTable = mvTable;

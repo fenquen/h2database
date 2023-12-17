@@ -802,7 +802,7 @@ public abstract class Table extends SchemaObject {
     /**
      * Get the best plan for the given search mask.
      *
-     * @param sessionLocal       the session
+     * @param sessionLocal  the session
      * @param masks         per-column comparison bit masks, null means 'always false',
      *                      see constants in IndexCondition
      * @param filters       all joined table filters
@@ -904,34 +904,39 @@ public abstract class Table extends SchemaObject {
      */
     public void convertInsertRow(SessionLocal session, Row row, Boolean overridingSystem) {
         int length = columns.length, generated = 0;
+
         for (int i = 0; i < length; i++) {
             Value value = row.getValue(i);
             Column column = columns[i];
+
             if (value == ValueNull.INSTANCE && column.isDefaultOnNull()) {
                 value = null;
             }
+
             if (column.isIdentity()) {
                 if (overridingSystem != null) {
                     if (!overridingSystem) {
                         value = null;
                     }
                 } else if (value != null && column.isGeneratedAlways()) {
-                    throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1,
-                            column.getSQLWithTable(new StringBuilder(), TRACE_SQL_FLAGS).toString());
+                    throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1, column.getSQLWithTable(new StringBuilder(), TRACE_SQL_FLAGS).toString());
                 }
             } else if (column.isGeneratedAlways()) {
                 if (value != null) {
-                    throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1,
-                            column.getSQLWithTable(new StringBuilder(), TRACE_SQL_FLAGS).toString());
+                    throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1, column.getSQLWithTable(new StringBuilder(), TRACE_SQL_FLAGS).toString());
                 }
+
                 generated++;
+
                 continue;
             }
+
             Value v2 = column.validateConvertUpdateSequence(session, value, row);
             if (v2 != value) {
                 row.setValue(i, v2);
             }
         }
+
         if (generated > 0) {
             for (int i = 0; i < length; i++) {
                 Value value = row.getValue(i);
@@ -1150,26 +1155,23 @@ public abstract class Table extends SchemaObject {
      * @return if there are any triggers or rows defined
      */
     public boolean fireRow() {
-        return (constraints != null && !constraints.isEmpty()) ||
-                (triggers != null && !triggers.isEmpty());
+        return (constraints != null && !constraints.isEmpty()) || (triggers != null && !triggers.isEmpty());
     }
 
     /**
      * Fire all triggers that need to be called before a row is updated.
      *
-     * @param session the session
-     * @param oldRow  the old data or null for an insert
-     * @param newRow  the new data or null for a delete
+     * @param oldRow the old data or null for an insert
+     * @param newRow the new data or null for a delete
      * @return true if no further action is required (for 'instead of' triggers)
      */
-    public boolean fireBeforeRow(SessionLocal session, Row oldRow, Row newRow) {
-        boolean done = fireRow(session, oldRow, newRow, true, false);
-        fireConstraints(session, oldRow, newRow, true);
+    public boolean fireBeforeRow(SessionLocal sessionLocal, Row oldRow, Row newRow) {
+        boolean done = fireRow(sessionLocal, oldRow, newRow, true, false);
+        fireConstraints(sessionLocal, oldRow, newRow, true);
         return done;
     }
 
-    private void fireConstraints(SessionLocal session, Row oldRow, Row newRow,
-                                 boolean before) {
+    private void fireConstraints(SessionLocal session, Row oldRow, Row newRow, boolean before) {
         if (constraints != null) {
             for (Constraint constraint : constraints) {
                 if (constraint.isBefore() == before) {
@@ -1187,16 +1189,18 @@ public abstract class Table extends SchemaObject {
      * @param newRow   the new data or null for a delete
      * @param rollback when the operation occurred within a rollback
      */
-    public void fireAfterRow(SessionLocal session, Row oldRow, Row newRow,
-                             boolean rollback) {
+    public void fireAfterRow(SessionLocal session, Row oldRow, Row newRow, boolean rollback) {
         fireRow(session, oldRow, newRow, false, rollback);
         if (!rollback) {
             fireConstraints(session, oldRow, newRow, false);
         }
     }
 
-    private boolean fireRow(SessionLocal session, Row oldRow, Row newRow,
-                            boolean beforeAction, boolean rollback) {
+    private boolean fireRow(SessionLocal session,
+                            Row oldRow,
+                            Row newRow,
+                            boolean beforeAction,
+                            boolean rollback) {
         if (triggers != null) {
             for (TriggerObject trigger : triggers) {
                 boolean done = trigger.fireRow(session, this, oldRow, newRow, beforeAction, rollback);
@@ -1205,6 +1209,7 @@ public abstract class Table extends SchemaObject {
                 }
             }
         }
+
         return false;
     }
 

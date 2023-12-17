@@ -313,7 +313,7 @@ public class Select extends Query {
     }
 
     private LazyResult queryGroupSorted(int columnCount, ResultTarget result, long offset, boolean quickOffset) {
-        LazyResultGroupSorted lazyResult = new LazyResultGroupSorted(expressionArray, columnCount);
+        LazyResultGroupSorted lazyResult = new LazyResultGroupSorted(expressions, columnCount);
         skipOffset(lazyResult, offset, quickOffset);
         if (result == null) {
             return lazyResult;
@@ -716,13 +716,13 @@ public class Select extends Query {
                                  boolean quickOffset) {
         if (limit > 0 && offset > 0 && !quickOffset) {
             limit += offset;
-            if (limit < 0) {
-                // Overflow
+            if (limit < 0) { // overflow
                 limit = Long.MAX_VALUE;
             }
         }
 
-        LazyResultQueryFlat lazyResultQueryFlat = new LazyResultQueryFlat(expressionArray, columnCount, isForUpdate);
+        LazyResultQueryFlat lazyResultQueryFlat = new LazyResultQueryFlat(expressions, columnCount, isForUpdate);
+
         skipOffset(lazyResultQueryFlat, offset, quickOffset);
 
         if (resultTarget == null) {
@@ -734,6 +734,7 @@ public class Select extends Query {
         }
 
         Value[] row = null;
+        // limit限度内提前把 lazyResultQueryFlat 内容搬到 resultTarget(localResult)
         while (resultTarget.getRowCount() < limit && lazyResultQueryFlat.next()) {
             row = lazyResultQueryFlat.currentRow();
             resultTarget.addRow(row);
@@ -797,8 +798,7 @@ public class Select extends Query {
 
         LocalResult localResult = null;
 
-        if (!lazy &&
-                (resultTarget == null || !sessionLocal.database.dbSettings.optimizeInsertFromSelect)) {
+        if (!lazy && (resultTarget == null || !sessionLocal.database.dbSettings.optimizeInsertFromSelect)) {
             localResult = createLocalResult(localResult);
         }
 
@@ -836,8 +836,8 @@ public class Select extends Query {
         topTableFilter.reset();
         topTableFilter.lock(sessionLocal);
 
-        ResultTarget to = localResult != null ? localResult : resultTarget;
-        lazy &= to == null;
+        ResultTarget resultTarget0 = localResult != null ? localResult : resultTarget;
+        lazy &= resultTarget0 == null;
         LazyResult lazyResult = null;
 
         if (fetch != 0) {
@@ -845,7 +845,7 @@ public class Select extends Query {
             long limit = fetchPercent ? -1 : fetch;
 
             if (isQuickAggregateQuery) {
-                queryQuick(columnCount, to, quickOffset && offset > 0);
+                queryQuick(columnCount, resultTarget0, quickOffset && offset > 0);
             } else if (isWindowQuery) {
                 if (isGroupQuery) {
                     queryGroupWindow(columnCount, localResult, offset, quickOffset);
@@ -854,14 +854,15 @@ public class Select extends Query {
                 }
             } else if (isGroupQuery) {
                 if (isGroupSortedQuery) {
-                    lazyResult = queryGroupSorted(columnCount, to, offset, quickOffset);
+                    lazyResult = queryGroupSorted(columnCount, resultTarget0, offset, quickOffset);
                 } else {
                     queryGroup(columnCount, localResult, offset, quickOffset);
                 }
             } else if (isDistinctQuery) {
-                queryDistinct(to, offset, limit, withTies, quickOffset);
+                queryDistinct(resultTarget0, offset, limit, withTies, quickOffset);
             } else {
-                lazyResult = queryFlat(columnCount, to, offset, limit, withTies, quickOffset);
+                // 内容迁移到了localResult的rows
+                lazyResult = queryFlat(columnCount, resultTarget0, offset, limit, withTies, quickOffset);
             }
 
             if (quickOffset) {
@@ -871,7 +872,7 @@ public class Select extends Query {
 
         assert lazy == (lazyResult != null) : lazy;
 
-        if (lazyResult != null) {
+        if (lazyResult != null) { // 是null
             if (fetch > 0) {
                 lazyResult.setLimit(fetch);
             }
@@ -884,7 +885,7 @@ public class Select extends Query {
         }
 
         if (localResult != null) {
-            return finishResult(localResult, offset, fetch, fetchPercent, resultTarget);
+            return finishResult(localResult, offset, fetch, fetchPercent, resultTarget); // resultTarget是null
         }
 
         return null;
@@ -904,7 +905,7 @@ public class Select extends Query {
     }
 
     private LocalResult createLocalResult(LocalResult old) {
-        return old != null ? old : new LocalResult(sessionLocal, expressionArray, visibleColumnCount, resultColumnCount);
+        return old != null ? old : new LocalResult(sessionLocal, expressions, visibleColumnCount, resultColumnCount);
     }
 
     /**
@@ -1266,7 +1267,7 @@ public class Select extends Query {
             isQuickAggregateQuery = isEverything(ExpressionVisitor.getOptimizableVisitor(tableFilters.get(0).getTable()));
         }
 
-        expressionArray = expressionList.toArray(new Expression[0]);
+        expressions = expressionList.toArray(new Expression[0]);
     }
 
     @Override
@@ -1942,10 +1943,11 @@ public class Select extends Query {
                 // This method may lock rows
                 if (forUpdate ? isConditionMetForUpdate() : isConditionMet()) {
                     ++rowNumber;
+
                     Value[] row = new Value[columnCount];
+
                     for (int i = 0; i < columnCount; i++) {
-                        Expression expr = expressionList.get(i);
-                        row[i] = expr.getValue(sessionLocal);
+                        row[i] = expressionList.get(i).getValue(sessionLocal);
                     }
 
                     return row;

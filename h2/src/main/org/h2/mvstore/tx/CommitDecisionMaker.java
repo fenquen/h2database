@@ -16,6 +16,7 @@ import org.h2.value.VersionedValue;
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
 final class CommitDecisionMaker<V> extends MVMap.DecisionMaker<VersionedValue<V>> {
+    // 也是operationId
     private long undoKey;
     private MVMap.Decision decision;
 
@@ -27,6 +28,7 @@ final class CommitDecisionMaker<V> extends MVMap.DecisionMaker<VersionedValue<V>
     @Override
     public MVMap.Decision decide(VersionedValue<V> existingValue, VersionedValue<V> providedValue) {
         assert decision == null;
+
         if (existingValue == null ||
             // map entry was treated as already committed, and then
             // it has been removed by another transaction (committed and closed by now)
@@ -37,7 +39,7 @@ final class CommitDecisionMaker<V> extends MVMap.DecisionMaker<VersionedValue<V>
             // see TxDecisionMaker.decide()
 
             decision = MVMap.Decision.ABORT;
-        } else /* this is final undo log entry for this key */ if (existingValue.getCurrentValue() == null) {
+        } else if (existingValue.getCurrentValue() == null) { // this is final undo log entry for this key
             decision = MVMap.Decision.REMOVE;
         } else {
             decision = MVMap.Decision.PUT;

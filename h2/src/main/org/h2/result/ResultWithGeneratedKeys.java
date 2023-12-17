@@ -18,10 +18,8 @@ public class ResultWithGeneratedKeys {
         /**
          * Creates a result with update count and generated keys.
          *
-         * @param updateCount
-         *            update count
-         * @param generatedKeys
-         *            generated keys
+         * @param updateCount   update count
+         * @param generatedKeys generated keys
          */
         public WithKeys(long updateCount, ResultInterface generatedKeys) {
             super(updateCount);
@@ -37,8 +35,7 @@ public class ResultWithGeneratedKeys {
     /**
      * Returns a result with only update count.
      *
-     * @param updateCount
-     *            update count
+     * @param updateCount update count
      * @return the result.
      */
     public static ResultWithGeneratedKeys of(long updateCount) {
@@ -60,13 +57,7 @@ public class ResultWithGeneratedKeys {
         return null;
     }
 
-    /**
-     * Returns update count.
-     *
-     * @return update count
-     */
     public long getUpdateCount() {
         return updateCount;
     }
-
 }

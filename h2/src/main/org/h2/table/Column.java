@@ -62,7 +62,7 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
     private TypeInfo type;
     private Table table;
     private String name;
-    private int columnId;
+    public int columnId;
     private boolean nullable = true;
     private Expression defaultExpression;
     private Expression onUpdateExpression;

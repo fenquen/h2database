@@ -922,8 +922,7 @@ public abstract class TestBase {
      * @param rs the result set
      * @throws AssertionError if a different number of rows have been found
      */
-    protected void assertResultRowCount(int expected, ResultSet rs)
-            throws SQLException {
+    protected void assertResultRowCount(int expected, ResultSet rs) throws SQLException {
         int i = 0;
         while (rs.next()) {
             i++;

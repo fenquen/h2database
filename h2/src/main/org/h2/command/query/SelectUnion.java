@@ -136,7 +136,7 @@ public class SelectUnion extends Query {
                 offset == 0 && !fetchPercent && !withTies && isReadOnly()) {
             // limit 0 means no rows
             if (fetch != 0) {
-                LazyResultUnion lazyResult = new LazyResultUnion(expressionArray, columnCount);
+                LazyResultUnion lazyResult = new LazyResultUnion(expressions, columnCount);
                 if (fetch > 0) {
                     lazyResult.setLimit(fetch);
                 }
@@ -216,7 +216,7 @@ public class SelectUnion extends Query {
     }
 
     private LocalResult createLocalResult(int columnCount) {
-        return new LocalResult(sessionLocal, expressionArray, columnCount, columnCount);
+        return new LocalResult(sessionLocal, expressions, columnCount, columnCount);
     }
 
     @Override
@@ -268,7 +268,7 @@ public class SelectUnion extends Query {
             }
         }
         resultColumnCount = expressionList.size();
-        expressionArray = expressionList.toArray(new Expression[0]);
+        expressions = expressionList.toArray(new Expression[0]);
     }
 
     @Override

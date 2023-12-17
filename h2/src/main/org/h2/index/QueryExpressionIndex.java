@@ -131,7 +131,7 @@ public class QueryExpressionIndex extends Index implements SpatialIndex {
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
+    public void add(SessionLocal sessionLocal, Row row) {
         throw DbException.getUnsupportedException("VIEW");
     }
 

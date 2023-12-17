@@ -258,7 +258,7 @@ public class MVStoreTool {
                                         counts[i],
                                         keys[i],
                                         DataUtils.getPageChunkId(cp),
-                                        DataUtils.getPageOffset(cp));
+                                        DataUtils.getPageOffsetInChunk(cp));
                             }
                             long cp = children[entries];
                             pw.printf("    %d children >= %s @ chunk %x +%0" +
@@ -266,7 +266,7 @@ public class MVStoreTool {
                                     counts[entries],
                                     keys.length >= entries ? null : keys[entries],
                                     DataUtils.getPageChunkId(cp),
-                                    DataUtils.getPageOffset(cp));
+                                    DataUtils.getPageOffsetInChunk(cp));
                         } else {
                             // meta map leaf
                             String[] values = new String[entries];
@@ -287,7 +287,7 @@ public class MVStoreTool {
                                                 len + "x%n",
                                         counts[i],
                                         DataUtils.getPageChunkId(cp),
-                                        DataUtils.getPageOffset(cp));
+                                        DataUtils.getPageOffsetInChunk(cp));
                             }
                         }
                     }
@@ -675,7 +675,7 @@ public class MVStoreTool {
             }
             int length = newestChunk.blockCount * MVStore.BLOCK_SIZE;
             ByteBuffer chunk = ByteBuffer.allocate(length);
-            DataUtils.readFully(file, newestChunk.block * MVStore.BLOCK_SIZE, chunk);
+            DataUtils.readFully(file, newestChunk.startBlockNumInFile * MVStore.BLOCK_SIZE, chunk);
             chunk.rewind();
             target.write(chunk, fileSize);
         } catch (IOException e) {

@@ -29,9 +29,6 @@ import org.h2.util.Utils;
  */
 public abstract class Command implements CommandInterface {
 
-    /**
-     * The session.
-     */
     protected final SessionLocal sessionLocal;
 
     /**
@@ -153,9 +150,11 @@ public abstract class Command implements CommandInterface {
     @Override
     public void stop() {
         commitIfNonTransactional();
+
         if (isTransactional() && sessionLocal.getAutoCommit()) {
             sessionLocal.commit(false);
         }
+
         if (trace.isInfoEnabled() && startTimeNanos != 0L) {
             long timeMillis = (System.nanoTime() - startTimeNanos) / 1_000_000L;
             if (timeMillis > Constants.SLOW_QUERY_LIMIT_MS) {
@@ -227,12 +226,13 @@ public abstract class Command implements CommandInterface {
                     sessionLocal.database.shutdownImmediately();
                     throw dbException;
                 }
-
                 sessionLocal.database.checkPowerOff();
                 throw dbException;
             } finally {
                 sessionLocal.resetThreadLocalSession(oldSession);
+
                 sessionLocal.endStatement();
+
                 if (callStop) {
                     stop();
                 }
@@ -244,18 +244,27 @@ public abstract class Command implements CommandInterface {
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
         long start = 0;
         Database database = sessionLocal.getDatabase();
+
         sessionLocal.waitIfExclusiveModeEnabled();
+
         boolean callStop = true;
+
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (sessionLocal) {
             commitIfNonTransactional();
+
             SessionLocal.Savepoint rollback = sessionLocal.setSavepoint();
+
             sessionLocal.startStatementWithinTransaction(this);
+
             DbException ex = null;
+
             Session oldSession = sessionLocal.setThreadLocalSession();
+
             try {
                 while (true) {
                     database.checkPowerOff();
+
                     try {
                         return update(generatedKeysRequest);
                     } catch (DbException e) {
@@ -275,12 +284,15 @@ public abstract class Command implements CommandInterface {
             } catch (DbException e) {
                 e = e.addSQL(sql);
                 SQLException s = e.getSQLException();
+
                 database.exceptionThrown(s, sql);
+
                 if (s.getErrorCode() == ErrorCode.OUT_OF_MEMORY) {
                     callStop = false;
                     database.shutdownImmediately();
                     throw e;
                 }
+
                 try {
                     database.checkPowerOff();
                     if (s.getErrorCode() == ErrorCode.DEADLOCK_1) {
@@ -291,12 +303,15 @@ public abstract class Command implements CommandInterface {
                 } catch (Throwable nested) {
                     e.addSuppressed(nested);
                 }
+
                 ex = e;
                 throw e;
             } finally {
                 sessionLocal.resetThreadLocalSession(oldSession);
+
                 try {
                     sessionLocal.endStatement();
+
                     if (callStop) {
                         stop();
                     }
@@ -312,12 +327,16 @@ public abstract class Command implements CommandInterface {
     }
 
     private void commitIfNonTransactional() {
-        if (!isTransactional()) {
-            boolean autoCommit = sessionLocal.getAutoCommit();
-            sessionLocal.commit(true);
-            if (!autoCommit && sessionLocal.getAutoCommit()) {
-                sessionLocal.begin();
-            }
+        if (isTransactional()) {
+            return;
+        }
+
+        boolean autoCommit = sessionLocal.getAutoCommit();
+
+        sessionLocal.commit(true);
+
+        if (!autoCommit && sessionLocal.getAutoCommit()) {
+            sessionLocal.begin();
         }
     }
 

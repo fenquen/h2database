@@ -138,14 +138,11 @@ public class AlterTableAddConstraint extends AlterTable {
                     }
                 }
             } else {
-                IndexType indexType = IndexType.createPrimaryKey(
-                        table.isPersistIndexes(), primaryKeyHash);
-                String indexName = table.getSchema().getUniqueIndexName(
-                        sessionLocal, table, Constants.PREFIX_PRIMARY_KEY);
+                IndexType indexType = IndexType.createPrimaryKey(table.isPersistIndexes(), primaryKeyHash);
+                String indexName = table.getSchema().getUniqueIndexName(sessionLocal, table, Constants.PREFIX_PRIMARY_KEY);
                 int indexId = sessionLocal.getDatabase().allocateObjectId();
                 try {
-                    index = table.addIndex(sessionLocal, indexName, indexId, indexColumns, indexColumns.length, indexType,
-                            true, null);
+                    index = table.addIndex(sessionLocal, indexName, indexId, indexColumns, indexColumns.length, indexType, true, null);
                 } finally {
                     getSchema().freeUniqueName(indexName);
                 }

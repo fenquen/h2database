@@ -40,12 +40,12 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     /**
      * Reference to the current root page.
      */
-    private final AtomicReference<RootReference<K, V>> rootReference;
+    public final AtomicReference<RootReference<K, V>> rootReference;
 
-    private final int id;
+    public final int id;
     private final long createVersion;
-    private final DataType<K> keyType;
-    private final DataType<V> valueType;
+    public final DataType<K> keyType;
+    public final DataType<V> valueType;
     private final int keysPerPage;
     /**
      * 通般是false,要么是配置文件中专门含有singleWriter
@@ -63,7 +63,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     private volatile boolean closed;
     private boolean readOnly;
-    private boolean isVolatile;
+    public boolean isVolatile;
     private final AtomicLong avgKeySize;
     private final AtomicLong avgValSize;
 
@@ -72,9 +72,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     static final long INITIAL_VERSION = -1;
 
-    protected MVMap(Map<String, Object> config,
-                    DataType<K> keyType,
-                    DataType<V> valueType) {
+    protected MVMap(Map<String, Object> config, DataType<K> keyType, DataType<V> valueType) {
         this((MVStore) config.get("store"),
                 keyType,
                 valueType,
@@ -85,7 +83,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 config.containsKey("singleWriter") && (Boolean) config.get("singleWriter")
         );
 
-        setInitialRoot(createEmptyLeaf(), mvStore.getCurrentVersion());
+        setInitialRootReference(createEmptyLeaf(), mvStore.currentVersion);
     }
 
     // constructor for cloneIt()
@@ -114,7 +112,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 new AtomicReference<>(),
                 mvStore.keysPerPage,
                 false);
-        setInitialRoot(createEmptyLeaf(), mvStore.getCurrentVersion());
+        setInitialRootReference(createEmptyLeaf(), mvStore.getCurrentVersion());
     }
 
     private MVMap(MVStore mvStore,
@@ -191,9 +189,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     }
 
     /**
-     * Get the last key, or null if the map is empty.
-     *
-     * @return the last key, or null
+     * get the last key, or null if the map is empty.
      */
     public final K lastKey() {
         return getFirstLast(false);
@@ -305,23 +301,24 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     /**
      * Get the first (lowest) or last (largest) key.
      *
-     * @param first whether to retrieve the first key
+     * @param first 如果是true的话得到first key 不然的话的得到的是 last key
      * @return the key, or null if the map is empty
      */
     private K getFirstLast(boolean first) {
-        Page<K, V> p = getRootPage();
-        return getFirstLast(p, first);
+        return getFirstLast(getRootPage(), first);
     }
 
-    private K getFirstLast(Page<K, V> p, boolean first) {
-        if (p.getTotalCount() == 0) {
+    private K getFirstLast(Page<K, V> page, boolean first) {
+        if (page.getTotalCount() == 0) {
             return null;
         }
+
         while (true) {
-            if (p.isLeaf()) {
-                return p.getKey(first ? 0 : p.getKeyCount() - 1);
+            if (page.isLeaf()) {
+                return page.getKey(first ? 0 : page.getKeyCount() - 1);
             }
-            p = p.getChildPage(first ? 0 : getChildPageCount(p) - 1);
+
+            page = page.getChildPage(first ? 0 : getChildPageCount(page) - 1);
         }
     }
 
@@ -404,7 +401,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     }
 
     private K getMinMax(RootReference<K, V> rootRef, K key, boolean min, boolean excluding) {
-        return getMinMax(rootRef.root, key, min, excluding);
+        return getMinMax(rootRef.rootPage, key, min, excluding);
     }
 
     private K getMinMax(Page<K, V> p, K key, boolean min, boolean excluding) {
@@ -445,7 +442,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     @SuppressWarnings("unchecked")
     @Override
     public final V get(Object key) {
-        return get(getRootPage(), (K) key);
+        return get(flushAndGetRootReference().rootPage, (K) key);
     }
 
     /**
@@ -495,7 +492,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     locked = true;
                 }
             }
-            Page<K, V> rootPage = rootReference.root;
+            Page<K, V> rootPage = rootReference.rootPage;
             long version = rootReference.version;
             try {
                 if (!locked) {
@@ -662,21 +659,22 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @param version      to set for this map
      */
     final void setRootPos(long rootPosition, long version) {
-        Page<K, V> root = readOrCreateRootPage(rootPosition);
-        if (root.mvMap != this) {
+        Page<K, V> rootPage = readOrCreateRootPage(rootPosition);
+
+        if (rootPage.mvMap != this) {
             // this can only happen on concurrent opening of existing map,
             // when second thread picks up some cached page already owned by
             // the first map's instantiation (both maps share the same id)
-            assert id == root.mvMap.id;
+            assert id == rootPage.mvMap.id;
 
             // since it is unknown which one will win the race,
             // let each map instance to have its own copy
-            root = root.copy(this, false);
+            rootPage = rootPage.copy(this, false);
         }
 
-        setInitialRoot(root, version);
+        setInitialRootReference(rootPage, version);
 
-        setWriteVersion(mvStore.getCurrentVersion());
+        setWriteVersion(mvStore.currentVersion);
     }
 
     private Page<K, V> readOrCreateRootPage(long rootPosition) {
@@ -847,7 +845,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * The current root page (may not be null).
      */
     public final Page<K, V> getRootPage() {
-        return flushAndGetRootReference().root;
+        return flushAndGetRootReference().rootPage;
     }
 
     /**
@@ -856,7 +854,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @return current root reference
      */
     public RootReference<K, V> flushAndGetRootReference() {
-        RootReference<K, V> rootReference = getRootReference();
+        RootReference<K, V> rootReference = this.rootReference.get();
         // todo 应为通常singleWriter是false且flushAppendBuffer()很难暂时的略过
         if (singleWriter && rootReference.getAppendCounter() > 0) {
             return flushAppendBuffer(rootReference, true);
@@ -875,7 +873,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @param rootPage root page
      * @param version  initial version
      */
-    final void setInitialRoot(Page<K, V> rootPage, long version) {
+    final void setInitialRootReference(Page<K, V> rootPage, long version) {
         rootReference.set(new RootReference<>(rootPage, version));
     }
 
@@ -886,8 +884,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * @param updatedRootReference  the new
      * @return whether updating worked
      */
-    final boolean compareAndSetRoot(RootReference<K, V> expectedRootReference,
-                                    RootReference<K, V> updatedRootReference) {
+    final boolean compareAndSetRoot(RootReference<K, V> expectedRootReference, RootReference<K, V> updatedRootReference) {
         return rootReference.compareAndSet(expectedRootReference, updatedRootReference);
     }
 
@@ -911,14 +908,19 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     boolean rollbackRoot(long version) {
         RootReference<K, V> rootReference = flushAndGetRootReference();
+
         RootReference<K, V> previous;
+        // 得到恰好是version之前的版本
         while (rootReference.version >= version && (previous = rootReference.previous) != null) {
             if (this.rootReference.compareAndSet(rootReference, previous)) {
                 rootReference = previous;
                 closed = false;
             }
         }
+
+        // 使用version来当成version 内容是前个version的
         setWriteVersion(version);
+
         return rootReference.version < version;
     }
 
@@ -1040,25 +1042,29 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      */
     public final MVMap<K, V> openVersion(long version) {
         if (readOnly) {
-            throw DataUtils.newUnsupportedOperationException(
-                    "This map is read-only; need to call " +
-                            "the method on the writable map");
+            throw DataUtils.newUnsupportedOperationException("this map is read-only; need to call the method on the writable map");
         }
-        DataUtils.checkArgument(version >= createVersion,
-                "Unknown version {0}; this map was created in version is {1}",
-                version, createVersion);
+
+        DataUtils.checkArgument(version >= createVersion, "unknown version {0}; this map was created in version is {1}", version, createVersion);
+
         RootReference<K, V> rootReference = flushAndGetRootReference();
+
         removeUnusedOldVersions(rootReference);
+
         RootReference<K, V> previous;
         while ((previous = rootReference.previous) != null && previous.version >= version) {
             rootReference = previous;
         }
+
         if (previous == null && version < mvStore.getOldestVersionToKeep()) {
-            throw DataUtils.newIllegalArgumentException("Unknown version {0}", version);
+            throw DataUtils.newIllegalArgumentException("unknown version {0}", version);
         }
-        MVMap<K, V> m = openReadOnly(rootReference.root, version);
-        assert m.getVersion() <= version : m.getVersion() + " <= " + version;
-        return m;
+
+        MVMap<K, V> mvMap = openReadOnly(rootReference.rootPage, version);
+
+        assert mvMap.getVersion() <= version : mvMap.getVersion() + " <= " + version;
+
+        return mvMap;
     }
 
     /**
@@ -1073,11 +1079,11 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         return openReadOnly(root, version);
     }
 
-    private MVMap<K, V> openReadOnly(Page<K, V> root, long version) {
-        MVMap<K, V> m = cloneIt();
-        m.readOnly = true;
-        m.setInitialRoot(root, version);
-        return m;
+    private MVMap<K, V> openReadOnly(Page<K, V> rootPage, long version) {
+        MVMap<K, V> mvMap = cloneIt();
+        mvMap.readOnly = true;
+        mvMap.setInitialRootReference(rootPage, version);
+        return mvMap;
     }
 
     /**
@@ -1094,10 +1100,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * Does the root have changes since the specified version?
      *
      * @param version root version
-     * @return true if has changes
      */
     final boolean hasChangesSince(long version) {
-        return getRootReference().hasChangesSince(version, isPersistent());
+        return rootReference.get().hasChangesSince(version, isPersistent());
     }
 
     /**
@@ -1144,6 +1149,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
     final RootReference<K, V> setWriteVersion(long writeVersion) {
         int attempt = 0;
+
         while (true) {
             RootReference<K, V> rootReference = flushAndGetRootReference();
             if (rootReference.version >= writeVersion) {
@@ -1160,6 +1166,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             }
 
             RootReference<K, V> lockedRootReference = null;
+
             if (++attempt > 3 || rootReference.isLocked()) {
                 lockedRootReference = lockRoot(rootReference, attempt);
                 rootReference = flushAndGetRootReference();
@@ -1216,7 +1223,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     private void copy(Page<K, V> source, Page<K, V> parent, int index) {
         Page<K, V> target = source.copy(this, true);
         if (parent == null) {
-            setInitialRoot(target, INITIAL_VERSION);
+            setInitialRootReference(target, INITIAL_VERSION);
         } else {
             parent.setChild(index, target);
         }
@@ -1267,7 +1274,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     locked = true;
                 }
 
-                Page<K, V> rootPage = rootReference.root;
+                Page<K, V> rootPage = rootReference.rootPage;
                 long version = rootReference.version;
                 CursorPos<K, V> pos = rootPage.getAppendCursorPos(null);
                 assert pos != null;
@@ -1378,19 +1385,24 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                                  Page<K, V> replacement,
                                                  IntValueHolder unsavedMemoryHolder) {
         int unsavedMemory = replacement.isSaved() ? 0 : replacement.getMemory();
+
         while (path != null) {
-            Page<K, V> parent = path.page;
+            Page<K, V> parentPage = path.page;
+
             // condition below should always be true, but older versions (up to 1.4.197)
             // may create single-childed (with no keys) internal nodes, which we skip here
-            if (parent.getKeyCount() > 0) {
+            if (parentPage.getKeyCount() > 0) {
                 Page<K, V> child = replacement;
-                replacement = parent.copy();
+                replacement = parentPage.copy();
                 replacement.setChild(path.index, child);
                 unsavedMemory += replacement.getMemory();
             }
+
             path = path.parent;
         }
+
         unsavedMemoryHolder.value += unsavedMemory;
+
         return replacement;
     }
 
@@ -1406,8 +1418,11 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     public void append(K key, V value) {
         if (singleWriter) {
             beforeWrite();
+
             RootReference<K, V> rootReference = lockRoot(getRootReference(), 1);
+
             int appendCounter = rootReference.getAppendCounter();
+
             try {
                 if (appendCounter >= keysPerPage) {
                     rootReference = flushAppendBuffer(rootReference, false);
@@ -1450,7 +1465,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 }
             }
             if (useRegularRemove) {
-                Page<K, V> lastLeaf = rootReference.root.getAppendCursorPos(null).page;
+                Page<K, V> lastLeaf = rootReference.rootPage.getAppendCursorPos(null).page;
                 assert lastLeaf.isLeaf();
                 assert lastLeaf.getKeyCount() > 0;
                 Object key = lastLeaf.getKey(lastLeaf.getKeyCount() - 1);
@@ -1478,11 +1493,11 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         /**
          * Create a new map of the given type.
          *
-         * @param store  which will own this map
-         * @param config configuration
+         * @param mvStore which will own this map
+         * @param config  configuration
          * @return the map
          */
-        M create(MVStore store, Map<String, Object> config);
+        M create(MVStore mvStore, Map<String, Object> config);
 
         DataType<K> getKeyType();
 
@@ -1558,19 +1573,19 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         }
 
         @Override
-        public M create(MVStore store, Map<String, Object> config) {
-            if (getKeyType() == null) {
+        public M create(MVStore mvStore, Map<String, Object> config) {
+            if (keyType == null) {
                 setKeyType(new ObjectDataType());
             }
 
-            if (getValueType() == null) {
+            if (valueType == null) {
                 setValueType(new ObjectDataType());
             }
-            DataType<K> keyType = getKeyType();
-            DataType<V> valueType = getValueType();
-            config.put("store", store);
+
+            config.put("store", mvStore);
             config.put("key", keyType);
             config.put("val", valueType);
+
             return create(config);
         }
 
@@ -1623,10 +1638,13 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         @Override
         protected MVMap<K, V> create(Map<String, Object> config) {
             config.put("singleWriter", singleWriter);
+
             Object type = config.get("type");
+
             if (type == null || type.equals("rtree")) {
                 return new MVMap<>(config, getKeyType(), getValueType());
             }
+
             throw new IllegalArgumentException("Incompatible map type");
         }
     }
@@ -1799,25 +1817,26 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 }
             }
 
-            Page<K, V> rootPage = rootReference.root;
+            Page<K, V> rootPage = rootReference.rootPage;
             long version = rootReference.version;
             CursorPos<K, V> tip;
 
             unsavedMemoryHolder.value = 0;
 
             try {
-                CursorPos<K, V> pos = CursorPos.traverseDown(rootPage, key);
-                if (!locked && rootReference != getRootReference()) {
+                CursorPos<K, V> cursorPos = CursorPos.traverseDown(rootPage, key);
+
+                if (!locked && rootReference != this.rootReference.get()) {
                     continue;
                 }
 
-                Page<K, V> p = pos.page;
-                int index = pos.index;
-                tip = pos;
-                pos = pos.parent;
-                V oldValue = index < 0 ? null : p.getValue(index);
-                Decision decision = decisionMaker.decide(oldValue, value, tip);
+                Page<K, V> page = cursorPos.page;
+                int index = cursorPos.index;
+                tip = cursorPos;
+                cursorPos = cursorPos.parent;
+                V oldValue = index < 0 ? null : page.getValue(index);
 
+                Decision decision = decisionMaker.decide(oldValue, value, tip);
                 switch (decision) {
                     case REPEAT:
                         decisionMaker.reset();
@@ -1834,85 +1853,92 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                 decisionMaker.reset();
                                 continue;
                             }
+
                             return null;
                         }
 
-                        if (p.getTotalCount() == 1 && pos != null) {
+                        if (page.getTotalCount() == 1 && cursorPos != null) {
                             int keyCount;
                             do {
-                                p = pos.page;
-                                index = pos.index;
-                                pos = pos.parent;
-                                keyCount = p.getKeyCount();
+                                page = cursorPos.page;
+                                index = cursorPos.index;
+                                cursorPos = cursorPos.parent;
+                                keyCount = page.getKeyCount();
                                 // condition below should always be false, but older
                                 // versions (up to 1.4.197) may create
                                 // single-childed (with no keys) internal nodes,
                                 // which we skip here
-                            } while (keyCount == 0 && pos != null);
+                            } while (keyCount == 0 && cursorPos != null);
 
                             if (keyCount <= 1) {
                                 if (keyCount == 1) {
                                     assert index <= 1;
-                                    p = p.getChildPage(1 - index);
+                                    page = page.getChildPage(1 - index);
                                 } else {
                                     // if root happens to be such single-childed
                                     // (with no keys) internal node, then just
                                     // replace it with empty leaf
-                                    p = Page.createEmptyLeaf(this);
+                                    page = Page.createEmptyLeaf(this);
                                 }
                                 break;
                             }
                         }
-                        p = p.copy();
-                        p.remove(index);
+
+                        page = page.copy();
+                        page.remove(index);
+
                         break;
                     }
                     case PUT: {
+                        // txDecisionMaker不会使用value
                         value = decisionMaker.selectValue(oldValue, value);
 
-                        p = p.copy();
+                        // 有变动的话会copy然后insert 体现了copy on write
+                        page = page.copy();
 
+                        // 说明未找到
                         if (index < 0) {
-                            p.insertLeaf(-index - 1, key, value);
+                            page.insertLeaf(-index - 1, key, value);
+
                             int keyCount;
+                            // page太大需要分裂了
+                            while ((keyCount = page.getKeyCount()) > mvStore.keysPerPage
+                                    || page.getMemory() > mvStore.getMaxPageSize() && keyCount > (page.isLeaf() ? 1 : 2)) {
 
-                            while ((keyCount = p.getKeyCount()) > mvStore.keysPerPage
-                                    || p.getMemory() > mvStore.getMaxPageSize()
-                                    && keyCount > (p.isLeaf() ? 1 : 2)) {
-
-                                long totalCount = p.getTotalCount();
+                                long totalCount = page.getTotalCount();
                                 int at = keyCount >> 1;
-                                K k = p.getKey(at);
-                                Page<K, V> split = p.split(at);
-                                unsavedMemoryHolder.value += p.getMemory() + split.getMemory();
+                                K k = page.getKey(at);
+                                Page<K, V> split = page.split(at);
+                                unsavedMemoryHolder.value += page.getMemory() + split.getMemory();
 
-                                if (pos == null) {
-                                    K[] keys = p.createKeyStorage(1);
+                                if (cursorPos == null) {
+                                    K[] keys = page.createKeyStorage(1);
                                     keys[0] = k;
                                     Page.PageReference<K, V>[] children = Page.createRefStorage(2);
-                                    children[0] = new Page.PageReference<>(p);
+                                    children[0] = new Page.PageReference<>(page);
                                     children[1] = new Page.PageReference<>(split);
-                                    p = Page.createNoLeaf(this, keys, children, totalCount, 0);
+                                    page = Page.createNoLeaf(this, keys, children, totalCount, 0);
                                     break;
                                 }
 
-                                Page<K, V> c = p;
-                                p = pos.page;
-                                index = pos.index;
-                                pos = pos.parent;
-                                p = p.copy();
-                                p.setChild(index, split);
-                                p.insertNode(index, k, c);
+                                Page<K, V> c = page;
+                                page = cursorPos.page;
+                                index = cursorPos.index;
+                                cursorPos = cursorPos.parent;
+                                page = page.copy();
+                                page.setChild(index, split);
+                                page.insertNode(index, k, c);
                             }
                         } else {
-                            p.setValue(index, value);
+                            page.setValue(index, value);
                         }
 
                         break;
                     }
                 }
 
-                rootPage = replacePage(pos, p, unsavedMemoryHolder);
+                // 内部会不断向上page的parent递进知道最顶端的rootPage
+                rootPage = replacePage(cursorPos, page, unsavedMemoryHolder);
 
                 if (!locked) {
                     rootReference = rootReference.updateRootPage(rootPage, attempt);
@@ -1941,7 +1967,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             if (lockedRootReference != null) {
                 return lockedRootReference;
             }
-            rootReference = getRootReference();
+            rootReference = this.rootReference.get();
         }
     }
 
@@ -1957,16 +1983,21 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         if (lockedRootReference != null) {
             return lockedRootReference;
         }
+
         assert !rootReference.isLockedByCurrentThread() : rootReference;
+
         RootReference<K, V> oldRootReference = rootReference.previous;
         int contention = 1;
         if (oldRootReference != null) {
-            long updateAttemptCounter = rootReference.updateAttemptCounter -
-                    oldRootReference.updateAttemptCounter;
+            long updateAttemptCounter = rootReference.updateAttemptCounter - oldRootReference.updateAttemptCounter;
+
             assert updateAttemptCounter >= 0 : updateAttemptCounter;
+
             long updateCounter = rootReference.updateCounter - oldRootReference.updateCounter;
+
             assert updateCounter >= 0 : updateCounter;
             assert updateAttemptCounter >= updateCounter : updateAttemptCounter + " >= " + updateCounter;
+
             contention += (int) ((updateAttemptCounter + 1) / (updateCounter + 1));
         }
 
@@ -1989,6 +2020,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 }
             }
         }
+
         return null;
     }
 
@@ -2021,7 +2053,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
             RootReference<K, V> rootReference = getRootReference();
             assert rootReference.isLockedByCurrentThread();
             updatedRootReference = rootReference.updatePageAndLockedStatus(
-                    newRootPage == null ? rootReference.root : newRootPage,
+                    newRootPage == null ? rootReference.rootPage : newRootPage,
                     false,
                     appendCounter == -1 ? rootReference.getAppendCounter() : appendCounter
             );

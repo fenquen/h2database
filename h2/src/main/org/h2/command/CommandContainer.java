@@ -154,29 +154,35 @@ public class CommandContainer extends Command {
     @Override
     public ResultWithGeneratedKeys update(Object generatedKeysRequest) {
         recompileIfRequired();
+
         setProgress(DatabaseEventListener.STATE_STATEMENT_START);
+
         start();
+
         prepared.checkParameters();
+
         ResultWithGeneratedKeys result;
         if (generatedKeysRequest != null && !Boolean.FALSE.equals(generatedKeysRequest)) {
             if (prepared instanceof DataChangeStatement && prepared.getType() != CommandInterface.DELETE) {
-                result = executeUpdateWithGeneratedKeys((DataChangeStatement) prepared,
-                        generatedKeysRequest);
+                result = executeUpdateWithGeneratedKeys((DataChangeStatement) prepared, generatedKeysRequest);
             } else {
                 result = new ResultWithGeneratedKeys.WithKeys(prepared.update(), new LocalResult());
             }
         } else {
-            result = ResultWithGeneratedKeys.of(prepared.update());
+            result = ResultWithGeneratedKeys.of(prepared.update()); // 如果是commit的话,prepared 对应 TransactionCommand
         }
+
         prepared.trace(startTimeNanos, result.getUpdateCount());
+
         setProgress(DatabaseEventListener.STATE_STATEMENT_END);
+
         return result;
     }
 
-    private ResultWithGeneratedKeys executeUpdateWithGeneratedKeys(DataChangeStatement statement,
-            Object generatedKeysRequest) {
-        Database db = sessionLocal.getDatabase();
+    private ResultWithGeneratedKeys executeUpdateWithGeneratedKeys(DataChangeStatement statement, Object generatedKeysRequest) {
+        Database database = sessionLocal.getDatabase();
         Table table = statement.getTable();
+
         ArrayList<ExpressionColumn> expressionColumns;
         if (Boolean.TRUE.equals(generatedKeysRequest)) {
             expressionColumns = Utils.newSmallArrayList();
@@ -187,7 +193,7 @@ public class CommandContainer extends Command {
                 if (column.isIdentity()
                         || ((e = column.getEffectiveDefaultExpression()) != null && !e.isConstant())
                         || (primaryKey != null && primaryKey.getColumnIndex(column) >= 0)) {
-                    expressionColumns.add(new ExpressionColumn(db, column));
+                    expressionColumns.add(new ExpressionColumn(database, column));
                 }
             }
         } else if (generatedKeysRequest instanceof int[]) {
@@ -195,24 +201,29 @@ public class CommandContainer extends Command {
             Column[] columns = table.getColumns();
             int cnt = columns.length;
             expressionColumns = new ArrayList<>(indexes.length);
+
             for (int idx : indexes) {
                 if (idx < 1 || idx > cnt) {
                     throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, "Index: " + idx);
                 }
-                expressionColumns.add(new ExpressionColumn(db, columns[idx - 1]));
+
+                expressionColumns.add(new ExpressionColumn(database, columns[idx - 1]));
             }
         } else if (generatedKeysRequest instanceof String[]) {
             String[] names = (String[]) generatedKeysRequest;
             expressionColumns = new ArrayList<>(names.length);
+
             for (String name : names) {
                 Column column = table.findColumn(name);
                 if (column == null) {
-                    DbSettings settings = db.getSettings();
+                    DbSettings settings = database.getSettings();
+
                     if (settings.databaseToUpper) {
                         column = table.findColumn(StringUtils.toUpperEnglish(name));
                     } else if (settings.databaseToLower) {
                         column = table.findColumn(StringUtils.toLowerEnglish(name));
                     }
+
                     search: if (column == null) {
                         for (Column c : table.getColumns()) {
                             if (c.getName().equalsIgnoreCase(name)) {
@@ -223,23 +234,26 @@ public class CommandContainer extends Command {
                         throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, name);
                     }
                 }
-                expressionColumns.add(new ExpressionColumn(db, column));
+                expressionColumns.add(new ExpressionColumn(database, column));
             }
         } else {
             throw DbException.getInternalError();
         }
+
         int columnCount = expressionColumns.size();
         if (columnCount == 0) {
             return new ResultWithGeneratedKeys.WithKeys(statement.update(), new LocalResult());
         }
+
         int[] indexes = new int[columnCount];
         ExpressionColumn[] expressions = expressionColumns.toArray(new ExpressionColumn[0]);
         for (int i = 0; i < columnCount; i++) {
             indexes[i] = expressions[i].getColumn().getColumnId();
         }
+
         LocalResult result = new LocalResult(sessionLocal, expressions, columnCount, columnCount);
-        return new ResultWithGeneratedKeys.WithKeys(
-                statement.update(new GeneratedKeysCollector(indexes, result), ResultOption.FINAL), result);
+
+        return new ResultWithGeneratedKeys.WithKeys(statement.update(new GeneratedKeysCollector(indexes, result), ResultOption.FINAL), result);
     }
 
     @Override
@@ -252,13 +266,13 @@ public class CommandContainer extends Command {
 
         prepared.checkParameters();
 
-        ResultInterface result = prepared.query(maxRows);
+        ResultInterface resultInterface = prepared.query(maxRows);
 
-        prepared.trace(startTimeNanos, result.isLazy() ? 0 : result.getRowCount());
+        prepared.trace(startTimeNanos, resultInterface.isLazy() ? 0 : resultInterface.getRowCount());
 
         setProgress(DatabaseEventListener.STATE_STATEMENT_END);
 
-        return result;
+        return resultInterface;
     }
 
     @Override

@@ -10,9 +10,6 @@ import java.util.NoSuchElementException;
 
 /**
  * A cursor to iterate over elements in ascending or descending order.
- *
- * @param <K> the key type
- * @param <V> the value type
  */
 public final class Cursor<K, V> implements Iterator<K> {
     private final boolean reverse;
@@ -24,10 +21,6 @@ public final class Cursor<K, V> implements Iterator<K> {
     private V lastValue;
     private Page<K, V> lastPage;
 
-    //public Cursor(RootReference<K,V> rootReference, K from, K to) {
-    //   this(rootReference, from, to, false);
-    // }
-
     /**
      * @param rootReference of the tree
      * @param from          starting key (inclusive), if null start from the first / last key
@@ -35,7 +28,7 @@ public final class Cursor<K, V> implements Iterator<K> {
      * @param reverse       true if tree should be iterated in key's descending order
      */
     public Cursor(RootReference<K, V> rootReference, K from, K to, boolean reverse) {
-        this.lastPage = rootReference.root;
+        this.lastPage = rootReference.rootPage;
         this.cursorPos = traverseDown(lastPage, from, reverse);
         this.to = to;
         this.reverse = reverse;
@@ -50,8 +43,8 @@ public final class Cursor<K, V> implements Iterator<K> {
                 Page<K, V> page = cursorPos.page;
                 int index = cursorPos.index;
 
+                // 要是当前的page用光了会不断向上到root
                 if (reverse ? index < 0 : index >= upperBound(page)) {
-                    // traversal of this page is over, go to high level or stop if at the root already
                     CursorPos<K, V> tmp = cursorPos;
                     cursorPos = cursorPos.parent;
                     if (cursorPos == null) {
@@ -111,8 +104,6 @@ public final class Cursor<K, V> implements Iterator<K> {
 
     /**
      * Get the last read key if there was one.
-     *
-     * @return the key or null
      */
     public K getKey() {
         return last;
@@ -120,8 +111,6 @@ public final class Cursor<K, V> implements Iterator<K> {
 
     /**
      * Get the last read value if there was one.
-     *
-     * @return the value or null
      */
     public V getValue() {
         return lastValue;
@@ -170,9 +159,7 @@ public final class Cursor<K, V> implements Iterator<K> {
      * @param page    to start from as a root
      * @param key     to search for, null means search for the first available key
      * @param reverse true if traversal is in reverse direction, false otherwise
-     * @return CursorPos representing path from the entry found,
-     * or from insertion point if not,
-     * all the way up to to the root page provided
+     * @return CursorPos representing path from the entry found,or from insertion point if not, all the way up to to the root page provided
      */
     static <K, V> CursorPos<K, V> traverseDown(Page<K, V> page, K key, boolean reverse) {
         CursorPos<K, V> cursorPos = key != null ?
@@ -180,13 +167,17 @@ public final class Cursor<K, V> implements Iterator<K> {
                 page.getAppendCursorPos(null) : page.getPrependCursorPos(null);
 
         int index = cursorPos.index;
+
         if (index < 0) {
             index = ~index; // -1的话会变为0
+
             if (reverse) {
                 --index;
             }
+
             cursorPos.index = index;
         }
+
         return cursorPos;
     }
 

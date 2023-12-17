@@ -8,16 +8,14 @@ package org.h2.mvstore.tx;
 import org.h2.value.VersionedValue;
 
 /**
- * Class VersionedValueUncommitted.
- *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
 class VersionedValueUncommitted<T> extends VersionedValueCommitted<T> {
     private final long operationId;
     private final T committedValue;
 
-    private VersionedValueUncommitted(long operationId, T value, T committedValue) {
-        super(value);
+    private VersionedValueUncommitted(long operationId, T currentValue, T committedValue) {
+        super(currentValue);
         assert operationId != 0;
         this.operationId = operationId;
         this.committedValue = committedValue;

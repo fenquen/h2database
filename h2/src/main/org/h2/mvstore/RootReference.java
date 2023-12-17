@@ -18,7 +18,7 @@ public final class RootReference<K, V> {
     /**
      * The root page.
      */
-    public final Page<K, V> root;
+    public final Page<K, V> rootPage;
 
     /**
      * The version used for writing.
@@ -29,6 +29,7 @@ public final class RootReference<K, V> {
      * Counter of reentrant locks.
      */
     private final byte holdCount;
+
     /**
      * Lock owner thread id.
      */
@@ -43,10 +44,12 @@ public final class RootReference<K, V> {
      * Counter for successful root updates.
      */
     final long updateCounter;
+
     /**
      * Counter for attempted root updates.
      */
     final long updateAttemptCounter;
+
     /**
      * Size of the occupied part of the append buffer.
      */
@@ -54,8 +57,8 @@ public final class RootReference<K, V> {
 
 
     // This one is used to set root initially and for r/o snapshots
-    RootReference(Page<K, V> root, long version) {
-        this.root = root;
+    RootReference(Page<K, V> rootPage, long version) {
+        this.rootPage = rootPage;
         this.version = version;
         this.holdCount = 0;
         this.ownerId = 0;
@@ -65,62 +68,62 @@ public final class RootReference<K, V> {
         this.appendCounter = 0;
     }
 
-    private RootReference(RootReference<K, V> r,
-                          Page<K, V> root,
+    private RootReference(RootReference<K, V> rootReference,
+                          Page<K, V> rootPage,
                           long updateAttemptCounter) {
-        this.root = root;
-        this.version = r.version;
-        this.previous = r.previous;
-        this.updateCounter = r.updateCounter + 1;
-        this.updateAttemptCounter = r.updateAttemptCounter + updateAttemptCounter;
+        this.rootPage = rootPage;
+        this.version = rootReference.version;
+        this.previous = rootReference.previous;
+        this.updateCounter = rootReference.updateCounter + 1;
+        this.updateAttemptCounter = rootReference.updateAttemptCounter + updateAttemptCounter;
         this.holdCount = 0;
         this.ownerId = 0;
-        this.appendCounter = r.appendCounter;
+        this.appendCounter = rootReference.appendCounter;
     }
 
     // This one is used for locking
     private RootReference(RootReference<K, V> r, int attempt) {
-        this.root = r.root;
+        this.rootPage = r.rootPage;
         this.version = r.version;
         this.previous = r.previous;
         this.updateCounter = r.updateCounter + 1;
         this.updateAttemptCounter = r.updateAttemptCounter + attempt;
-        assert r.holdCount == 0 || r.ownerId == Thread.currentThread().getId() //
-                : Thread.currentThread().getId() + " " + r;
+        assert r.holdCount == 0 || r.ownerId == Thread.currentThread().getId() : Thread.currentThread().getId() + " " + r;
         this.holdCount = (byte) (r.holdCount + 1);
         this.ownerId = Thread.currentThread().getId();
         this.appendCounter = r.appendCounter;
     }
 
     // This one is used for unlocking
-    private RootReference(RootReference<K, V> r, Page<K, V> root, boolean keepLocked, int appendCounter) {
-        this.root = root;
+    private RootReference(RootReference<K, V> r, Page<K, V> rootPage, boolean keepLocked, int appendCounter) {
+        this.rootPage = rootPage;
         this.version = r.version;
         this.previous = r.previous;
         this.updateCounter = r.updateCounter;
         this.updateAttemptCounter = r.updateAttemptCounter;
-        assert r.holdCount > 0 && r.ownerId == Thread.currentThread().getId() //
-                : Thread.currentThread().getId() + " " + r;
+        assert r.holdCount > 0 && r.ownerId == Thread.currentThread().getId() : Thread.currentThread().getId() + " " + r;
         this.holdCount = (byte) (r.holdCount - (keepLocked ? 0 : 1));
         this.ownerId = this.holdCount == 0 ? 0 : Thread.currentThread().getId();
         this.appendCounter = (byte) appendCounter;
     }
 
-    // This one is used for version change
+    // used for version change
     private RootReference(RootReference<K, V> rootReference, long version, int attempt) {
         RootReference<K, V> previous = rootReference;
+
         RootReference<K, V> tmp;
-        while ((tmp = previous.previous) != null && tmp.root == rootReference.root) {
+        while ((tmp = previous.previous) != null && tmp.rootPage == rootReference.rootPage) {
             previous = tmp;
         }
 
-        this.root = rootReference.root;
+        this.rootPage = rootReference.rootPage;
         this.version = version;
         this.previous = previous;
         this.updateCounter = rootReference.updateCounter + 1;
         this.updateAttemptCounter = rootReference.updateAttemptCounter + attempt;
         this.holdCount = rootReference.holdCount == 0 ? 0 : (byte) (rootReference.holdCount - 1);
         this.ownerId = this.holdCount == 0 ? 0 : rootReference.ownerId;
+
         assert rootReference.appendCounter == 0;
         this.appendCounter = 0;
     }
@@ -170,9 +173,7 @@ public final class RootReference<K, V> {
     }
 
     /**
-     * Removed old versions that are not longer used.
-     *
-     * @param oldestVersionToKeep the oldest version that needs to be retained
+     * removed old versions that are no longer used.
      */
     void removeUnusedOldVersions(long oldestVersionToKeep) {
         // We need to keep at least one previous version (if any) here,
@@ -180,12 +181,12 @@ public final class RootReference<K, V> {
         // we really need last root of the previous version.
         // Root labeled with version "X" is the LAST known root for that version
         // and therefore the FIRST known root for the version "X+1"
-        for (RootReference<K, V> rootRef = this; rootRef != null; rootRef = rootRef.previous) {
-            if (rootRef.version < oldestVersionToKeep) {
+        for (RootReference<K, V> rootReference = this; rootReference != null; rootReference = rootReference.previous) {
+            if (rootReference.version < oldestVersionToKeep) {
                 RootReference<K, V> previous;
-                assert (previous = rootRef.previous) == null || previous.getAppendCounter() == 0 //
-                        : oldestVersionToKeep + " " + rootRef.previous;
-                rootRef.previous = null;
+                assert (previous = rootReference.previous) == null || previous.getAppendCounter() == 0 : oldestVersionToKeep + " " + rootReference.previous;
+                // 只要执行了那么链条便断了 for循环停止
+                rootReference.previous = null;
             }
         }
     }
@@ -209,13 +210,12 @@ public final class RootReference<K, V> {
 
     private RootReference<K, V> tryUpdate(RootReference<K, V> updatedRootReference) {
         assert canUpdate();
-        return root.mvMap.compareAndSetRoot(this, updatedRootReference) ? updatedRootReference : null;
+        return rootPage.mvMap.compareAndSetRoot(this, updatedRootReference) ? updatedRootReference : null;
     }
 
     long getVersion() {
         RootReference<K, V> prev = previous;
-        return prev == null || prev.root != root || prev.appendCounter != appendCounter ?
-                version : prev.getVersion();
+        return prev == null || prev.rootPage != rootPage || prev.appendCounter != appendCounter ? version : prev.getVersion();
     }
 
     /**
@@ -226,34 +226,28 @@ public final class RootReference<K, V> {
      * @return true if this root has unsaved changes
      */
     boolean hasChangesSince(long version, boolean persistent) {
-        return persistent && (root.isSaved() ? getAppendCounter() > 0 : getTotalCount() > 0)
-                || getVersion() > version;
+        return persistent && (rootPage.isSaved() ? getAppendCounter() > 0 : getTotalCount() > 0) || getVersion() > version;
     }
 
     int getAppendCounter() {
         return appendCounter & 0xff;
     }
 
-    /**
-     * Whether flushing is needed.
-     *
-     * @return true if yes
-     */
     public boolean needFlush() {
         return appendCounter != 0;
     }
 
     public long getTotalCount() {
-        return root.getTotalCount() + getAppendCounter();
+        return rootPage.getTotalCount() + getAppendCounter();
     }
 
     @Override
     public String toString() {
-        return "RootReference(" + System.identityHashCode(root) +
+        return "RootReference(" + System.identityHashCode(rootPage) +
                 ", v=" + version +
                 ", owner=" + ownerId + (ownerId == Thread.currentThread().getId() ? "(current)" : "") +
                 ", holdCnt=" + holdCount +
-                ", keys=" + root.getTotalCount() +
+                ", keys=" + rootPage.getTotalCount() +
                 ", append=" + getAppendCounter() +
                 ")";
     }

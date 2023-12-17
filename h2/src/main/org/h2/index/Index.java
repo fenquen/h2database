@@ -94,7 +94,11 @@ public abstract class Index extends SchemaObject {
      * @param uniqueColumnCount count of unique columns
      * @param newIndexType      the index type
      */
-    protected Index(Table newTable, int id, String name, IndexColumn[] newIndexColumns, int uniqueColumnCount,
+    protected Index(Table newTable,
+                    int id,
+                    String name,
+                    IndexColumn[] newIndexColumns,
+                    int uniqueColumnCount,
                     IndexType newIndexType) {
         super(newTable.getSchema(), id, name, Trace.INDEX);
         this.uniqueColumnColumn = uniqueColumnCount;
@@ -207,10 +211,10 @@ public abstract class Index extends SchemaObject {
     /**
      * Add a row to the index.
      *
-     * @param session the session to use
-     * @param row     the row to add
+     * @param sessionLocal the session to use
+     * @param row          the row to add
      */
-    public abstract void add(SessionLocal session, Row row);
+    public abstract void add(SessionLocal sessionLocal, Row row);
 
     /**
      * Remove a row from the index.

@@ -1049,9 +1049,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
      */
     public void beforeTest() throws SQLException {
         Driver.load();
-        FileUtils.deleteRecursive(TestBase.BASE_TEST_DIR, true);
-        DeleteDbFiles.execute(TestBase.BASE_TEST_DIR, null, true);
-        FileUtils.deleteRecursive("trace.db", false);
+
         if (networked) {
             String[] args = ssl ? new String[] { "-ifNotExists", "-tcpSSL" } : new String[] { "-ifNotExists" };
             server = Server.createTcpServer(args);
@@ -1071,8 +1069,9 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         if (networked && server != null) {
             server.stop();
         }
-        FileUtils.deleteRecursive("trace.db", true);
-        FileUtils.deleteRecursive(TestBase.BASE_TEST_DIR, true);
+
+       // FileUtils.deleteRecursive("trace.db", true);
+       // FileUtils.deleteRecursive(TestBase.BASE_TEST_DIR, true);
     }
 
     public int getPort() {

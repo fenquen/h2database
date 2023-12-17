@@ -52,7 +52,7 @@ public class FileStore {
     /**
      * Whether this store is read-only.
      */
-    private boolean readOnly;
+    public boolean readOnly;
 
     /**
      * The file size (cached).
@@ -85,8 +85,6 @@ public class FileStore {
 
     /**
      * Read from the file.
-     *
-     * @return the byte buffer
      */
     public ByteBuffer readFully(long position, int len) {
         ByteBuffer dest = ByteBuffer.allocate(len);
@@ -119,9 +117,7 @@ public class FileStore {
      */
     public void open(String fileName, boolean readOnly, char[] encryptionKey) {
         open(fileName, readOnly,
-                encryptionKey == null ?
-                        null :
-                        fileChannel -> new FileEncrypt(fileName, FilePathEncrypt.getPasswordBytes(encryptionKey), fileChannel));
+                encryptionKey == null ? null : fileChannel -> new FileEncrypt(fileName, FilePathEncrypt.getPasswordBytes(encryptionKey), fileChannel));
     }
 
     public FileStore open(String fileName, boolean readOnly) {
@@ -178,6 +174,7 @@ public class FileStore {
                     close();
                 } catch (Exception ignore) {
                 }
+
                 throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_LOCKED, "The file is already locked: {0}", fileName);
             }
 
@@ -216,12 +213,14 @@ public class FileStore {
      * Flush all changes.
      */
     public void sync() {
-        if (fileChannel != null) {
-            try {
-                fileChannel.force(true);
-            } catch (IOException e) {
-                throw DataUtils.newMVStoreException(DataUtils.ERROR_WRITING_FAILED, "Could not sync file {0}", fileName, e);
-            }
+        if (fileChannel == null) {
+           return;
+        }
+
+        try {
+            fileChannel.force(true);
+        } catch (IOException e) {
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_WRITING_FAILED, "Could not sync file {0}", fileName, e);
         }
     }
 

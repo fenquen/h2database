@@ -46,7 +46,8 @@ public final class Insert extends CommandWithValues implements ResultTarget {
     private Table table;
     private Column[] columns;
     private Query query;
-    private long rowNumber;
+    // insert了多少row
+    private long insertedRowNum;
     private boolean insertFromSelect;
 
     private Boolean overridingSystem;
@@ -141,58 +142,83 @@ public final class Insert extends CommandWithValues implements ResultTarget {
 
     private long insertRows() {
         sessionLocal.getUser().checkTableRight(table, Right.INSERT);
+
         setCurrentRowNumber(0);
+
         table.fire(sessionLocal, Trigger.INSERT, true);
-        rowNumber = 0;
+
+        insertedRowNum = 0;
+
         int listSize = valuesExpressionList.size();
-        if (listSize > 0) {
+
+        // insert into table values (1) 对应, valuesExpressionList 对应values内容
+        // valuesExpressionList的元素对应要insert 单个的row的内容
+        if (listSize > 0) { // listSize 对应要insert的row数量
             int columnLen = columns.length;
+
+            // 遍历要insert的各个row
             for (int x = 0; x < listSize; x++) {
                 Row newRow = table.getTemplateRow();
-                Expression[] expr = valuesExpressionList.get(x);
+
+                Expression[] expressions = valuesExpressionList.get(x);
+
                 setCurrentRowNumber(x + 1);
+
+                // 填充单个row内容 遍历了insert牵涉到的column
                 for (int i = 0; i < columnLen; i++) {
-                    Column c = columns[i];
-                    int index = c.getColumnId();
-                    Expression e = expr[i];
-                    if (e != ValueExpression.DEFAULT) {
-                        try {
-                            newRow.setValue(index, e.getValue(sessionLocal));
-                        } catch (DbException ex) {
-                            throw setRow(ex, x, getSimpleSQL(expr));
-                        }
+                    Column column = columns[i];
+
+                    int columnId = column.columnId;
+
+                    Expression expression = expressions[i];
+                    if (expression == ValueExpression.DEFAULT) {
+                       continue;
+                    }
+
+                    try {
+                        newRow.setValue(columnId, expression.getValue(sessionLocal));
+                    } catch (DbException ex) {
+                        throw setRow(ex, x, getSimpleSQL(expressions));
                     }
                 }
-                rowNumber++;
+
+                insertedRowNum++;
+
                 table.convertInsertRow(sessionLocal, newRow, overridingSystem);
+
                 if (deltaChangeCollectionMode == ResultOption.NEW) {
                     deltaChangeCollector.addRow(newRow.getValueList().clone());
                 }
+
+                // 要未设置trigger的话得到false
                 if (!table.fireBeforeRow(sessionLocal, null, newRow)) {
                     table.lock(sessionLocal, Table.WRITE_LOCK);
+
                     try {
                         table.addRow(sessionLocal, newRow);
                     } catch (DbException de) {
                         if (handleOnDuplicate(de, null)) {
                             // MySQL returns 2 for updated row
                             // TODO: detect no-op change
-                            rowNumber++;
+                            insertedRowNum++;
                         } else {
                             // INSERT IGNORE case
-                            rowNumber--;
+                            insertedRowNum--;
                         }
+
                         continue;
                     }
-                    DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector,
-                            deltaChangeCollectionMode, newRow);
+
+                    DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector, deltaChangeCollectionMode, newRow);
+
                     table.fireAfterRow(sessionLocal, null, newRow, false);
                 } else {
-                    DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector,
-                            deltaChangeCollectionMode, newRow);
+                    DataChangeDeltaTable.collectInsertedFinalRow(sessionLocal, table, deltaChangeCollector, deltaChangeCollectionMode, newRow);
                 }
             }
         } else {
             table.lock(sessionLocal, Table.WRITE_LOCK);
+
             if (insertFromSelect) {
                 query.query(0, this);
             } else {
@@ -205,24 +231,26 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                         if (handleOnDuplicate(de, r)) {
                             // MySQL returns 2 for updated row
                             // TODO: detect no-op change
-                            rowNumber++;
+                            insertedRowNum++;
                         } else {
                             // INSERT IGNORE case
-                            rowNumber--;
+                            insertedRowNum--;
                         }
                     }
                 }
                 rows.close();
             }
         }
+
         table.fire(sessionLocal, Trigger.INSERT, false);
-        return rowNumber;
+
+        return insertedRowNum;
     }
 
     @Override
     public void addRow(Value... values) {
         Row newRow = table.getTemplateRow();
-        setCurrentRowNumber(++rowNumber);
+        setCurrentRowNumber(++insertedRowNum);
         for (int j = 0, len = columns.length; j < len; j++) {
             newRow.setValue(columns[j].getColumnId(), values[j]);
         }
@@ -244,7 +272,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
     @Override
     public long getRowCount() {
         // This method is not used in this class
-        return rowNumber;
+        return insertedRowNum;
     }
 
     @Override

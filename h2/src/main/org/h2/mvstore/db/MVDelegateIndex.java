@@ -59,7 +59,7 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
+    public void add(SessionLocal sessionLocal, Row row) {
         // nothing to do
     }
 

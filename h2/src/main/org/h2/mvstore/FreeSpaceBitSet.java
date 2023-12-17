@@ -234,17 +234,21 @@ public class FreeSpaceBitSet {
         // to get approximation without holding a store lock
         int usedBlocks;
         int totalBlocks;
+
         // to prevent infinite loop, which I saw once
         int cnt = 3;
         do {
             if (--cnt == 0) {
                 return 100;
             }
+
             totalBlocks = bitSet.length();
             usedBlocks = bitSet.cardinality();
         } while (totalBlocks != bitSet.length() || usedBlocks > totalBlocks);
+
         usedBlocks -= firstFreeBlock + vacatedBlocks;
         totalBlocks -= firstFreeBlock;
+
         return usedBlocks == 0 ? 0 : (int) ((100L * usedBlocks + totalBlocks - 1) / totalBlocks);
     }
 

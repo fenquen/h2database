@@ -9,8 +9,7 @@ import java.util.Collection;
 import org.h2.value.Value;
 
 /**
- * This interface is used to extend the LocalResult class, if data does not fit
- * in memory.
+ * this interface is used to extend the LocalResult class, if data does not fit in memory.
  */
 public interface ResultExternal {
 

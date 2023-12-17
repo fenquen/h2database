@@ -670,24 +670,29 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public void commit(boolean ddl) {
         beforeCommitOrRollback();
+
         if (hasTransaction()) {
             try {
                 markUsedTablesAsUpdated();
+
                 transaction.commit();
+
                 removeTemporaryLobs(true);
+
                 endTransaction();
             } finally {
                 transaction = null;
             }
-            if (!ddl) {
-                // do not clean the temp tables if the last command was a
-                // create/drop
+
+            if (!ddl) { // do not clean the temp tables if the last command was a create/drop
                 cleanTempTables(false);
+
                 if (autoCommitAtTransactionEnd) {
                     autoCommit = true;
                     autoCommitAtTransactionEnd = false;
                 }
             }
+
             analyzeTables();
         }
     }
@@ -765,11 +770,14 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
             }
             removeLobMap = null;
         }
+
         unlockAll();
+
         if (idsToRelease != null) {
             database.releaseDatabaseObjectIds(idsToRelease);
             idsToRelease = null;
         }
+
         if (hasTransaction() && !transaction.allowNonRepeatableRead()) {
             snapshotDataModificationId = database.getNextModificationDataId();
         }
@@ -918,6 +926,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                 throw DbException.getInternalError(table.toString());
             }
         }
+
         locks.add(table);
     }
 
@@ -1157,8 +1166,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                 }
             }
             if (!found) {
-                throw DbException.get(ErrorCode.TRANSACTION_NOT_FOUND_1,
-                        transactionName);
+                throw DbException.get(ErrorCode.TRANSACTION_NOT_FOUND_1, transactionName);
             }
         }
     }
@@ -1230,7 +1238,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         State currentState;
         while ((currentState = state.get()) != State.CLOSED &&
                 (!checkSuspended || checkSuspended(currentState)) &&
-                !state.compareAndSet(currentState, targetState)) {/**/}
+                !state.compareAndSet(currentState, targetState)) {}
         return currentState;
     }
 
@@ -1610,14 +1618,17 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     @SuppressWarnings("incomplete-switch")
     public void startStatementWithinTransaction(Command command) {
+        // 会落地到 transactionStore 的 openTransactions undoLogs transactions
         Transaction transaction = getTransaction();
+
         if (transaction != null) {
             HashSet<MVMap<Object, VersionedValue<Object>>> mvMaps = new HashSet<>();
 
             if (command != null) {
+                // 得到的是mvTable
                 Set<DbObject> dependencies = command.getDependencies();
 
-                switch (transaction.getIsolationLevel()) {
+                switch (transaction.isolationLevel) {
                     case SNAPSHOT:
                     case SERIALIZABLE:
                         if (!transaction.hasStatementDependencies()) {
@@ -1628,6 +1639,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                                     }
                                 }
                             }
+
                             break;
                         }
                     case READ_COMMITTED:
@@ -1649,6 +1661,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                 }
             }
 
+            // 生成transactionMap的snapshot transaction的undoLogRootReferences
             transaction.markStatementStart(mvMaps);
         }
 
@@ -1660,8 +1673,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void addTableToDependencies(MVTable mvTable,
-                                               HashSet<MVMap<Object, VersionedValue<Object>>> mvMaps) {
+    private static void addTableToDependencies(MVTable mvTable, HashSet<MVMap<Object, VersionedValue<Object>>> mvMaps) {
         for (Index index : mvTable.indexList) {
             if (index instanceof MVIndex) {
                 mvMaps.add(((MVIndex) index).getMVMap());
@@ -1669,12 +1681,15 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         }
     }
 
-    private static void addTableToDependencies(MVTable table, HashSet<MVMap<Object, VersionedValue<Object>>> maps,
+    private static void addTableToDependencies(MVTable table,
+                                               HashSet<MVMap<Object, VersionedValue<Object>>> maps,
                                                HashSet<MVTable> processed) {
         if (!processed.add(table)) {
             return;
         }
+
         addTableToDependencies(table, maps);
+
         ArrayList<Constraint> constraints = table.getConstraints();
         if (constraints != null) {
             for (Constraint constraint : constraints) {
@@ -1692,9 +1707,11 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public void endStatement() {
         setCurrentCommand(null);
+
         if (hasTransaction()) {
             transaction.markStatementEnd();
         }
+
         startStatement = -1;
     }
 
@@ -1753,14 +1770,14 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
 
     @Override
     public void onRollback(MVMap<Object,
-            VersionedValue<Object>> map,
+            VersionedValue<Object>> mvMap,
                            Object key,
                            VersionedValue<Object> existingValue,
                            VersionedValue<Object> restoredValue) {
         // Here we are relying on the fact that map which backs table's primary index
         // has the same name as the table itself
         Store store = database.getStore();
-        MVTable mvTable = store.getTable(map.getName());
+        MVTable mvTable = store.getTable(mvMap.getName());
         if (mvTable != null) {
             Row oldRow = existingValue == null ? null : (Row) existingValue.getCurrentValue();
             Row newRow = restoredValue == null ? null : (Row) restoredValue.getCurrentValue();

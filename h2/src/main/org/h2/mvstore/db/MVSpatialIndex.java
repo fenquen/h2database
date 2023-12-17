@@ -126,8 +126,8 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
-        TransactionMap<Spatial, Value> map = getMap(session);
+    public void add(SessionLocal sessionLocal, Row row) {
+        TransactionMap<Spatial, Value> map = getMap(sessionLocal);
         SpatialKey key = getKey(row);
 
         if (key.isNull()) {

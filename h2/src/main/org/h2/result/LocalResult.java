@@ -37,10 +37,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
     /**
      * Constructs a new local result object for the specified table.
      *
-     * @param session
-     *            the session
-     * @param table
-     *            the table
+     * @param session the session
+     * @param table   the table
      * @return the local result
      */
     public static LocalResult forTable(SessionLocal session, Table table) {
@@ -58,14 +56,14 @@ public class LocalResult implements ResultInterface, ResultTarget {
     }
 
     private int maxMemoryRows;
-    private final SessionLocal session;
+    private final SessionLocal sessionLocal;
     private int visibleColumnCount;
     private int resultColumnCount;
     private Expression[] expressions;
     private boolean forDataChangeDeltaTable;
     private long rowId, rowCount;
     private ArrayList<Value[]> rows;
-    private SortOrder sort;
+    private SortOrder sortOrder;
     // HashSet cannot be used here, because we need to compare values of
     // different type or scale properly.
     private TreeMap<ValueRow, Value[]> distinctRows;
@@ -75,7 +73,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     private boolean fetchPercent;
     private SortOrder withTiesSortOrder;
     private boolean limitsWereApplied;
-    private ResultExternal external;
+    private ResultExternal resultExternal;
     private boolean distinct;
     private int[] distinctIndexes;
     private boolean closed;
@@ -89,31 +87,27 @@ public class LocalResult implements ResultInterface, ResultTarget {
         this(null);
     }
 
-    private LocalResult(SessionLocal session) {
-        this.session = session;
+    private LocalResult(SessionLocal sessionLocal) {
+        this.sessionLocal = sessionLocal;
     }
 
     /**
      * Construct a local result object.
      *
-     * @param session
-     *            the session
-     * @param expressions
-     *            the expression array
-     * @param visibleColumnCount
-     *            the number of visible columns
-     * @param resultColumnCount
-     *            the number of columns including visible columns and additional
-     *            virtual columns for ORDER BY and DISTINCT ON clauses
+     * @param sessionLocal            the session
+     * @param expressions        the expression array
+     * @param visibleColumnCount the number of visible columns
+     * @param resultColumnCount  the number of columns including visible columns and additional
+     *                           virtual columns for ORDER BY and DISTINCT ON clauses
      */
-    public LocalResult(SessionLocal session, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
-        this.session = session;
-        if (session == null) {
+    public LocalResult(SessionLocal sessionLocal, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
+        this.sessionLocal = sessionLocal;
+
+        if (sessionLocal == null) {
             this.maxMemoryRows = Integer.MAX_VALUE;
         } else {
-            Database db = session.getDatabase();
-            if (db.isPersistent() && !db.isReadOnly()) {
-                this.maxMemoryRows = session.getDatabase().getMaxMemoryRows();
+            if (sessionLocal.database.isPersistent() && !sessionLocal.database.isReadOnly()) {
+                this.maxMemoryRows = sessionLocal.database.maxMemoryRows;
             } else {
                 this.maxMemoryRows = Integer.MAX_VALUE;
             }
@@ -134,7 +128,6 @@ public class LocalResult implements ResultInterface, ResultTarget {
      * Redefine count of maximum rows holds in memory for the result.
      *
      * @param maxValue Maximum rows count in memory.
-     *
      * @see SysProperties#MAX_MEMORY_ROWS
      */
     public void setMaxMemoryRows(int maxValue) {
@@ -157,15 +150,15 @@ public class LocalResult implements ResultInterface, ResultTarget {
      */
     @Override
     public LocalResult createShallowCopy(Session targetSession) {
-        if (external == null && (rows == null || rows.size() < rowCount)) {
+        if (resultExternal == null && (rows == null || rows.size() < rowCount)) {
             return null;
         }
         if (containsLobs) {
             return null;
         }
         ResultExternal e2 = null;
-        if (external != null) {
-            e2 = external.createShallowCopy();
+        if (resultExternal != null) {
+            e2 = resultExternal.createShallowCopy();
             if (e2 == null) {
                 return null;
             }
@@ -178,14 +171,14 @@ public class LocalResult implements ResultInterface, ResultTarget {
         copy.rowId = -1;
         copy.rowCount = this.rowCount;
         copy.rows = this.rows;
-        copy.sort = this.sort;
+        copy.sortOrder = this.sortOrder;
         copy.distinctRows = this.distinctRows;
         copy.distinct = distinct;
         copy.distinctIndexes = distinctIndexes;
         copy.currentRow = null;
         copy.offset = 0;
         copy.limit = -1;
-        copy.external = e2;
+        copy.resultExternal = e2;
         copy.containsNull = containsNull;
         return copy;
     }
@@ -197,7 +190,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
      * @param sort the sort order
      */
     public void setSortOrder(SortOrder sort) {
-        this.sort = sort;
+        this.sortOrder = sort;
     }
 
     /**
@@ -206,7 +199,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     public void setDistinct() {
         assert distinctIndexes == null;
         distinct = true;
-        distinctRows = new TreeMap<>(session.getDatabase().getCompareMode());
+        distinctRows = new TreeMap<>(sessionLocal.getDatabase().getCompareMode());
     }
 
     /**
@@ -217,7 +210,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     public void setDistinct(int[] distinctIndexes) {
         assert !distinct;
         this.distinctIndexes = distinctIndexes;
-        distinctRows = new TreeMap<>(session.getDatabase().getCompareMode());
+        distinctRows = new TreeMap<>(sessionLocal.getDatabase().getCompareMode());
     }
 
     /**
@@ -235,11 +228,11 @@ public class LocalResult implements ResultInterface, ResultTarget {
      */
     public boolean containsDistinct(Value[] values) {
         assert values.length == visibleColumnCount;
-        if (external != null) {
-            return external.contains(values);
+        if (resultExternal != null) {
+            return resultExternal.contains(values);
         }
         if (distinctRows == null) {
-            distinctRows = new TreeMap<>(session.getDatabase().getCompareMode());
+            distinctRows = new TreeMap<>(sessionLocal.getDatabase().getCompareMode());
             for (Value[] row : rows) {
                 ValueRow array = getDistinctRow(row);
                 distinctRows.put(array, array.getList());
@@ -260,7 +253,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
         if (r == null) {
             r = false;
             reset();
-            loop: while (next()) {
+            loop:
+            while (next()) {
                 Value[] row = currentRow;
                 for (int i = 0; i < visibleColumnCount; i++) {
                     if (row[i].containsNull()) {
@@ -289,7 +283,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
             distinctRows.remove(ValueRow.get(values));
             rowCount = distinctRows.size();
         } else {
-            rowCount = external.removeRow(values);
+            rowCount = resultExternal.removeRow(values);
         }
     }
 
@@ -297,19 +291,20 @@ public class LocalResult implements ResultInterface, ResultTarget {
     public void reset() {
         rowId = -1;
         currentRow = null;
-        if (external != null) {
-            external.reset();
+        if (resultExternal != null) {
+            resultExternal.reset();
         }
     }
 
     /**
      * Retrieve the current row
+     *
      * @return row
      */
     public Row currentRowForTable() {
         int degree = visibleColumnCount;
         Value[] currentRow = this.currentRow;
-        Row row = session.getDatabase().getRowFactory()
+        Row row = sessionLocal.getDatabase().getRowFactory()
                 .createRow(Arrays.copyOf(currentRow, degree), SearchRow.MEMORY_CALCULATE);
         row.setKey(currentRow[degree].getLong());
         return row;
@@ -325,8 +320,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
         if (!closed && rowId < rowCount) {
             rowId++;
             if (rowId < rowCount) {
-                if (external != null) {
-                    currentRow = external.next();
+                if (resultExternal != null) {
+                    currentRow = resultExternal.next();
                 } else {
                     currentRow = rows.get((int) rowId);
                 }
@@ -357,7 +352,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
                     ValueLob v2 = ((ValueLob) v).copyToResult();
                     if (v2 != v) {
                         containsLobs = true;
-                        values[i] = session.addTemporaryLob(v2);
+                        values[i] = sessionLocal.addTemporaryLob(v2);
                     }
                 }
             }
@@ -379,8 +374,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     }
 
     private void createExternalResult() {
-        external = MVTempResult.of(session.getDatabase(), expressions, distinct, distinctIndexes, visibleColumnCount,
-                resultColumnCount, sort);
+        resultExternal = MVTempResult.of(sessionLocal.getDatabase(), expressions, distinct, distinctIndexes, visibleColumnCount, resultColumnCount, sortOrder);
     }
 
     /**
@@ -415,17 +409,17 @@ public class LocalResult implements ResultInterface, ResultTarget {
             if (distinctRows != null) {
                 ValueRow distinctRow = getDistinctRow(values);
                 Value[] previous = distinctRows.get(distinctRow);
-                if (previous == null || sort != null && sort.compare(previous, values) > 0) {
+                if (previous == null || sortOrder != null && sortOrder.compare(previous, values) > 0) {
                     distinctRows.put(distinctRow, values);
                 }
                 rowCount = distinctRows.size();
                 if (rowCount > maxMemoryRows) {
                     createExternalResult();
-                    rowCount = external.addRows(distinctRows.values());
+                    rowCount = resultExternal.addRows(distinctRows.values());
                     distinctRows = null;
                 }
             } else {
-                rowCount = external.addRow(values);
+                rowCount = resultExternal.addRow(values);
             }
         } else {
             rows.add(values);
@@ -437,10 +431,10 @@ public class LocalResult implements ResultInterface, ResultTarget {
     }
 
     private void addRowsToDisk() {
-        if (external == null) {
+        if (resultExternal == null) {
             createExternalResult();
         }
-        rowCount = external.addRows(rows);
+        rowCount = resultExternal.addRows(rows);
         rows.clear();
     }
 
@@ -453,29 +447,36 @@ public class LocalResult implements ResultInterface, ResultTarget {
      * This method is called after all rows have been added.
      */
     public void done() {
-        if (external != null) {
+        if (resultExternal != null) {
             addRowsToDisk();
         } else {
             if (isAnyDistinct()) {
                 rows = new ArrayList<>(distinctRows.values());
             }
-            if (sort != null && limit != 0 && !limitsWereApplied) {
+
+            if (sortOrder != null && limit != 0 && !limitsWereApplied) {
                 boolean withLimit = limit > 0 && withTiesSortOrder == null;
+
                 if (offset > 0 || withLimit) {
                     int endExclusive = rows.size();
+
                     if (offset < endExclusive) {
                         int fromInclusive = (int) offset;
+
                         if (withLimit && limit < endExclusive - fromInclusive) {
                             endExclusive = fromInclusive + (int) limit;
                         }
-                        sort.sort(rows, fromInclusive, endExclusive);
+
+                        sortOrder.sort(rows, fromInclusive, endExclusive);
                     }
                 } else {
-                    sort.sort(rows);
+                    sortOrder.sort(rows);
                 }
             }
         }
+
         applyOffsetAndLimit();
+
         reset();
     }
 
@@ -507,7 +508,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
         }
         distinctRows = null;
         rowCount = limit;
-        if (external == null) {
+        if (resultExternal == null) {
             if (clearAll) {
                 rows.clear();
                 return;
@@ -526,8 +527,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
             }
         } else {
             if (clearAll) {
-                external.close();
-                external = null;
+                resultExternal.close();
+                resultExternal = null;
                 return;
             }
             trimExternal(offset, limit);
@@ -535,8 +536,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
     }
 
     private void trimExternal(long offset, long limit) {
-        ResultExternal temp = external;
-        external = null;
+        ResultExternal temp = resultExternal;
+        resultExternal = null;
         temp.reset();
         while (--offset >= 0) {
             temp.next();
@@ -559,7 +560,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
                 }
             }
         }
-        if (external != null) {
+        if (resultExternal != null) {
             addRowsToDisk();
         }
         temp.close();
@@ -605,27 +606,27 @@ public class LocalResult implements ResultInterface, ResultTarget {
      * @param withTiesSortOrder the sort order for tied rows
      */
     public void setWithTies(SortOrder withTiesSortOrder) {
-        assert sort == null || sort == withTiesSortOrder;
+        assert sortOrder == null || sortOrder == withTiesSortOrder;
         this.withTiesSortOrder = withTiesSortOrder;
     }
 
     @Override
     public boolean needToClose() {
-        return external != null;
+        return resultExternal != null;
     }
 
     @Override
     public void close() {
-        if (external != null) {
-            external.close();
-            external = null;
+        if (resultExternal != null) {
+            resultExternal.close();
+            resultExternal = null;
             closed = true;
         }
     }
 
     @Override
     public String getAlias(int i) {
-        return expressions[i].getAlias(session, i);
+        return expressions[i].getAlias(sessionLocal, i);
     }
 
     @Override
@@ -640,7 +641,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
 
     @Override
     public String getColumnName(int i) {
-        return expressions[i].getColumnName(session, i);
+        return expressions[i].getColumnName(sessionLocal, i);
     }
 
     @Override

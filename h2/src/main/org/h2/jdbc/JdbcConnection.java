@@ -209,8 +209,11 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     public Statement createStatement() throws SQLException {
         try {
             int id = getNextId(TraceObject.STATEMENT);
+
             debugCodeAssign("Statement", TraceObject.STATEMENT, id, "createStatement()");
+
             checkClosed();
+
             return new JdbcStatement(this, id, ResultSet.TYPE_FORWARD_ONLY, Constants.DEFAULT_RESULT_SET_CONCURRENCY);
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -232,8 +235,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
         try {
             int id = getNextId(TraceObject.STATEMENT);
             if (isDebugEnabled()) {
-                debugCodeAssign("Statement", TraceObject.STATEMENT, id,
-                        "createStatement(" + resultSetType + ", " + resultSetConcurrency + ')');
+                debugCodeAssign("Statement", TraceObject.STATEMENT, id, "createStatement(" + resultSetType + ", " + resultSetConcurrency + ')');
             }
             checkTypeConcurrency(resultSetType, resultSetConcurrency);
             checkClosed();
@@ -256,8 +258,8 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
      */
     @Override
     public Statement createStatement(int resultSetType,
-                                     int resultSetConcurrency, int resultSetHoldability)
-            throws SQLException {
+                                     int resultSetConcurrency,
+                                     int resultSetHoldability) throws SQLException {
         try {
             int id = getNextId(TraceObject.STATEMENT);
             if (isDebugEnabled()) {
@@ -403,17 +405,19 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
      * @throws SQLException if the connection is closed
      */
     @Override
-    public synchronized void setAutoCommit(boolean autoCommit)
-            throws SQLException {
+    public synchronized void setAutoCommit(boolean autoCommit) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("setAutoCommit(" + autoCommit + ')');
             }
+
             checkClosed();
+
             synchronized (session) {
                 if (autoCommit && !session.getAutoCommit()) {
                     commit();
                 }
+
                 session.setAutoCommit(autoCommit);
             }
         } catch (Exception e) {
@@ -439,8 +443,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     }
 
     /**
-     * Commits the current transaction. This call has only an effect if auto
-     * commit is switched off.
+     * commits the current transaction. This call has only an effect if auto commit is switched off
      *
      * @throws SQLException if the connection is closed
      */
@@ -448,10 +451,13 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     public synchronized void commit() throws SQLException {
         try {
             debugCodeCall("commit");
+
             checkClosed();
+
             if (SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT && getAutoCommit()) {
                 throw DbException.get(ErrorCode.METHOD_DISABLED_ON_AUTOCOMMIT_TRUE, "commit()");
             }
+
             commit = prepareCommand("COMMIT", commit);
             commit.executeUpdate(null);
         } catch (Exception e) {
@@ -469,11 +475,13 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     public synchronized void rollback() throws SQLException {
         try {
             debugCodeCall("rollback");
+
             checkClosed();
-            if (SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT
-                    && getAutoCommit()) {
+
+            if (SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT && getAutoCommit()) {
                 throw DbException.get(ErrorCode.METHOD_DISABLED_ON_AUTOCOMMIT_TRUE, "rollback()");
             }
+
             rollbackInternal();
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -1123,8 +1131,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     }
 
     private CommandInterface prepareCommand(String sql, CommandInterface old) {
-        return old == null ? session.prepareCommand(sql, Integer.MAX_VALUE)
-                : old;
+        return old == null ? session.prepareCommand(sql, Integer.MAX_VALUE) : old;
     }
 
     private static int translateGetEnd(String sql, int i, char c) {

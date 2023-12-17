@@ -31,14 +31,14 @@ import org.h2.value.ValueNull;
  */
 public class IndexCursor implements Cursor {
 
-    private SessionLocal session;
-    private Index index;
+    private SessionLocal sessionLocal;
+    private Index index; // prepare plan 的 时候 set mvPrimaryIndex
     private Table table;
     private IndexColumn[] indexColumns;
     private boolean alwaysFalse;
 
     private SearchRow start, end, intersects;
-    private Cursor cursor;
+    public Cursor cursor;
     private Column inColumn;
     private int inListIndex;
     private Value[] inList;
@@ -66,11 +66,11 @@ public class IndexCursor implements Cursor {
     /**
      * Prepare this index cursor to make a lookup in index.
      *
-     * @param s Session.
+     * @param sessionLocal Session.
      * @param indexConditions Index conditions.
      */
-    public void prepare(SessionLocal s, ArrayList<IndexCondition> indexConditions) {
-        session = s;
+    public void prepare(SessionLocal sessionLocal, ArrayList<IndexCondition> indexConditions) {
+        this.sessionLocal = sessionLocal;
         alwaysFalse = false;
         start = end = null;
         inList = null;
@@ -92,7 +92,7 @@ public class IndexCursor implements Cursor {
                 if (start == null && end == null) {
                     if (canUseIndexForIn(column)) {
                         this.inColumn = column;
-                        inList = condition.getCurrentValueList(s);
+                        inList = condition.getCurrentValueList(sessionLocal);
                         inListIndex = 0;
                     }
                 }
@@ -104,7 +104,7 @@ public class IndexCursor implements Cursor {
                     }
                 }
             } else {
-                Value v = condition.getCurrentValue(s);
+                Value v = condition.getCurrentValue(sessionLocal);
                 boolean isStart = condition.isStart();
                 boolean isEnd = condition.isEnd();
                 boolean isIntersects = condition.isSpatialIntersects();
@@ -149,8 +149,7 @@ public class IndexCursor implements Cursor {
      * @param sessionLocal the session
      * @param indexConditions the index conditions
      */
-    public void find(SessionLocal sessionLocal,
-                     ArrayList<IndexCondition> indexConditions) {
+    public void find(SessionLocal sessionLocal, ArrayList<IndexCondition> indexConditions) {
 
         prepare(sessionLocal, indexConditions);
 
@@ -158,12 +157,14 @@ public class IndexCursor implements Cursor {
             return;
         }
 
-        if (!alwaysFalse) {
-            if (intersects != null && index instanceof SpatialIndex) {
-                cursor = ((SpatialIndex) index).findByGeometry(session, start, end, intersects);
-            } else if (index != null) {
-                cursor = index.find(session, start, end);
-            }
+        if (alwaysFalse) {
+            return;
+        }
+
+        if (intersects != null && index instanceof SpatialIndex) {
+            cursor = ((SpatialIndex) index).findByGeometry(this.sessionLocal, start, end, intersects);
+        } else if (index != null) {
+            cursor = index.find(this.sessionLocal, start, end);
         }
     }
 
@@ -232,7 +233,7 @@ public class IndexCursor implements Cursor {
         } else if (b == ValueNull.INSTANCE) {
             return a;
         }
-        int comp = session.compare(a, b);
+        int comp = sessionLocal.compare(a, b);
         if (comp == 0) {
             return a;
         }
@@ -285,6 +286,7 @@ public class IndexCursor implements Cursor {
         while (true) {
             if (cursor == null) {
                 nextCursor();
+
                 if (cursor == null) {
                     return false;
                 }
@@ -319,10 +321,10 @@ public class IndexCursor implements Cursor {
     }
 
     private void find(Value v) {
-        v = inColumn.convert(session, v);
+        v = inColumn.convert(sessionLocal, v);
         int id = inColumn.getColumnId();
         start.setValue(id, v);
-        cursor = index.find(session, start, start);
+        cursor = index.find(sessionLocal, start, start);
     }
 
     @Override

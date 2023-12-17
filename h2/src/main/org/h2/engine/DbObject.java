@@ -117,7 +117,7 @@ public abstract class DbObject implements HasSQL {
 
     private int id;
 
-    private String name;
+    public String name;
 
     private long modificationId;
 

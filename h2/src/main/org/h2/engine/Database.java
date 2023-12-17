@@ -161,7 +161,7 @@ public final class Database implements DataHandler, CastDataProvider {
     private final Trace trace;
     private final FileLockMethod fileLockMethod;
     private final Role publicRole;
-    private final AtomicLong modificationDataId = new AtomicLong();
+    public final AtomicLong modificationDataId = new AtomicLong();
     private final AtomicLong modificationMetaId = new AtomicLong();
     /**
      * Used to trigger the client side to reload some of the settings.
@@ -171,7 +171,7 @@ public final class Database implements DataHandler, CastDataProvider {
     private String cluster = Constants.CLUSTERING_DISABLED;
     public boolean readOnly;
     private DatabaseEventListener databaseEventListener;
-    private int maxMemoryRows = SysProperties.MAX_MEMORY_ROWS;
+    public int maxMemoryRows = SysProperties.MAX_MEMORY_ROWS;
     private int lockMode;
     private int maxLengthInplaceLob;
     private int allowLiterals = Constants.ALLOW_LITERALS_ALL;
@@ -1791,7 +1791,7 @@ public final class Database implements DataHandler, CastDataProvider {
     }
 
     public void setWriteDelay(int value) {
-        store.getMvStore().setAutoCommitDelay(Math.max(value, 0));
+        store.mvStore.setAutoCommitDelay(Math.max(value, 0));
     }
 
     public int getRetentionTime() {

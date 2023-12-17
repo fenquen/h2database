@@ -6,6 +6,7 @@
 package org.h2.mvstore.tx;
 
 import java.nio.ByteBuffer;
+
 import org.h2.engine.Constants;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
@@ -14,47 +15,46 @@ import org.h2.mvstore.type.BasicDataType;
 import org.h2.value.VersionedValue;
 
 /**
- * Class Record is a value for undoLog.
+ * 对应了1条 undoLog.
  * It contains information about a single change of some map.
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-final class Record<K,V> {
+public final class Record<K, V> {
 
     // -1 is a bogus map id
-    static final Record<?,?> COMMIT_MARKER = new Record<>(-1, null, null);
+    static final Record<?, ?> COMMIT_MARKER = new Record<>(-1, null, null);
 
     /**
-     * Map id for this change is related to
+     * 对应的mvMap的id
      */
-    final int mapId;
+    final int mvMapId;
 
     /**
-     * Key of the changed map entry key
+     * 对应的mvMap上的key
      */
     final K key;
 
     /**
-     * Value of the entry before change.
-     * It is null if entry did not exist before the change (addition).
+     * value of the entry before change,it is null if entry did not exist before the change (addition).
      */
     final VersionedValue<V> oldValue;
 
-    Record(int mapId, K key, VersionedValue<V> oldValue) {
-        this.mapId = mapId;
+    Record(int mvMapId, K key, VersionedValue<V> oldValue) {
+        this.mvMapId = mvMapId;
         this.key = key;
         this.oldValue = oldValue;
     }
 
     @Override
     public String toString() {
-        return "mapId=" + mapId + ", key=" + key + ", value=" + oldValue;
+        return "mapId=" + mvMapId + ", key=" + key + ", value=" + oldValue;
     }
 
     /**
      * A data type for undo log values
      */
-    static final class Type<K,V> extends BasicDataType<Record<K,V>> {
+    static final class Type<K, V> extends BasicDataType<Record<K, V>> {
         private final TransactionStore transactionStore;
 
         Type(TransactionStore transactionStore) {
@@ -62,10 +62,10 @@ final class Record<K,V> {
         }
 
         @Override
-        public int getMemory(Record<K,V> record) {
+        public int getMemory(Record<K, V> record) {
             int result = Constants.MEMORY_OBJECT + 4 + 3 * Constants.MEMORY_POINTER;
-            if (record.mapId >= 0) {
-                MVMap<K,VersionedValue<V>> map = transactionStore.getMap(record.mapId);
+            if (record.mvMapId >= 0) {
+                MVMap<K, VersionedValue<V>> map = transactionStore.getMap(record.mvMapId);
                 result += map.getKeyType().getMemory(record.key) +
                         map.getValueType().getMemory(record.oldValue);
             }
@@ -73,15 +73,15 @@ final class Record<K,V> {
         }
 
         @Override
-        public int compare(Record<K,V> aObj, Record<K,V> bObj) {
+        public int compare(Record<K, V> aObj, Record<K, V> bObj) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void write(WriteBuffer writeBuffer, Record<K,V> record) {
-            writeBuffer.putVarInt(record.mapId);
-            if (record.mapId >= 0) {
-                MVMap<K, VersionedValue<V>> map = transactionStore.getMap(record.mapId);
+        public void write(WriteBuffer writeBuffer, Record<K, V> record) {
+            writeBuffer.putVarInt(record.mvMapId);
+            if (record.mvMapId >= 0) {
+                MVMap<K, VersionedValue<V>> map = transactionStore.getMap(record.mvMapId);
                 map.getKeyType().write(writeBuffer, record.key);
                 VersionedValue<V> oldValue = record.oldValue;
                 if (oldValue == null) {
@@ -95,10 +95,10 @@ final class Record<K,V> {
 
         @SuppressWarnings("unchecked")
         @Override
-        public Record<K,V> read(ByteBuffer byteBuffer) {
+        public Record<K, V> read(ByteBuffer byteBuffer) {
             int mapId = DataUtils.readVarInt(byteBuffer);
             if (mapId < 0) {
-                return (Record<K,V>)COMMIT_MARKER;
+                return (Record<K, V>) COMMIT_MARKER;
             }
             MVMap<K, VersionedValue<V>> map = transactionStore.getMap(mapId);
             K key = map.getKeyType().read(byteBuffer);
@@ -111,7 +111,7 @@ final class Record<K,V> {
 
         @SuppressWarnings("unchecked")
         @Override
-        public Record<K,V>[] createStorage(int size) {
+        public Record<K, V>[] createStorage(int size) {
             return new Record[size];
         }
     }

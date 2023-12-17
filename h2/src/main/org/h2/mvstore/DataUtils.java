@@ -202,13 +202,20 @@ public final class DataUtils {
     public static int getVarIntLen(int x) {
         if ((x & (-1 << 7)) == 0) {
             return 1;
-        } else if ((x & (-1 << 14)) == 0) {
+        }
+
+        if ((x & (-1 << 14)) == 0) {
             return 2;
-        } else if ((x & (-1 << 21)) == 0) {
+        }
+
+        if ((x & (-1 << 21)) == 0) {
             return 3;
-        } else if ((x & (-1 << 28)) == 0) {
+        }
+
+        if ((x & (-1 << 28)) == 0) {
             return 4;
         }
+
         return 5;
     }
 
@@ -460,9 +467,7 @@ public final class DataUtils {
                 size = -1;
             }
 
-            throw newMVStoreException(ERROR_READING_FAILED,
-                    "Reading from file {0} failed at {1} (length {2}), read {3}, remaining {4}",
-                    fileChannel, position, size, dest.position(), dest.remaining(), e);
+            throw newMVStoreException(ERROR_READING_FAILED, "Reading from file {0} failed at {1} (length {2}), read {3}, remaining {4}", fileChannel, position, size, dest.position(), dest.remaining(), e);
         }
     }
 
@@ -562,7 +567,7 @@ public final class DataUtils {
      *
      * @param tocElement packed table of content element
      */
-    public static int getPageOffset(long tocElement) {
+    public static int getPageOffsetInChunk(long tocElement) {
         return (int) (tocElement >> 6);
     }
 
@@ -867,8 +872,8 @@ public final class DataUtils {
     /**
      * Parse a specified pair from key-value pair list.
      *
-     * @param metadataString   the list
-     * @param key the name of the key
+     * @param metadataString the list
+     * @param key            the name of the key
      * @return value of the specified item, or {@code null}
      * @throws MVStoreException if parsing failed
      */
@@ -1066,14 +1071,13 @@ public final class DataUtils {
         try {
             if (x.length() == 16) {
                 // avoid problems with overflow
-                // in Java 8, this special case is not needed
-                return (Long.parseLong(x.substring(0, 8), 16) << 32) |
-                        Long.parseLong(x.substring(8, 16), 16);
+                // in java 8, this special case is not needed
+                return (Long.parseLong(x.substring(0, 8), 16) << 32) | Long.parseLong(x.substring(8, 16), 16);
             }
+
             return Long.parseLong(x, 16);
         } catch (NumberFormatException e) {
-            throw newMVStoreException(ERROR_FILE_CORRUPT,
-                    "Error parsing the value {0}", x, e);
+            throw newMVStoreException(ERROR_FILE_CORRUPT, "error parsing the value {0}", x, e);
         }
     }
 

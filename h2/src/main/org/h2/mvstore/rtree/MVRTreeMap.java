@@ -121,7 +121,7 @@ public final class MVRTreeMap<V> extends MVMap<Spatial, V> {
             if (attempt++ == 0 && !rootReference.isLockedByCurrentThread()) {
                 beforeWrite();
             }
-            Page<Spatial, V> p = rootReference.root;
+            Page<Spatial, V> p = rootReference.rootPage;
             if (removedPages != null && p.getTotalCount() > 0) {
                 removedPages.add(p);
             }

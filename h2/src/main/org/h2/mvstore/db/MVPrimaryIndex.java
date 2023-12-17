@@ -21,7 +21,6 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStoreException;
 import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionMap;
-import org.h2.mvstore.tx.TransactionMap.TMIterator;
 import org.h2.mvstore.type.LongDataType;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -40,24 +39,39 @@ import org.h2.value.VersionedValue;
 public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
     private final MVTable mvTable;
-    private final String mapName;
+    private final String mvMapNameInTransactionMap;
     private final TransactionMap<Long, SearchRow> transactionMap;
     private final AtomicLong lastKey = new AtomicLong();
     private int mainIndexColumn = SearchRow.ROWID_INDEX;
 
-    public MVPrimaryIndex(Database db, MVTable table, int id, IndexColumn[] columns, IndexType indexType) {
-        super(table, id, table.getName() + "_DATA", columns, 0, indexType);
-        this.mvTable = table;
-        RowDataType valueType = table.getRowFactory().getRowDataType();
-        mapName = "table." + getId();
-        Transaction t = mvTable.getTransactionBegin();
-        transactionMap = t.openMap(mapName, LongDataType.INSTANCE, valueType);
-        transactionMap.mvMap.setVolatile(!table.isPersistData() || !indexType.isPersistent());
-        if (!db.isStarting()) {
+    public MVPrimaryIndex(Database database,
+                          MVTable mvTable,
+                          int id,
+                          IndexColumn[] indexColumns,
+                          IndexType indexType) {
+        super(mvTable, id, mvTable.name + "_DATA", indexColumns, 0, indexType);
+
+        this.mvTable = mvTable;
+        mvMapNameInTransactionMap = "table." + getId();
+
+        RowDataType valueType = mvTable.getRowFactory().getRowDataType();
+
+        Transaction transaction = this.mvTable.transactionStore.begin();
+
+        // 生成mvMap 然后拿 mvMap register到 transaction 以 transactionMap形式返回
+        transactionMap = transaction.openMap(mvMapNameInTransactionMap, LongDataType.INSTANCE, valueType);
+        transactionMap.mvMap.isVolatile = (!mvTable.isPersistData() || !indexType.isPersistent());
+
+        if (!database.isStarting()) {
             transactionMap.clear();
         }
-        t.commit();
+
+        // a
+        transaction.commit();
+
         Long k = transactionMap.mvMap.lastKey();    // include uncommitted keys as well
+
+        // 后边的insert的row的起始的key都是以它为起点
         lastKey.set(k == null ? 0 : k);
     }
 
@@ -85,22 +99,21 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
+    public void add(SessionLocal sessionLocal, Row row) {
         if (mainIndexColumn == SearchRow.ROWID_INDEX) {
-            if (row.getKey() == 0) {
-                row.setKey(lastKey.incrementAndGet());
+            if (row.key == 0) {
+                row.key = lastKey.incrementAndGet();
             }
         } else {
-            long c = row.getValue(mainIndexColumn).getLong();
-            row.setKey(c);
+            row.key = row.getValue(mainIndexColumn).getLong();
         }
 
-        if (mvTable.getContainsLargeObject()) {
+        if (mvTable.containsLargeObject) {
             for (int i = 0, len = row.getColumnCount(); i < len; i++) {
                 Value v = row.getValue(i);
                 if (v instanceof ValueLob) {
                     ValueLob lob = ((ValueLob) v).copy(database, getId());
-                    session.removeAtCommitStop(lob);
+                    sessionLocal.removeAtCommitStop(lob);
                     if (v != lob) {
                         row.setValue(i, lob);
                     }
@@ -108,29 +121,32 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
             }
         }
 
-        TransactionMap<Long, SearchRow> map = getMap(session);
-        long rowKey = row.getKey();
+        TransactionMap<Long, SearchRow> transactionMap = getTransactionMap(sessionLocal);
+
+        long rowKey = row.key;
+
         try {
-            Row old = (Row) map.putIfAbsent(rowKey, row);
-            if (old != null) {
+            Row oldRow = (Row) transactionMap.putIfAbsent(rowKey, row);
+
+            if (oldRow != null) {
                 int errorCode = ErrorCode.CONCURRENT_UPDATE_1;
-                if (map.getImmediate(rowKey) != null || map.getFromSnapshot(rowKey) != null) {
-                    // committed
+                if (transactionMap.getImmediate(rowKey) != null || transactionMap.getFromSnapshot(rowKey) != null) {  // committed
                     errorCode = ErrorCode.DUPLICATE_KEY_1;
                 }
-                DbException e = DbException.get(errorCode,
-                        getDuplicatePrimaryKeyMessage(mainIndexColumn).append(' ').append(old).toString());
+                DbException e = DbException.get(errorCode, getDuplicatePrimaryKeyMessage(mainIndexColumn).append(' ').append(oldRow).toString());
                 e.setSource(this);
                 throw e;
             }
         } catch (MVStoreException e) {
             throw mvTable.convertException(e);
         }
-        // because it's possible to directly update the key using the _rowid_
-        // syntax
+
+        // because it's possible to directly update the key using the _rowid_ syntax
         long last;
         while (rowKey > (last = lastKey.get())) {
-            if (lastKey.compareAndSet(last, rowKey)) break;
+            if (lastKey.compareAndSet(last, rowKey)) {
+                break;
+            }
         }
     }
 
@@ -144,7 +160,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
                 }
             }
         }
-        TransactionMap<Long, SearchRow> map = getMap(session);
+        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
         try {
             Row existing = (Row) map.remove(row.getKey());
             if (existing == null) {
@@ -185,7 +201,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
             }
         }
 
-        TransactionMap<Long, SearchRow> map = getMap(session);
+        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
         try {
             Row existing = (Row) map.put(key, newRow);
             if (existing == null) {
@@ -213,7 +229,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
      * @return row object if it exists
      */
     Row lockRow(SessionLocal session, Row row) {
-        TransactionMap<Long, SearchRow> map = getMap(session);
+        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
         long key = row.getKey();
         return lockRow(map, key);
     }
@@ -233,26 +249,26 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
         return find(sessionLocal, min, max);
     }
 
-    private long extractPKFromRow(SearchRow row, long defaultValue) {
+    private long extractPKFromRow(SearchRow searchRow, long defaultValue) {
 
-        if (row == null) {
+        if (searchRow == null) {
             return defaultValue;
         }
 
         if (mainIndexColumn == SearchRow.ROWID_INDEX) {
-            return row.getKey();
+            return searchRow.getKey();
         }
 
-        Value v = row.getValue(mainIndexColumn);
-        if (v == null) {
-            return row.getKey();
+        Value value = searchRow.getValue(mainIndexColumn);
+        if (value == null) {
+            return searchRow.getKey();
         }
 
-        if (v == ValueNull.INSTANCE) {
+        if (value == ValueNull.INSTANCE) {
             return 0L;
         }
 
-        return v.getLong();
+        return value.getLong();
     }
 
 
@@ -263,7 +279,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
     @Override
     public Row getRow(SessionLocal session, long key) {
-        TransactionMap<Long, SearchRow> map = getMap(session);
+        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
         Row row = (Row) map.getFromSnapshot(key);
         if (row == null) {
             throw DbException.get(ErrorCode.ROW_NOT_FOUND_IN_PRIMARY_INDEX, getTraceSQL(), String.valueOf(key));
@@ -298,7 +314,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
     @Override
     public void remove(SessionLocal session) {
-        TransactionMap<Long, SearchRow> map = getMap(session);
+        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
         if (!map.isClosed()) {
             Transaction t = session.getTransaction();
             t.removeMap(map);
@@ -310,7 +326,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
         if (mvTable.getContainsLargeObject()) {
             database.getLobStorage().removeAllForTable(table.getId());
         }
-        getMap(session).clear();
+        getTransactionMap(session).clear();
     }
 
     @Override
@@ -320,7 +336,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
     @Override
     public Cursor findFirstOrLast(SessionLocal session, boolean first) {
-        TransactionMap<Long, SearchRow> map = getMap(session);
+        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
         Entry<Long, SearchRow> entry = first ? map.firstEntry() : map.lastEntry();
         return new SingleRowCursor(entry != null ? setRowKey((Row) entry.getValue(), entry.getKey()) : null);
     }
@@ -332,7 +348,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
     @Override
     public long getRowCount(SessionLocal session) {
-        return getMap(session).sizeAsLong();
+        return getTransactionMap(session).sizeAsLong();
     }
 
     /**
@@ -354,8 +370,8 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
         return transactionMap.mvMap.getRootPage().getDiskSpaceUsed();
     }
 
-    public String getMapName() {
-        return mapName;
+    public String getMvMapNameInTransactionMap() {
+        return mvMapNameInTransactionMap;
     }
 
     @Override
@@ -369,13 +385,13 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     private Cursor find(SessionLocal sessionLocal, Long first, Long last) {
-        TransactionMap<Long, SearchRow> txMap = getMap(sessionLocal);
+        TransactionMap<Long, SearchRow> transactionMap = getTransactionMap(sessionLocal);
 
         if (first != null && last != null && first.longValue() == last.longValue()) {
-            return new SingleRowCursor(setRowKey((Row) txMap.getFromSnapshot(first), first));
+            return new SingleRowCursor(setRowKey((Row) transactionMap.getFromSnapshot(first), first));
         }
 
-        return new MVStoreCursor(txMap.entryIterator(first, last));
+        return new MVStoreCursor(transactionMap.entryIterator(first, last));
     }
 
     @Override
@@ -389,12 +405,14 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
      * @param sessionLocal the session
      * @return the map
      */
-    TransactionMap<Long, SearchRow> getMap(SessionLocal sessionLocal) {
+    TransactionMap<Long, SearchRow> getTransactionMap(SessionLocal sessionLocal) {
         if (sessionLocal == null) {
             return transactionMap;
         }
 
         Transaction transaction = sessionLocal.getTransaction();
+
+        // 把 transactionMap 内部的 mvMap register 到 transaction 然后以 transactionMap返回
         return transactionMap.getInstance(transaction);
     }
 
@@ -410,17 +428,14 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
         return row;
     }
 
-    /**
-     * A cursor.
-     */
     static final class MVStoreCursor implements Cursor {
 
-        private final TMIterator<Long, SearchRow, Entry<Long, SearchRow>> tmIterator;
+        private final TransactionMap.TransactionMapIterator<Long, SearchRow, Entry<Long, SearchRow>> transactionMapIterator;
         private Entry<Long, SearchRow> currentEntry;
         private Row row;
 
-        public MVStoreCursor(TMIterator<Long, SearchRow, Entry<Long, SearchRow>> tmIterator) {
-            this.tmIterator = tmIterator;
+        public MVStoreCursor(TransactionMap.TransactionMapIterator<Long, SearchRow, Entry<Long, SearchRow>> transactionMapIterator) {
+            this.transactionMapIterator = transactionMapIterator;
         }
 
         @Override
@@ -445,7 +460,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
         @Override
         public boolean next() {
-            currentEntry = tmIterator.fetchNext();
+            currentEntry = transactionMapIterator.fetchNext();
             row = null;
             return currentEntry != null;
         }

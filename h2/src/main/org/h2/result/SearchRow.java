@@ -35,7 +35,7 @@ public abstract class SearchRow extends Value {
     /**
      * The row key.
      */
-    protected long key;
+    public long key;
 
     /**
      * Get the column count.

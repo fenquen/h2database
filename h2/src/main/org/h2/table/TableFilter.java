@@ -150,8 +150,13 @@ public class TableFilter implements ColumnResolver {
      * @param orderInFrom   original order number (index) of this table filter in
      * @param indexHints    the index hints to be used by the query planner
      */
-    public TableFilter(SessionLocal sessionLocal, Table table, String alias,
-                       boolean rightsChecked, Select select, int orderInFrom, IndexHints indexHints) {
+    public TableFilter(SessionLocal sessionLocal,
+                       Table table,
+                       String alias,
+                       boolean rightsChecked,
+                       Select select,
+                       int orderInFrom,
+                       IndexHints indexHints) {
         this.sessionLocal = sessionLocal;
         this.table = table;
         this.alias = alias;
@@ -450,7 +455,7 @@ public class TableFilter implements ColumnResolver {
                 }
 
                 if (indexCursor.next()) {
-                    currentSearchRow = indexCursor.getSearchRow();
+                    currentSearchRow = indexCursor.cursor.getSearchRow();
                     currentRow = null;
                     state = FOUND;
                 } else {

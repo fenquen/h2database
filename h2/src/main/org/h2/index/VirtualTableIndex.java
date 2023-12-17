@@ -26,7 +26,7 @@ public abstract class VirtualTableIndex extends Index {
     }
 
     @Override
-    public void add(SessionLocal session, Row row) {
+    public void add(SessionLocal sessionLocal, Row row) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 

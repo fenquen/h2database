@@ -103,10 +103,10 @@ public class MVTable extends TableBase {
     /**
      * Whether the table contains a CLOB or BLOB.
      */
-    private final boolean containsLargeObject;
+    public final boolean containsLargeObject;
 
     /**
-     * The session (if any) that has exclusively locked this table.
+     * the session (if any) that has exclusively locked this table.
      */
     private volatile SessionLocal lockExclusiveSession;
 
@@ -123,6 +123,10 @@ public class MVTable extends TableBase {
      * 这个的不是用户自己定义的主键 是表的原始的rowid之类
      */
     private final MVPrimaryIndex mvPrimaryIndex;
+
+    /**
+     * 兜底会有mvPrimaryIndex
+     */
     public final ArrayList<Index> indexList = Utils.newSmallArrayList();
     private final AtomicLong lastModificationId = new AtomicLong();
 
@@ -136,14 +140,14 @@ public class MVTable extends TableBase {
     private int nextAnalyze;
 
     private final Store store;
-    private final TransactionStore transactionStore;
+    public final TransactionStore transactionStore;
 
     public MVTable(CreateTableData createTableData, Store store) {
         super(createTableData);
 
         this.isHidden = createTableData.isHidden;
         boolean b = false;
-        for (Column col : getColumns()) {
+        for (Column col : columns) {
             if (DataType.isLargeObject(col.getType().getValueType())) {
                 b = true;
                 break;
@@ -156,18 +160,13 @@ public class MVTable extends TableBase {
         this.transactionStore = store.transactionStore;
         traceLock = database.getTrace(Trace.LOCK);
 
-        mvPrimaryIndex = new MVPrimaryIndex(
-                database,
-                this,
-                getId(),
-                IndexColumn.wrap(getColumns()),
-                IndexType.createScan(true));
+        mvPrimaryIndex = new MVPrimaryIndex(database, this, getId(), IndexColumn.wrap(getColumns()), IndexType.createScan(true));
 
         indexList.add(mvPrimaryIndex);
     }
 
     public String getMapName() {
-        return mvPrimaryIndex.getMapName();
+        return mvPrimaryIndex.getMvMapNameInTransactionMap();
     }
 
     @Override
@@ -290,7 +289,9 @@ public class MVTable extends TableBase {
         case Table.WRITE_LOCK:
             if (lockSharedSessions.putIfAbsent(sessionLocal, sessionLocal) == null) {
                 traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_OK, NO_EXTRA_INFO);
+
                 sessionLocal.registerTableAsLocked(this);
+
                 if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
                     addLockToDebugList(SHARED_LOCKS);
                 }
@@ -538,23 +539,29 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public void addRow(SessionLocal session, Row row) {
+    public void addRow(SessionLocal sessionLocal, Row row) {
         syncLastModificationIdWithDatabase();
-        Transaction t = session.getTransaction();
-        long savepoint = t.setSavepoint();
+
+        Transaction transaction = sessionLocal.getTransaction();
+
+        // 当前的logId
+        long savepoint = transaction.setSavepoint();
+
         try {
             for (Index index : indexList) {
-                index.add(session, row);
+                index.add(sessionLocal, row);
             }
         } catch (Throwable e) {
             try {
-                t.rollbackToSavepoint(savepoint);
+                transaction.rollbackToSavepoint(savepoint);
             } catch (Throwable nested) {
                 e.addSuppressed(nested);
             }
+
             throw DbException.convert2DbException(e);
         }
-        analyzeIfRequired(session);
+
+        analyzeIfRequired(sessionLocal);
     }
 
     @Override
@@ -692,8 +699,7 @@ public class MVTable extends TableBase {
         long currentId;
         do {
             currentId = lastModificationId.get();
-        } while (nextModificationDataId > currentId &&
-                !lastModificationId.compareAndSet(currentId, nextModificationDataId));
+        } while (nextModificationDataId > currentId && !lastModificationId.compareAndSet(currentId, nextModificationDataId));
     }
 
     /**

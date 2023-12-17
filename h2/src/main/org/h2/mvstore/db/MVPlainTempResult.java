@@ -18,7 +18,7 @@ import org.h2.value.Value;
 import org.h2.value.ValueRow;
 
 /**
- * Plain temporary result.
+ * plain temporary result.
  */
 class MVPlainTempResult extends MVTempResult {
 
@@ -42,8 +42,7 @@ class MVPlainTempResult extends MVTempResult {
     /**
      * Creates a shallow copy of the result.
      *
-     * @param parent
-     *                   parent result
+     * @param parent parent result
      */
     private MVPlainTempResult(MVPlainTempResult parent) {
         super(parent);
@@ -55,23 +54,16 @@ class MVPlainTempResult extends MVTempResult {
      * but it can be used in index-sorted queries and it can preserve additional
      * columns for WITH TIES processing.
      *
-     * @param database
-     *            database
-     * @param expressions
-     *            column expressions
-     * @param visibleColumnCount
-     *            count of visible columns
-     * @param resultColumnCount
-     *            the number of columns including visible columns and additional
-     *            virtual columns for ORDER BY clause
+     * @param database           database
+     * @param expressions        column expressions
+     * @param visibleColumnCount count of visible columns
+     * @param resultColumnCount  the number of columns including visible columns and additional virtual columns for ORDER BY clause
      */
     MVPlainTempResult(Database database, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
         super(database, expressions, visibleColumnCount, resultColumnCount);
         ValueDataType valueType = new ValueDataType(database, new int[resultColumnCount]);
-        valueType.setRowFactory(DefaultRowFactory.INSTANCE.createRowFactory(database, database.getCompareMode(),
-                database, expressions, null, false));
-        Builder<Long, ValueRow> builder = new MVMap.Builder<Long, ValueRow>().keyType(LongDataType.INSTANCE)
-                .valueType(valueType).singleWriter();
+        valueType.setRowFactory(DefaultRowFactory.INSTANCE.createRowFactory(database, database.getCompareMode(), database, expressions, null, false));
+        Builder<Long, ValueRow> builder = new MVMap.Builder<Long, ValueRow>().keyType(LongDataType.INSTANCE).valueType(valueType).singleWriter();
         map = store.openMap("tmp", builder);
     }
 

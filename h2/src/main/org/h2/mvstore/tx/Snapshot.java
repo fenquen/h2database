@@ -9,13 +9,10 @@ import java.util.BitSet;
 
 import org.h2.mvstore.RootReference;
 
-/**
- * Snapshot of the map root and committing transactions.
- */
-final class Snapshot<K, V> {
+public final class Snapshot<K, V> {
 
     /**
-     * The root reference.
+     * transactionMap 的 mvMap 的 rootReference
      */
     final RootReference<K, V> rootReference;
 
@@ -24,8 +21,7 @@ final class Snapshot<K, V> {
      */
     final BitSet committingTxs;
 
-    Snapshot(RootReference<K, V> rootReference,
-             BitSet committingTxs) {
+    Snapshot(RootReference<K, V> rootReference, BitSet committingTxs) {
         this.rootReference = rootReference;
         this.committingTxs = committingTxs;
     }
