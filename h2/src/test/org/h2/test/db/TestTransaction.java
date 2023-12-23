@@ -479,7 +479,7 @@ public class TestTransaction extends TestDb {
       //  statement.execute("create table test(id int)");
         // statement.execute("create index idx_id on test(id)");
       //  statement.execute("insert into test values(0)");
-     //   connection.commit();
+        connection.commit();
 
 //        if (!config.memory) {
 //            connection.close();
@@ -491,7 +491,7 @@ public class TestTransaction extends TestDb {
 //        statement.execute("delete from test");
 //        connection.rollback();
 
-        ResultSet resultSet = statement.executeQuery("select * from test");
+       // ResultSet resultSet = statement.executeQuery("select * from test");
        // assertResultRowCount(1, resultSet);
 
         connection.close();

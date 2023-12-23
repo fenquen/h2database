@@ -224,19 +224,18 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     /**
      * Lock a single row.
      *
-     * @param session database session
-     * @param row     to lock
+     * @param sessionLocal database session
+     * @param row          to lock
      * @return row object if it exists
      */
-    Row lockRow(SessionLocal session, Row row) {
-        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
-        long key = row.getKey();
-        return lockRow(map, key);
+    Row lockRow(SessionLocal sessionLocal, Row row) {
+        TransactionMap<Long, SearchRow> transactionMap = getTransactionMap(sessionLocal);
+        return lockRow(transactionMap, row.key);
     }
 
-    private Row lockRow(TransactionMap<Long, SearchRow> map, long key) {
+    private Row lockRow(TransactionMap<Long, SearchRow> transactionMap, long key) {
         try {
-            return setRowKey((Row) map.lock(key), key);
+            return setRowKey((Row) transactionMap.lock(key), key);
         } catch (MVStoreException ex) {
             throw mvTable.convertException(ex);
         }

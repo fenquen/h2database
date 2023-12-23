@@ -55,28 +55,38 @@ public final class Update extends FilteredDataChangeStatement {
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
         targetTableFilter.startQuery(sessionLocal);
         targetTableFilter.reset();
+
         Table table = targetTableFilter.getTable();
+
         try (LocalResult rows = LocalResult.forTable(sessionLocal, table)) {
             sessionLocal.getUser().checkTableRight(table, Right.UPDATE);
+
             table.fire(sessionLocal, Trigger.UPDATE, true);
+
             table.lock(sessionLocal, Table.WRITE_LOCK);
+
             // get the old rows, compute the new rows
             setCurrentRowNumber(0);
+
             long count = 0;
             long limitRows = -1;
+
             if (fetchExpr != null) {
                 Value v = fetchExpr.getValue(sessionLocal);
                 if (v == ValueNull.INSTANCE || (limitRows = v.getLong()) < 0) {
                     throw DbException.getInvalidValueException("FETCH", v);
                 }
             }
+
             while (nextRow(limitRows, count)) {
                 Row oldRow = targetTableFilter.get();
+
                 if (table.isRowLockable()) {
                     Row lockedRow = table.lockRow(sessionLocal, oldRow);
                     if (lockedRow == null) {
                         continue;
                     }
+
                     if (!oldRow.hasSharedData(lockedRow)) {
                         oldRow = lockedRow;
                         targetTableFilter.set(oldRow);
@@ -85,13 +95,16 @@ public final class Update extends FilteredDataChangeStatement {
                         }
                     }
                 }
-                if (setClauseList.prepareUpdate(table, sessionLocal, deltaChangeCollector, deltaChangeCollectionMode,
-                        rows, oldRow, onDuplicateKeyInsert != null)) {
+
+                if (setClauseList.prepareUpdate(table, sessionLocal, deltaChangeCollector, deltaChangeCollectionMode, rows, oldRow, onDuplicateKeyInsert != null)) {
                     count++;
                 }
             }
+
             doUpdate(this, sessionLocal, table, rows);
+
             table.fire(sessionLocal, Trigger.UPDATE, false);
+
             return count;
         }
     }

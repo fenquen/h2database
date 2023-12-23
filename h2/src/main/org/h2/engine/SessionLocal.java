@@ -154,7 +154,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     private WeakHashMap<Sequence, Value> currentValueFor;
     private Value lastIdentity = ValueNull.INSTANCE;
 
-    private HashMap<String, Savepoint> savepoints;
+    private HashMap<String, Savepoint> savepointName_savepoint;
     private HashMap<String, Table> localTempTables;
     private HashMap<String, Index> localTempTableIndexes;
     private HashMap<String, Constraint> localTempTableConstraints;
@@ -798,15 +798,20 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public void rollback() {
         beforeCommitOrRollback();
+
         if (hasTransaction()) {
             rollbackTo(null);
         }
+
         idsToRelease = null;
+
         cleanTempTables(false);
+
         if (autoCommitAtTransactionEnd) {
             autoCommit = true;
             autoCommitAtTransactionEnd = false;
         }
+
         endTransaction();
     }
 
@@ -817,22 +822,23 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public void rollbackTo(Savepoint savepoint) {
         int index = savepoint == null ? 0 : savepoint.logIndex;
+
         if (hasTransaction()) {
             markUsedTablesAsUpdated();
+
             if (savepoint == null) {
                 transaction.rollback();
                 transaction = null;
             } else {
-                transaction.rollbackToSavepoint(savepoint.transactionSavepoint);
+                transaction.rollbackToSavepoint(savepoint.undoLogId);
             }
         }
-        if (savepoints != null) {
-            String[] names = savepoints.keySet().toArray(new String[0]);
-            for (String name : names) {
-                Savepoint sp = savepoints.get(name);
-                int savepointIndex = sp.logIndex;
-                if (savepointIndex > index) {
-                    savepoints.remove(name);
+
+        if (savepointName_savepoint != null) {
+            for (String savepointName : savepointName_savepoint.keySet().toArray(new String[0])) {
+                Savepoint sp = savepointName_savepoint.get(savepointName);
+                if (sp.logIndex > index) {
+                    savepointName_savepoint.remove(savepointName);
                 }
             }
         }
@@ -856,9 +862,9 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      * @return the savepoint
      */
     public Savepoint setSavepoint() {
-        Savepoint sp = new Savepoint();
-        sp.transactionSavepoint = getStatementSavepoint();
-        return sp;
+        Savepoint savepoint = new Savepoint();
+        savepoint.undoLogId = getStatementSavepoint();
+        return savepoint;
     }
 
     public int getId() {
@@ -967,7 +973,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
             locks.clear();
         }
         Database.unlockMetaDebug(this);
-        savepoints = null;
+        savepointName_savepoint = null;
         sessionStateChanged = true;
     }
 
@@ -1097,10 +1103,11 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      * @param name the savepoint name
      */
     public void addSavepoint(String name) {
-        if (savepoints == null) {
-            savepoints = database.newStringMap();
+        if (savepointName_savepoint == null) {
+            savepointName_savepoint = database.newStringMap();
         }
-        savepoints.put(name, setSavepoint());
+
+        savepointName_savepoint.put(name, setSavepoint());
     }
 
     /**
@@ -1111,7 +1118,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     public void rollbackToSavepoint(String name) {
         beforeCommitOrRollback();
         Savepoint savepoint;
-        if (savepoints == null || (savepoint = savepoints.get(name)) == null) {
+        if (savepointName_savepoint == null || (savepoint = savepointName_savepoint.get(name)) == null) {
             throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);
         }
         rollbackTo(savepoint);
@@ -1805,8 +1812,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     }
 
     /**
-     * Represents a savepoint (a position in a transaction to where one can roll
-     * back to).
+     * Represents a savepoint (a position in a transaction to where one can roll back to).
      */
     public static class Savepoint {
 
@@ -1818,7 +1824,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         /**
          * The transaction savepoint id.
          */
-        long transactionSavepoint;
+        long undoLogId;
     }
 
     /**

@@ -96,7 +96,7 @@ public final class Transaction {
      * The transaction id.
      * More appropriate name for this field would be "slotId"
      */
-    final int transactionId;
+    public final int id;
 
     /**
      * This is really a transaction identity, because it's not re-used.
@@ -176,7 +176,7 @@ public final class Transaction {
     public final IsolationLevel isolationLevel;
 
     Transaction(TransactionStore transactionStore,
-                int transactionId,
+                int id,
                 long sequenceNum,
                 int status,
                 String name,
@@ -186,7 +186,7 @@ public final class Transaction {
                 IsolationLevel isolationLevel,
                 TransactionStore.RollbackListener listener) {
         this.transactionStore = transactionStore;
-        this.transactionId = transactionId;
+        this.id = id;
         this.sequenceNum = sequenceNum;
         this.statusAndLogId = new AtomicLong(composeState(status, logId, false));
         this.name = name;
@@ -197,7 +197,7 @@ public final class Transaction {
     }
 
     public int getId() {
-        return transactionId;
+        return id;
     }
 
     public long getSequenceNum() {
@@ -419,13 +419,13 @@ public final class Transaction {
 
         long logId = getLogId(statusAndLogId);
         if (logId >= LOG_ID_LIMIT) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_TOO_BIG, "transaction {0} has too many changes", transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_TOO_BIG, "transaction {0} has too many changes", id);
         }
 
         int currentStatus = getStatus(statusAndLogId);
         checkOpen(currentStatus);
 
-        return transactionStore.addUndoLogRecord(transactionId, logId, logRecord);
+        return transactionStore.addUndoLogRecord(id, logId, logRecord);
     }
 
     /**
@@ -433,13 +433,16 @@ public final class Transaction {
      */
     void logUndo() {
         long currentState = statusAndLogId.decrementAndGet();
+
         long logId = getLogId(currentState);
         if (logId >= LOG_ID_LIMIT) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_CORRUPT, "transaction {0} has internal error", transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_CORRUPT, "transaction {0} has internal error", id);
         }
+
         int currentStatus = getStatus(currentState);
         checkOpen(currentStatus);
-        transactionStore.removeUndoLogRecord(transactionId);
+
+        transactionStore.removeUndoLogRecord(id);
     }
 
     /**
@@ -507,7 +510,7 @@ public final class Transaction {
      * Commit the transaction. Afterwards, this transaction is closed.
      */
     public void commit() {
-        assert transactionStore.openTransactions.get().get(transactionId);
+        assert transactionStore.openTransactions.get().get(id);
 
         markTransactionEnd();
 
@@ -542,45 +545,44 @@ public final class Transaction {
     }
 
     /**
-     * Roll back to the given savepoint. This is only allowed if the
-     * transaction is open.
-     *
-     * @param savepointId the savepoint id
+     * Roll back to the given savepoint 状态变为 STATUS_ROLLING_BACK 然后变为 STATUS_OPEN
      */
-    public void rollbackToSavepoint(long savepointId) {
+    public void rollbackToSavepoint(long savepointUndoLogId) {
         long lastState = setStatus(STATUS_ROLLING_BACK);
         long logId = getLogId(lastState);
+
         boolean success;
+
         try {
-            transactionStore.rollbackTo(this, logId, savepointId);
+            transactionStore.rollbackTo(this, logId, savepointUndoLogId);
         } finally {
             notifyAllWaitingTransactions();
+
             long expectedState = composeState(STATUS_ROLLING_BACK, logId, hasRollback(lastState));
-            long newState = composeState(STATUS_OPEN, savepointId, true);
+            long newState = composeState(STATUS_OPEN, savepointUndoLogId, true);
+
             do {
                 success = statusAndLogId.compareAndSet(expectedState, newState);
             } while (!success && statusAndLogId.get() == expectedState);
         }
+
         // this is moved outside of finally block to avert masking original exception, if any
         if (!success) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE,
-                    "Transaction {0} concurrently modified while rollback to savepoint was in progress",
-                    transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE, "transaction {0} concurrently modified while rollback to savepoint was in progress", id);
         }
     }
 
     /**
-     * Roll the transaction back. Afterwards, this transaction is closed.
+     * Roll the transaction back 状态会变为STATUS_ROLLED_BACK
      */
     public void rollback() {
         markTransactionEnd();
         Throwable ex = null;
         int status = STATUS_OPEN;
         try {
-            long lastState = setStatus(STATUS_ROLLED_BACK);
-            status = getStatus(lastState);
-            long logId = getLogId(lastState);
+            long statusAndLogIdOld = setStatus(STATUS_ROLLED_BACK);
+            status = getStatus(statusAndLogIdOld);
+            long logId = getLogId(statusAndLogIdOld);
             if (logId > 0) {
                 transactionStore.rollbackTo(this, logId, 0);
             }
@@ -606,9 +608,7 @@ public final class Transaction {
     }
 
     private static boolean isActive(int status) {
-        return status != STATUS_CLOSED
-                && status != STATUS_COMMITTED
-                && status != STATUS_ROLLED_BACK;
+        return status != STATUS_CLOSED && status != STATUS_COMMITTED && status != STATUS_ROLLED_BACK;
     }
 
     /**
@@ -641,7 +641,7 @@ public final class Transaction {
      */
     private void checkOpen(int status) {
         if (status != STATUS_OPEN) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE, "transaction {0} has status {1}, not OPEN", transactionId, getStatusName(status));
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE, "transaction {0} has status {1}, not OPEN", id, getStatusName(status));
         }
     }
 
@@ -650,7 +650,7 @@ public final class Transaction {
      */
     private void checkNotClosed() {
         if (getStatus() == STATUS_CLOSED) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_CLOSED, "Transaction {0} is closed", transactionId);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_CLOSED, "Transaction {0} is closed", id);
         }
     }
 
@@ -728,13 +728,13 @@ public final class Transaction {
     private void tryThrowDeadLockException(boolean throwIt) {
         BitSet visited = new BitSet();
         StringBuilder details = new StringBuilder(
-                String.format("Transaction %d has been chosen as a deadlock victim. Details:%n", transactionId));
+                String.format("Transaction %d has been chosen as a deadlock victim. Details:%n", id));
         for (Transaction tx = this, nextTx;
-             !visited.get(tx.transactionId) && (nextTx = tx.blockingTransaction) != null; tx = nextTx) {
-            visited.set(tx.transactionId);
+             !visited.get(tx.id) && (nextTx = tx.blockingTransaction) != null; tx = nextTx) {
+            visited.set(tx.id);
             details.append(String.format(
                     "Transaction %d attempts to update map <%s> entry with key <%s> modified by transaction %s%n",
-                    tx.transactionId, tx.blockingMapName, tx.blockingKey, tx.blockingTransaction));
+                    tx.id, tx.blockingMapName, tx.blockingKey, tx.blockingTransaction));
             if (nextTx == this) {
                 throwIt = true;
             }
@@ -780,7 +780,7 @@ public final class Transaction {
 
     @Override
     public String toString() {
-        return transactionId + "(" + sequenceNum + ") " + stateToString();
+        return id + "(" + sequenceNum + ") " + stateToString();
     }
 
     private String stateToString() {
@@ -804,8 +804,8 @@ public final class Transaction {
         return (state & (1L << (STATUS_BITS + LOG_ID_BITS1))) != 0;
     }
 
-    private static boolean hasChanges(long state) {
-        return getLogId(state) != 0;
+    private static boolean hasChanges(long statusAndLogId) {
+        return getLogId(statusAndLogId) != 0;
     }
 
     private static long composeState(int status, long logId, boolean hasRollback) {

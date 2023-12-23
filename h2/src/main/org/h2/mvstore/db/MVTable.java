@@ -223,7 +223,7 @@ public class MVTable extends TableBase {
         boolean checkDeadlock = false;
 
         while (true) {
-            // if I'm the next one in the queue
+            // it is the next one in the queue
             if (waitingSessions.getFirst() == sessionLocal && lockExclusiveSession == null) {
                 if (doLock2(sessionLocal, lockType)) {
                     return;
@@ -586,8 +586,8 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public Row lockRow(SessionLocal session, Row row) {
-        Row lockedRow = mvPrimaryIndex.lockRow(session, row);
+    public Row lockRow(SessionLocal sessionLocal, Row row) {
+        Row lockedRow = mvPrimaryIndex.lockRow(sessionLocal, row);
         if (lockedRow == null || !row.hasSharedData(lockedRow)) {
             syncLastModificationIdWithDatabase();
         }

@@ -208,11 +208,11 @@ public abstract class Table extends SchemaObject {
     /**
      * Locks row, preventing any updated to it, except from the session specified.
      *
-     * @param session the session
+     * @param sessionLocal the session
      * @param row     to lock
      * @return locked row, or null if row does not exist anymore
      */
-    public Row lockRow(SessionLocal session, Row row) {
+    public Row lockRow(SessionLocal sessionLocal, Row row) {
         throw DbException.getUnsupportedException("lockRow()");
     }
 

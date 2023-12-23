@@ -515,8 +515,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     }
 
     /**
-     * Close the map. Accessing the data is still possible (to allow concurrent
-     * reads), but it is marked as closed.
+     * close the map. Accessing the data is still possible (to allow concurrent reads), but it is marked as closed.
      */
     final void close() {
         closed = true;
@@ -1652,7 +1651,12 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     /**
      * The decision on what to do on an update.
      */
-    public enum Decision {ABORT, REMOVE, PUT, REPEAT}
+    public enum Decision {
+        ABORT,
+        REMOVE,
+        PUT,
+        REPEAT
+    }
 
     /**
      * Class DecisionMaker provides callback interface (and should become a such in Java 8)

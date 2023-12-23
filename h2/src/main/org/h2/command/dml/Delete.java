@@ -27,15 +27,13 @@ import org.h2.value.Value;
 import org.h2.value.ValueNull;
 
 /**
- * This class represents the statement
- * DELETE
+ * This class represents the statement DELETE
  */
 public final class Delete extends FilteredDataChangeStatement {
 
-    public Delete(SessionLocal session) {
-        super(session);
+    public Delete(SessionLocal sessionLocal) {
+        super(sessionLocal);
     }
-
 
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {

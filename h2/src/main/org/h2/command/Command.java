@@ -253,7 +253,7 @@ public abstract class Command implements CommandInterface {
         synchronized (sessionLocal) {
             commitIfNonTransactional();
 
-            SessionLocal.Savepoint rollback = sessionLocal.setSavepoint();
+            SessionLocal.Savepoint savepoint = sessionLocal.setSavepoint();
 
             sessionLocal.startStatementWithinTransaction(this);
 
@@ -298,7 +298,7 @@ public abstract class Command implements CommandInterface {
                     if (s.getErrorCode() == ErrorCode.DEADLOCK_1) {
                         sessionLocal.rollback();
                     } else {
-                        sessionLocal.rollbackTo(rollback);
+                        sessionLocal.rollbackTo(savepoint);
                     }
                 } catch (Throwable nested) {
                     e.addSuppressed(nested);

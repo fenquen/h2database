@@ -374,8 +374,6 @@ public class TableFilter implements ColumnResolver {
 
     /**
      * Start the query. This will reset the scan counts.
-     *
-     * @param sessionLocal the session
      */
     public void startQuery(SessionLocal sessionLocal) {
         this.sessionLocal = sessionLocal;

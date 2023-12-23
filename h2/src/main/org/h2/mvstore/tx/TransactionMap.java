@@ -78,10 +78,9 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         this.mvMap = mvMap;
         this.txDecisionMaker = new TxDecisionMaker<>(mvMap.getId(), transaction);
         this.ifAbsentDecisionMaker = new TxDecisionMaker.PutIfAbsentDecisionMaker<>(mvMap.getId(), transaction, this::getFromSnapshot);
-        this.lockDecisionMaker = transaction.allowNonRepeatableRead()
+        this.lockDecisionMaker = transaction.isolationLevel.allowNonRepeatableRead()
                 ? new TxDecisionMaker.LockDecisionMaker<>(mvMap.getId(), transaction)
-                : new TxDecisionMaker.RepeatableReadLockDecisionMaker<>(mvMap.getId(), transaction,
-                mvMap.getValueType(), this::getFromSnapshot);
+                : new TxDecisionMaker.RepeatableReadLockDecisionMaker<>(mvMap.getId(), transaction, mvMap.getValueType(), this::getFromSnapshot);
 
     }
 
@@ -216,7 +215,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
             v = currentValue.getCurrentValue();
         } else {
             int txId = TransactionStore.getTransactionId(operationId);
-            v = txId == transaction.transactionId || committingTransactions.get(txId)
+            v = txId == transaction.id || committingTransactions.get(txId)
                     ? currentValue.getCurrentValue() : currentValue.getCommittedValue();
         }
         return v == null;
@@ -279,7 +278,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         ifAbsentDecisionMaker.initialize(key, value);
         V result = set(key, ifAbsentDecisionMaker);
         if (ifAbsentDecisionMaker.getDecision() == MVMap.Decision.ABORT) {
-            result = ifAbsentDecisionMaker.getLastValue();
+            result = ifAbsentDecisionMaker.lastValue;
         }
         return result;
     }
@@ -347,12 +346,12 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
             // second parameter (value) is not really used since txDecisionMaker has it embedded
             result = mvMap.operate(k, null, txDecisionMaker);
 
-            MVMap.Decision decision = txDecisionMaker.getDecision();
+            MVMap.Decision decision = txDecisionMaker.decision;
 
             assert decision != null;
             assert decision != MVMap.Decision.REPEAT;
 
-            blockingTransaction = txDecisionMaker.getBlockingTransaction();
+            blockingTransaction = txDecisionMaker.blockingTransaction;
 
             if (decision != MVMap.Decision.ABORT || blockingTransaction == null) {
                 hasChanges |= decision != MVMap.Decision.ABORT;
@@ -368,7 +367,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
 
         throw DataUtils.newMVStoreException(DataUtils.ERROR_TRANSACTION_LOCKED,
                 "map entry <{0}> with key <{1}> and value {2} is locked by tx {3} and can not be updated by tx {4} within allocated time interval {5} ms.",
-                mapName, key, result, blockingTransaction.transactionId, transaction.transactionId, transaction.timeoutMillis);
+                mapName, key, result, blockingTransaction.id, transaction.id, transaction.timeoutMillis);
     }
 
     /**
@@ -459,7 +458,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
                     VersionedValue<V> data = mvMap.get(snapshot.rootReference.rootPage, key);
                     if (data != null) {
                         long id = data.getOperationId();
-                        if (id != 0L && transaction.transactionId == TransactionStore.getTransactionId(id)) {
+                        if (id != 0L && transaction.id == TransactionStore.getTransactionId(id)) {
                             return data.getCurrentValue();
                         }
                     }
@@ -481,7 +480,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         long id = data.getOperationId();
         if (id != 0) {
             int tx = TransactionStore.getTransactionId(id);
-            if (tx != transaction.transactionId && !committingTransactions.get(tx)) {
+            if (tx != transaction.id && !committingTransactions.get(tx)) {
                 // added/modified/removed by uncommitted transaction, change should not be visible
                 return data.getCommittedValue();
             }
@@ -575,7 +574,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         VersionedValue<V> data = mvMap.get(key);
         if (data != null) {
             long id = data.getOperationId();
-            return id != 0 && TransactionStore.getTransactionId(id) == transaction.transactionId
+            return id != 0 && TransactionStore.getTransactionId(id) == transaction.id
                     && data.getCurrentValue() == null;
         }
         return false;
@@ -595,7 +594,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
             return false;
         }
         int tx = TransactionStore.getTransactionId(data.getOperationId());
-        return tx == transaction.transactionId;
+        return tx == transaction.id;
     }
 
     /**
@@ -1099,7 +1098,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
                                Snapshot<K, VersionedValue<V>> snapshotFromTransactionMap, // 来源 transactionMap
                                boolean reverse,
                                boolean forEntries) {
-            this.transactionId = transactionMap.transaction.transactionId;
+            this.transactionId = transactionMap.transaction.id;
             this.forEntries = forEntries;
             this.cursor = transactionMap.mvMap.cursor(snapshotFromTransactionMap.rootReference, from, to, reverse);
             this.committingTransactions = snapshotFromTransactionMap.committingTxs;

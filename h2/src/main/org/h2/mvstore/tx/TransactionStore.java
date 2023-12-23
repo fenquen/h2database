@@ -521,8 +521,6 @@ public class TransactionStore {
 
     /**
      * Remove an undo log entry.
-     *
-     * @param transactionId id of the transaction
      */
     void removeUndoLogRecord(int transactionId) {
         undoLogs[transactionId].trimLast();
@@ -549,7 +547,7 @@ public class TransactionStore {
             return;
         }
 
-        int transactionId = transaction.transactionId;
+        int transactionId = transaction.id;
 
         // First, mark log as "committed".
         // It does not change the way this transaction is treated by others,
@@ -673,7 +671,8 @@ public class TransactionStore {
      */
     void endTransaction(Transaction t, boolean hasChanges) {
         t.closeIt();
-        int txId = t.transactionId;
+
+        int txId = t.id;
         transactions.set(txId, null);
 
         boolean success;
@@ -782,18 +781,18 @@ public class TransactionStore {
     /**
      * Rollback to an old savepoint.
      *
-     * @param t        the transaction
-     * @param maxLogId the last log id
-     * @param toLogId  the log id to roll back to
+     * @param lastLogId the last log id
+     * @param toLogId   the log id to roll back to
      */
-    void rollbackTo(Transaction t, long maxLogId, long toLogId) {
-        int transactionId = t.getId();
-        MVMap<Long, Record<?, ?>> undoLog = undoLogs[transactionId];
-        RollbackDecisionMaker decisionMaker = new RollbackDecisionMaker(this, transactionId, toLogId, t.listener);
-        for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
-            Long undoKey = getOperationId(transactionId, logId);
-            undoLog.operate(undoKey, null, decisionMaker);
-            decisionMaker.reset();
+    void rollbackTo(Transaction transaction, long lastLogId, long toLogId) {
+        MVMap<Long, Record<?, ?>> undoLog = undoLogs[transaction.id];
+
+        RollbackDecisionMaker rollbackDecisionMaker = new RollbackDecisionMaker(this, transaction.id, toLogId, transaction.listener);
+
+        for (long logId = lastLogId - 1; logId >= toLogId; logId--) {
+            Long undoKey = getOperationId(transaction.id, logId);
+            undoLog.operate(undoKey, null, rollbackDecisionMaker);
+            rollbackDecisionMaker.reset();
         }
     }
 
