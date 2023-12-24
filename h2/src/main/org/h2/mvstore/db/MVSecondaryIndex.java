@@ -243,11 +243,11 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     }
 
     @Override
-    public void update(SessionLocal session, Row oldRow, Row newRow) {
+    public void update(SessionLocal sessionLocal, Row oldRow, Row newRow) {
         SearchRow searchRowOld = convertToKey(oldRow, null);
         SearchRow searchRowNew = convertToKey(newRow, null);
         if (!rowsAreEqual(searchRowOld, searchRowNew)) {
-            super.update(session, oldRow, newRow);
+            super.update(sessionLocal, oldRow, newRow);
         }
     }
 
@@ -266,8 +266,8 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
-        return find(session, first, false, last);
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
+        return find(sessionLocal, first, false, last);
     }
 
     private Cursor find(SessionLocal session, SearchRow first, boolean bigger, SearchRow last) {

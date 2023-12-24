@@ -64,8 +64,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     private long rowId, rowCount;
     private ArrayList<Value[]> rows;
     private SortOrder sortOrder;
-    // HashSet cannot be used here, because we need to compare values of
-    // different type or scale properly.
+    // HashSet cannot be used here, because we need to compare values of different type or scale properly.
     private TreeMap<ValueRow, Value[]> distinctRows;
     private Value[] currentRow;
     private long offset;

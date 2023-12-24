@@ -87,7 +87,7 @@ public class LinkedIndex extends Index {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
         ArrayList<Value> params = Utils.newSmallArrayList();
         StringBuilder builder = new StringBuilder("SELECT * FROM ").append(targetTableName).append(" T");
         boolean f = false;
@@ -125,9 +125,9 @@ public class LinkedIndex extends Index {
         }
         String sql = builder.toString();
         try {
-            PreparedStatement prep = link.execute(sql, params, false, session);
+            PreparedStatement prep = link.execute(sql, params, false, sessionLocal);
             ResultSet rs = prep.getResultSet();
-            return new LinkedCursor(link, rs, session, sql, prep);
+            return new LinkedCursor(link, rs, sessionLocal, sql, prep);
         } catch (Exception e) {
             throw TableLink.wrapException(sql, e);
         }

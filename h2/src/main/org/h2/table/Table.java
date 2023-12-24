@@ -133,15 +133,12 @@ public abstract class Table extends SchemaObject {
     }
 
     /**
-     * Lock the table for the given session.
-     * This method waits until the lock is granted.
+     * Lock the table for the given session,wait until the lock is granted.
      *
-     * @param session  the session
-     * @param lockType the type of lock
      * @return true if the table was already exclusively locked by this session.
      * @throws DbException if a lock timeout occurred
      */
-    public boolean lock(SessionLocal session, int lockType) {
+    public boolean lock(SessionLocal sessionLocal, int lockType) {
         return false;
     }
 
@@ -199,17 +196,14 @@ public abstract class Table extends SchemaObject {
 
     /**
      * Remove a row from the table and all indexes.
-     *
-     * @param session the session
-     * @param row     the row
      */
-    public abstract void removeRow(SessionLocal session, Row row);
+    public abstract void removeRow(SessionLocal sessionLocal, Row row);
 
     /**
      * Locks row, preventing any updated to it, except from the session specified.
      *
      * @param sessionLocal the session
-     * @param row     to lock
+     * @param row          to lock
      * @return locked row, or null if row does not exist anymore
      */
     public Row lockRow(SessionLocal sessionLocal, Row row) {
@@ -234,7 +228,7 @@ public abstract class Table extends SchemaObject {
     public abstract void addRow(SessionLocal session, Row row);
 
     /**
-     * Update a row to the table and all indexes.
+     * update a row to the table and all indexes 当前只meta用
      *
      * @param session the session
      * @param oldRow  the row to update
@@ -525,45 +519,57 @@ public abstract class Table extends SchemaObject {
      * Update a list of rows in this table.
      *
      * @param prepared the prepared statement
-     * @param session  the session
-     * @param rows     a list of row pairs of the form old row, new row, old row,
-     *                 new row,...
+     * @param sessionLocal  the session
+     * @param rows     a list of row pairs of the form old row, new row, old row, new row
      */
-    public void updateRows(Prepared prepared, SessionLocal session, LocalResult rows) {
+    public void updateRows(Prepared prepared, SessionLocal sessionLocal, LocalResult rows) {
         // in case we need to undo the update
-        SessionLocal.Savepoint rollback = session.setSavepoint();
+        SessionLocal.Savepoint savepoint = sessionLocal.setSavepoint();
+
         // remove the old rows
         int rowScanCount = 0;
+
         while (rows.next()) {
             if ((++rowScanCount & 127) == 0) {
                 prepared.checkCanceled();
             }
-            Row o = rows.currentRowForTable();
+
+            Row oldRow = rows.currentRowForTable();
+
+            // 跳过后边的newRow
             rows.next();
+
             try {
-                removeRow(session, o);
+                removeRow(sessionLocal, oldRow);
             } catch (DbException e) {
-                if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1
-                        || e.getErrorCode() == ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1) {
-                    session.rollbackTo(rollback);
+                if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1 || e.getErrorCode() == ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1) {
+                    sessionLocal.rollbackTo(savepoint);
                 }
+
                 throw e;
             }
         }
+
         // add the new rows
         rows.reset();
+
         while (rows.next()) {
             if ((++rowScanCount & 127) == 0) {
                 prepared.checkCanceled();
             }
+
+            // 跳过oldRow
             rows.next();
-            Row n = rows.currentRowForTable();
+
+            Row newRow = rows.currentRowForTable();
+
             try {
-                addRow(session, n);
+                addRow(sessionLocal, newRow);
             } catch (DbException e) {
                 if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1) {
-                    session.rollbackTo(rollback);
+                    sessionLocal.rollbackTo(savepoint);
                 }
+
                 throw e;
             }
         }

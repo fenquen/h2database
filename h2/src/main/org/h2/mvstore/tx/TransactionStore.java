@@ -329,6 +329,7 @@ public class TransactionStore {
     static long getOperationId(int transactionId, long logId) {
         DataUtils.checkArgument(transactionId >= 0 && transactionId < (1 << (64 - LOG_ID_BITS)), "Transaction id out of range: {0}", transactionId);
         DataUtils.checkArgument(logId >= 0 && logId <= LOG_ID_MASK, "Transaction log id out of range: {0}", logId);
+
         return ((long) transactionId << LOG_ID_BITS) | logId;
     }
 
@@ -497,17 +498,13 @@ public class TransactionStore {
     }
 
     /**
-     * Add an undo log entry.
-     *
-     * @param transactionId id of the transaction
-     * @param logId         sequential number of the log record within transaction
-     * @param record        Record(mapId, key, previousValue) to add
-     * @return key for the added record
+     * @param logId  sequential number of the log record within transaction
+     * @param record Record(mapId, key, previousValue) to add
      */
     long addUndoLogRecord(int transactionId, long logId, Record<?, ?> record) {
         MVMap<Long, Record<?, ?>> undoLog = undoLogs[transactionId];
 
-        // a undoLog对应的key(operationId) getOperationId(transactionId, logId)
+        // a undoLog的mvMap的key是operationId 来源 getOperationId(transactionId, logId)
         long undoKey = getOperationId(transactionId, logId);
 
         if (logId == 0 && !undoLog.isEmpty()) {
@@ -526,11 +523,6 @@ public class TransactionStore {
         undoLogs[transactionId].trimLast();
     }
 
-    /**
-     * Remove the given map.
-     *
-     * @param map the map
-     */
     void removeMap(TransactionMap<?, ?> map) {
         mvStore.removeMap(map.mvMap);
     }
@@ -583,7 +575,7 @@ public class TransactionStore {
                 Object key = record.key;
                 commitDecisionMaker.setUndoKey(undoKey);
 
-                // second parameter (value) is not really used by CommitDecisionMaker
+                // second parameter (value) is not really used by commitDecisionMaker
                 mvMap.operate(key, null, commitDecisionMaker); // 使用put 使用row原地替换versionedValueUncommitted
             }
         } finally {

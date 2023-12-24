@@ -148,8 +148,8 @@ public class QueryExpressionIndex extends Index implements SpatialIndex {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
-        return find(session, first, last, null);
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
+        return find(sessionLocal, first, last, null);
     }
 
     @Override

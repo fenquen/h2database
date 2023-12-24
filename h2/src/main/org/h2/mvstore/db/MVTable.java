@@ -270,6 +270,7 @@ public class MVTable extends TableBase {
         switch (lockType) {
         case Table.EXCLUSIVE_LOCK:
             int size = lockSharedSessions.size();
+
             if (size == 0) {
                 traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_ADDED_FOR, NO_EXTRA_INFO);
                 sessionLocal.registerTableAsLocked(this);
@@ -504,14 +505,14 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public void removeRow(SessionLocal session, Row row) {
+    public void removeRow(SessionLocal sessionLocal, Row row) {
         syncLastModificationIdWithDatabase();
-        Transaction t = session.getTransaction();
+        Transaction t = sessionLocal.getTransaction();
         long savepoint = t.setSavepoint();
         try {
             for (int i = indexList.size() - 1; i >= 0; i--) {
                 Index index = indexList.get(i);
-                index.remove(session, row);
+                index.remove(sessionLocal, row);
             }
         } catch (Throwable e) {
             try {
@@ -521,7 +522,7 @@ public class MVTable extends TableBase {
             }
             throw DbException.convert2DbException(e);
         }
-        analyzeIfRequired(session);
+        analyzeIfRequired(sessionLocal);
     }
 
     @Override

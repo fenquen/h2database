@@ -29,22 +29,23 @@ final class CommitDecisionMaker<V> extends MVMap.DecisionMaker<VersionedValue<V>
     public MVMap.Decision decide(VersionedValue<V> existingValue, VersionedValue<V> providedValue) {
         assert decision == null;
 
-        if (existingValue == null ||
-            // map entry was treated as already committed, and then
-            // it has been removed by another transaction (committed and closed by now)
-            existingValue.getOperationId() != undoKey) {
-            // this is not a final undo log entry for this key,
-            // or map entry was treated as already committed and then
-            // overwritten by another transaction
-            // see TxDecisionMaker.decide()
-
-            decision = MVMap.Decision.ABORT;
-        } else if (existingValue.getCurrentValue() == null) { // this is final undo log entry for this key
-            decision = MVMap.Decision.REMOVE;
-        } else {
-            decision = MVMap.Decision.PUT;
+        // map entry was treated as already committed,then it has been removed by another transaction (committed and closed by now)
+        if (existingValue == null) {
+            return decision = MVMap.Decision.ABORT;
         }
-        return decision;
+
+        // this is not a final undo log entry for this key,or map entry was treated as already committed and then
+        // overwritten by another transaction see TxDecisionMaker.decide()
+        if (existingValue.getOperationId() != undoKey) {
+            return decision = MVMap.Decision.ABORT;
+        }
+
+        // this is final undo log entry for this key
+        if (existingValue.getCurrentValue() == null) {
+            return decision = MVMap.Decision.REMOVE;
+        }
+
+        return decision = MVMap.Decision.PUT;
     }
 
     @SuppressWarnings("unchecked")

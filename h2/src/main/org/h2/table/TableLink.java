@@ -446,9 +446,9 @@ public class TableLink extends Table {
     }
 
     @Override
-    public void removeRow(SessionLocal session, Row row) {
+    public void removeRow(SessionLocal sessionLocal, Row row) {
         checkReadOnly();
-        getScanIndex(session).remove(session, row);
+        getScanIndex(sessionLocal).remove(sessionLocal, row);
     }
 
     @Override
@@ -625,7 +625,7 @@ public class TableLink extends Table {
     }
 
     @Override
-    public void updateRows(Prepared prepared, SessionLocal session, LocalResult rows) {
+    public void updateRows(Prepared prepared, SessionLocal sessionLocal, LocalResult rows) {
         checkReadOnly();
         if (emitUpdates) {
             while (rows.next()) {
@@ -633,10 +633,10 @@ public class TableLink extends Table {
                 Row oldRow = rows.currentRowForTable();
                 rows.next();
                 Row newRow = rows.currentRowForTable();
-                linkedIndex.update(oldRow, newRow, session);
+                linkedIndex.update(oldRow, newRow, sessionLocal);
             }
         } else {
-            super.updateRows(prepared, session, rows);
+            super.updateRows(prepared, sessionLocal, rows);
         }
     }
 

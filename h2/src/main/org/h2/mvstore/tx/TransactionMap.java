@@ -264,12 +264,11 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
     }
 
     /**
+     * 应对了insert
      * Put the value for the given key if entry for this key does not exist.
      * It is atomic equivalent of the following expression:
      * contains(key) ? get(k) : put(key, value);
      *
-     * @param key   the key
-     * @param value the new value (not null)
      * @return the old value
      */
     @Override
@@ -278,7 +277,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         ifAbsentDecisionMaker.initialize(key, value);
         V result = set(key, ifAbsentDecisionMaker);
         if (ifAbsentDecisionMaker.getDecision() == MVMap.Decision.ABORT) {
-            result = ifAbsentDecisionMaker.lastValue;
+            result = ifAbsentDecisionMaker.lastValueCommitted;
         }
         return result;
     }
@@ -288,12 +287,11 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
      * but latest appended values are not guaranteed to be visible.
      *
      * @param key   should be higher in map's order than any existing key
-     * @param value to be appended
      */
-    public void append(K key, V value) {
-        mvMap.append(key, VersionedValueUncommitted.getInstance(transaction.log(new Record<>(mvMap.id, key, null)), value, null));
-        hasChanges = true;
-    }
+    //public void append(K key, V value) {
+    //  mvMap.append(key, VersionedValueUncommitted.getInstance(transaction.log(new Record<>(mvMap.id, key, null)), value, null));
+    //hasChanges = true;
+    //}
 
     /**
      * Lock row for the given key.
@@ -325,6 +323,9 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         return oldValue == null ? null : oldValue.getCurrentValue();
     }
 
+    /**
+     * 应对了delete update
+     */
     private V set(K key, V value) {
         txDecisionMaker.initialize(key, value);
         return set(key, txDecisionMaker);
@@ -950,10 +951,10 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
 
                     // 只有 VersionedValueUncommitted 会有可能 是0的话说明是之前持久化过的了
                     if (operationId != 0) {
-                        int txId = TransactionStore.getTransactionId(operationId);
+                        int transactionId = TransactionStore.getTransactionId(operationId);
 
                         // current value comes from another uncommitted transaction ,take committed value instead
-                        if (txId != transactionId && !committingTransactions.get(txId)) {
+                        if (transactionId != this.transactionId && !committingTransactions.get(transactionId)) {
                             Object committedValue = versionedValue.getCommittedValue();
                             if (committedValue == null) {
                                 continue;

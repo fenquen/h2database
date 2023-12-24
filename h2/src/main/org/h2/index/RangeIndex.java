@@ -32,10 +32,10 @@ public class RangeIndex extends VirtualTableIndex {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
-        long min = rangeTable.getMin(session);
-        long max = rangeTable.getMax(session);
-        long step = rangeTable.getStep(session);
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
+        long min = rangeTable.getMin(sessionLocal);
+        long max = rangeTable.getMax(sessionLocal);
+        long step = rangeTable.getStep(sessionLocal);
         if (step == 0L) {
             throw DbException.get(ErrorCode.STEP_SIZE_MUST_NOT_BE_ZERO);
         }

@@ -409,12 +409,9 @@ public final class Transaction {
     }
 
     /**
-     * Add a log entry.
-     *
-     * @param logRecord to append
      * @return key for the newly added undo log entry
      */
-    long log(Record<?, ?> logRecord) {
+    long addUndoLogRecord(Record<?, ?> logRecord) {
         long statusAndLogId = this.statusAndLogId.getAndIncrement();
 
         long logId = getLogId(statusAndLogId);

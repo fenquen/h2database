@@ -109,8 +109,12 @@ public final class Update extends FilteredDataChangeStatement {
         }
     }
 
-    static void doUpdate(Prepared prepared, SessionLocal session, Table table, LocalResult rows) {
+    static void doUpdate(Prepared prepared,
+                         SessionLocal sessionLocal,
+                         Table table,
+                         LocalResult rows) {
         rows.done();
+
         // TODO self referencing referential integrity constraints
         // don't work if update is multi-row and 'inversed' the condition!
         // probably need multi-row triggers with 'deleted' and 'inserted'
@@ -119,13 +123,14 @@ public final class Update extends FilteredDataChangeStatement {
         // we need to update all indexes) before row triggers
 
         // the cached row is already updated - we need the old values
-        table.updateRows(prepared, session, rows);
+        table.updateRows(prepared, sessionLocal, rows);
+
         if (table.fireRow()) {
             for (rows.reset(); rows.next();) {
                 Row o = rows.currentRowForTable();
                 rows.next();
                 Row n = rows.currentRowForTable();
-                table.fireAfterRow(session, o, n, false);
+                table.fireAfterRow(sessionLocal, o, n, false);
             }
         }
     }

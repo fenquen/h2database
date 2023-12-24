@@ -40,7 +40,7 @@ public abstract class VirtualTable extends Table {
     }
 
     @Override
-    public void removeRow(SessionLocal session, Row row) {
+    public void removeRow(SessionLocal sessionLocal, Row row) {
         throw DbException.getUnsupportedException("Virtual table");
 
     }

@@ -1753,9 +1753,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
          * @param tip           the cursor position
          * @return the decision
          */
-        public Decision decide(V existingValue,
-                               V providedValue,
-                               CursorPos<?, ?> tip) {
+        public Decision decide(V existingValue, V providedValue, CursorPos<?, ?> tip) {
             return decide(existingValue, providedValue);
         }
 
@@ -1772,6 +1770,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         public abstract Decision decide(V existingValue, V providedValue);
 
         /**
+         * 当前只有PUT时候会用到<br>
          * Provides revised value for insert/update based on original input value
          * and value currently existing in the map.
          * This method is only invoked after call to decide(), if it returns PUT.

@@ -171,7 +171,7 @@ public abstract class MetaTable extends Table {
     }
 
     @Override
-    public final void removeRow(SessionLocal session, Row row) {
+    public final void removeRow(SessionLocal sessionLocal, Row row) {
         throw DbException.getUnsupportedException("META");
     }
 

@@ -214,7 +214,7 @@ public abstract class QueryExpressionTable extends Table {
     }
 
     @Override
-    public final void removeRow(SessionLocal session, Row row) {
+    public final void removeRow(SessionLocal sessionLocal, Row row) {
         throw DbException.getUnsupportedException(getClass().getSimpleName() + ".removeRow");
     }
 

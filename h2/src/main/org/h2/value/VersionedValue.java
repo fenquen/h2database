@@ -21,7 +21,7 @@ public class VersionedValue<T> {
     }
 
     /**
-     * transactionId融合logId
+     * transactionId融合logId 也是undoKey
      */
     public long getOperationId() {
         return 0L;

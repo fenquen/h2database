@@ -38,25 +38,24 @@ final class RollbackDecisionMaker extends MVMap.DecisionMaker<Record<?, ?>> {
         // normally existingValue will always be there except of db initialization
         // where some undo log entry was captured on disk but actual map entry was not
         if (existingValue == null) {
-            decision = MVMap.Decision.ABORT;
-        } else {
-            VersionedValue<Object> valueToRestore = existingValue.oldValue;
-
-            long operationId;
-
-            if (valueToRestore == null || (operationId = valueToRestore.getOperationId()) == 0 ||
-                    TransactionStore.getTransactionId(operationId) == transactionId && TransactionStore.getLogId(operationId) < toLogId) {
-                MVMap<Object, VersionedValue<Object>> map = transactionStore.openMap(existingValue.mvMapId);
-                if (map != null && !map.isClosed()) {
-                    Object key = existingValue.key;
-                    VersionedValue<Object> previousValue = map.operate(key, valueToRestore, MVMap.DecisionMaker.DEFAULT);
-                    rollbackListener.onRollback(map, key, previousValue, valueToRestore);
-                }
-            }
-
-            decision = MVMap.Decision.REMOVE;
+            return decision = MVMap.Decision.ABORT;
         }
-        return decision;
+
+        VersionedValue<Object> valueToRestore = existingValue.oldValue;
+
+        long operationId;
+
+        if (valueToRestore == null || (operationId = valueToRestore.getOperationId()) == 0 ||
+                TransactionStore.getTransactionId(operationId) == transactionId && TransactionStore.getLogId(operationId) < toLogId) {
+            MVMap<Object, VersionedValue<Object>> map = transactionStore.openMap(existingValue.mvMapId);
+            if (map != null && !map.isClosed()) {
+                Object key = existingValue.key;
+                VersionedValue<Object> previousValue = map.operate(key, valueToRestore, MVMap.DecisionMaker.DEFAULT);
+                rollbackListener.onRollback(map, key, previousValue, valueToRestore);
+            }
+        }
+
+        return decision = MVMap.Decision.REMOVE;
     }
 
     @Override

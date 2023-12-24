@@ -34,8 +34,8 @@ public class VirtualConstructedTableIndex extends VirtualTableIndex {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
-        return new VirtualTableCursor(this, first, last, table.getResult(session));
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
+        return new VirtualTableCursor(this, first, last, table.getResult(sessionLocal));
     }
 
     @Override

@@ -586,7 +586,7 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+                public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
                     return new SingleRowCursor(row);
                 }
 
@@ -682,7 +682,7 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public void removeRow(SessionLocal session, Row r) {
+            public void removeRow(SessionLocal sessionLocal, Row r) {
                 this.row = null;
             }
 
@@ -736,7 +736,7 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+                public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
                     return new SingleRowCursor(row);
                 }
 
@@ -809,13 +809,13 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public void removeRow(SessionLocal session, Row row) {
+        public void removeRow(SessionLocal sessionLocal, Row row) {
             if (indexes != null) {
                 for (Index index : indexes) {
-                    index.remove(session, row);
+                    index.remove(sessionLocal, row);
                 }
             } else {
-                scan.remove(session, row);
+                scan.remove(sessionLocal, row);
             }
             dataModificationId++;
         }
@@ -954,7 +954,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+        public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
             Set<SearchRow> subSet;
             if (first != null && last != null && compareRows(last, first) < 0) {
                 subSet = Collections.emptySet();

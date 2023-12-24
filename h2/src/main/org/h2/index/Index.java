@@ -227,13 +227,13 @@ public abstract class Index extends SchemaObject {
     /**
      * Update index after row change.
      *
-     * @param session the session
-     * @param oldRow  row before the update
-     * @param newRow  row after the update
+     * @param sessionLocal the session
+     * @param oldRow       row before the update
+     * @param newRow       row after the update
      */
-    public void update(SessionLocal session, Row oldRow, Row newRow) {
-        remove(session, oldRow);
-        add(session, newRow);
+    public void update(SessionLocal sessionLocal, Row oldRow, Row newRow) {
+        remove(sessionLocal, oldRow);
+        add(sessionLocal, newRow);
     }
 
     /**
@@ -248,15 +248,13 @@ public abstract class Index extends SchemaObject {
     }
 
     /**
-     * Find a row or a list of rows and create a cursor to iterate over the
-     * result.
+     * find a row or a list of rows and create a cursor to iterate over the result.
      *
-     * @param session the session
-     * @param first   the first row, or null for no limit
-     * @param last    the last row, or null for no limit
+     * @param first        the first row, or null for no limit
+     * @param last         the last row, or null for no limit
      * @return the cursor to iterate over the results
      */
-    public abstract Cursor find(SessionLocal session, SearchRow first, SearchRow last);
+    public abstract Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last);
 
     /**
      * Estimate the cost to search for rows given the search mask.

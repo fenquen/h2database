@@ -193,11 +193,11 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
         Iterator<Spatial> cursor = spatialMap.keyIterator(null);
-        TransactionMap<Spatial, Value> map = getMap(session);
+        TransactionMap<Spatial, Value> map = getMap(sessionLocal);
         Iterator<Spatial> it = new SpatialKeyIterator(map, cursor, false);
-        return new MVStoreCursor(session, it, mvTable);
+        return new MVStoreCursor(sessionLocal, it, mvTable);
     }
 
     @Override

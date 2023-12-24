@@ -11,6 +11,9 @@ import org.h2.value.VersionedValue;
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
 class VersionedValueUncommitted<T> extends VersionedValueCommitted<T> {
+    /**
+     * 对应的undoLog的mvMap的key
+     */
     private final long operationId;
     private final T committedValue;
 
@@ -22,17 +25,13 @@ class VersionedValueUncommitted<T> extends VersionedValueCommitted<T> {
     }
 
     /**
-     * Create new VersionedValueUncommitted.
-     *
-     * @param <X> type of the value to get the VersionedValue for
-     *
-     * @param operationId combined log/transaction id
-     * @param value value before commit
+     * @param <X>            type of the value to get the VersionedValue for
+     * @param operationId    combined log/transaction id
+     * @param currentValue   value before commit
      * @param committedValue value after commit
-     * @return VersionedValue instance
      */
-    static <X> VersionedValue<X> getInstance(long operationId, X value, X committedValue) {
-        return new VersionedValueUncommitted<>(operationId, value, committedValue);
+    static <X> VersionedValue<X> getInstance(long operationId, X currentValue, X committedValue) {
+        return new VersionedValueUncommitted<>(operationId, currentValue, committedValue);
     }
 
     @Override
@@ -52,8 +51,7 @@ class VersionedValueUncommitted<T> extends VersionedValueCommitted<T> {
 
     @Override
     public String toString() {
-        return super.toString() +
-                " " + TransactionStore.getTransactionId(operationId) + "/" +
+        return super.toString() + " " + TransactionStore.getTransactionId(operationId) + "/" +
                 TransactionStore.getLogId(operationId) + " " + committedValue;
     }
 }

@@ -419,14 +419,12 @@ public class Select extends Query {
 
     boolean isConditionMetForUpdate() {
         if (isConditionMet()) {
-            int count = tableFilters.size();
             boolean notChanged = true;
-            for (int i = 0; i < count; i++) {
-                TableFilter tableFilter = tableFilters.get(i);
+            for (TableFilter tableFilter : tableFilters) {
                 if (!tableFilter.isJoinOuter() && !tableFilter.isJoinOuterIndirect()) {
                     Row row = tableFilter.get();
                     Table table = tableFilter.getTable();
-                    // Views, function tables, links, etc. do not support locks
+                    // views, function tables, links, etc. do not support locks
                     if (table.isRowLockable()) {
                         Row lockedRow = table.lockRow(sessionLocal, row);
                         if (lockedRow == null) {

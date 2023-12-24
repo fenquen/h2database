@@ -84,8 +84,8 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
-        return mainIndex.find(session, first, last);
+    public Cursor find(SessionLocal sessionLocal, SearchRow first, SearchRow last) {
+        return mainIndex.find(sessionLocal, first, last);
     }
 
     @Override
@@ -125,7 +125,7 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void update(SessionLocal session, Row oldRow, Row newRow) {
+    public void update(SessionLocal sessionLocal, Row oldRow, Row newRow) {
         // nothing to do
     }
 

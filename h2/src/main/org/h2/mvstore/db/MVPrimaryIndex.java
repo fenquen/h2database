@@ -174,36 +174,44 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void update(SessionLocal session, Row oldRow, Row newRow) {
+    public void update(SessionLocal sessionLocal, Row oldRow, Row newRow) {
         if (mainIndexColumn != SearchRow.ROWID_INDEX) {
             long c = newRow.getValue(mainIndexColumn).getLong();
             newRow.setKey(c);
         }
+
         long key = oldRow.getKey();
+
         assert mainIndexColumn != SearchRow.ROWID_INDEX || key != 0;
         assert key == newRow.getKey() : key + " != " + newRow.getKey();
+
         if (mvTable.getContainsLargeObject()) {
             for (int i = 0, len = oldRow.getColumnCount(); i < len; i++) {
                 Value oldValue = oldRow.getValue(i);
                 Value newValue = newRow.getValue(i);
-                if (oldValue != newValue) {
-                    if (oldValue instanceof ValueLob) {
-                        session.removeAtCommit((ValueLob) oldValue);
-                    }
-                    if (newValue instanceof ValueLob) {
-                        ValueLob lob = ((ValueLob) newValue).copy(database, getId());
-                        session.removeAtCommitStop(lob);
-                        if (newValue != lob) {
-                            newRow.setValue(i, lob);
-                        }
+
+                if (oldValue == newValue) {
+                    continue;
+                }
+
+                if (oldValue instanceof ValueLob) {
+                    sessionLocal.removeAtCommit((ValueLob) oldValue);
+                }
+
+                if (newValue instanceof ValueLob) {
+                    ValueLob lob = ((ValueLob) newValue).copy(database, getId());
+                    sessionLocal.removeAtCommitStop(lob);
+                    if (newValue != lob) {
+                        newRow.setValue(i, lob);
                     }
                 }
             }
         }
 
-        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
+        TransactionMap<Long, SearchRow> transactionMap = getTransactionMap(sessionLocal);
+
         try {
-            Row existing = (Row) map.put(key, newRow);
+            Row existing = (Row) transactionMap.put(key, newRow);
             if (existing == null) {
                 StringBuilder builder = new StringBuilder();
                 getSQL(builder, TRACE_SQL_FLAGS).append(": ").append(key);
@@ -213,9 +221,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
             throw mvTable.convertException(e);
         }
 
-
-        // because it's possible to directly update the key using the _rowid_
-        // syntax
+        // because it's possible to directly update the key using the _rowid_ syntax
         if (newRow.getKey() > lastKey.get()) {
             lastKey.set(newRow.getKey());
         }
