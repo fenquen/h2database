@@ -252,8 +252,6 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
      * If the row is locked, this method will retry until the row could be
      * updated or until a lock timeout.
      *
-     * @param key   the key
-     * @param value the new value (not null)
      * @return the old value
      * @throws MVStoreException if a lock timeout occurs
      */
