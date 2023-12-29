@@ -491,7 +491,7 @@ public class MVStore implements AutoCloseable {
 
             // setAutoCommitDelay starts the thread, but only if the parameter is different from the old value
             int delay = DataUtils.getConfigIntParam(config, "autoCommitDelay", 1000);
-            
+
             // setAutoCommitDelay(delay);
         } else {
             autoCommitMemory = 0;
@@ -753,7 +753,9 @@ public class MVStore implements AutoCloseable {
      */
     public Set<String> getMapNames() {
         HashSet<String> set = new HashSet<>();
+
         checkOpen();
+
         for (Iterator<String> it = meta.keyIterator(DataUtils.META_NAME); it.hasNext(); ) {
             String x = it.next();
             if (!x.startsWith(DataUtils.META_NAME)) {
@@ -762,6 +764,7 @@ public class MVStore implements AutoCloseable {
             String mapName = x.substring(DataUtils.META_NAME.length());
             set.add(mapName);
         }
+        
         return set;
     }
 
