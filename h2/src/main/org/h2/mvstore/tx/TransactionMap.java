@@ -447,6 +447,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
                 if (data != null) {
                     return data.getCurrentValue();
                 }
+
                 return null;
             }
             case REPEATABLE_READ:

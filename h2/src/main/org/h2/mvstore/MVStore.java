@@ -491,6 +491,7 @@ public class MVStore implements AutoCloseable {
 
             // setAutoCommitDelay starts the thread, but only if the parameter is different from the old value
             int delay = DataUtils.getConfigIntParam(config, "autoCommitDelay", 1000);
+            
             // setAutoCommitDelay(delay);
         } else {
             autoCommitMemory = 0;
