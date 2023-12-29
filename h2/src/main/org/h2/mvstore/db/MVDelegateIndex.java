@@ -44,7 +44,7 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void addRowsToBuffer(List<Row> rows, String bufferName) {
+    public void addRowsToTemporaryMvMap(List<Row> rows, String temporaryMvMapName) {
         throw DbException.getInternalError();
     }
 
@@ -140,8 +140,8 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public long getRowCount(SessionLocal session) {
-        return mainIndex.getRowCount(session);
+    public long getRowCount(SessionLocal sessionLocal) {
+        return mainIndex.getRowCount(sessionLocal);
     }
 
     @Override

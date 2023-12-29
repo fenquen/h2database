@@ -125,7 +125,7 @@ public final class Database implements DataHandler, CastDataProvider {
      */
     private static final String SYSTEM_USER_NAME = "DBA";
 
-    private final boolean persistent;
+    public final boolean persistent;
     private final String databasePath;
     private final String databaseShortName;
     private final String databaseURL;
@@ -156,7 +156,7 @@ public final class Database implements DataHandler, CastDataProvider {
     private final Table meta;
     private final Index metaIdIndex;
     private FileLock lock;
-    private volatile boolean starting;
+    public volatile boolean starting;
     private final TraceSystem traceSystem;
     private final Trace trace;
     private final FileLockMethod fileLockMethod;

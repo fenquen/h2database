@@ -70,7 +70,7 @@ public final class MergeUsing extends DataChangeStatement {
     }
 
     @Override
-    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
+    public long update(ResultTarget resultTarget, ResultOption resultOption) {
         long countUpdatedRows = 0;
         targetRowidsRemembered.clear();
         checkRights();
@@ -91,7 +91,7 @@ public final class MergeUsing extends DataChangeStatement {
                     Row backupTarget = targetTableFilter.get();
                     sourceTableFilter.set(missedSource);
                     targetTableFilter.set(table.getNullRow());
-                    countUpdatedRows += merge(true, deltaChangeCollector, deltaChangeCollectionMode);
+                    countUpdatedRows += merge(true, resultTarget, resultOption);
                     sourceTableFilter.set(source);
                     targetTableFilter.set(backupTarget);
                     count++;
@@ -132,14 +132,14 @@ public final class MergeUsing extends DataChangeStatement {
                     }
                 }
             }
-            countUpdatedRows += merge(nullRow, deltaChangeCollector, deltaChangeCollectionMode);
+            countUpdatedRows += merge(nullRow, resultTarget, resultOption);
             count++;
             previousSource = source;
         }
         if (missedSource != null) {
             sourceTableFilter.set(missedSource);
             targetTableFilter.set(table.getNullRow());
-            countUpdatedRows += merge(true, deltaChangeCollector, deltaChangeCollectionMode);
+            countUpdatedRows += merge(true, resultTarget, resultOption);
         }
         targetRowidsRemembered.clear();
         table.fire(sessionLocal, evaluateTriggerMasks(), false);

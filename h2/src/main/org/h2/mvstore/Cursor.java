@@ -16,8 +16,8 @@ public final class Cursor<K, V> implements Iterator<K> {
     private final K to;
     private CursorPos<K, V> cursorPos;
     private CursorPos<K, V> keeper;
-    private K current;
-    private K last;
+    private K currentKey;
+    private K lastKey;
     private V lastValue;
     private Page<K, V> lastPage;
 
@@ -39,7 +39,7 @@ public final class Cursor<K, V> implements Iterator<K> {
         if (cursorPos != null) {
             int increment = reverse ? -1 : 1;
 
-            while (current == null) {
+            while (currentKey == null) {
                 Page<K, V> page = cursorPos.page;
                 int index = cursorPos.index;
 
@@ -79,7 +79,7 @@ public final class Cursor<K, V> implements Iterator<K> {
                             return false;
                         }
 
-                        current = last = key;
+                        currentKey = lastKey = key;
                         lastValue = page.getValue(index);
                         lastPage = page;
                     }
@@ -89,7 +89,7 @@ public final class Cursor<K, V> implements Iterator<K> {
             }
         }
 
-        return current != null;
+        return currentKey != null;
     }
 
     @Override
@@ -98,15 +98,15 @@ public final class Cursor<K, V> implements Iterator<K> {
             throw new NoSuchElementException();
         }
 
-        current = null;
-        return last;
+        currentKey = null;
+        return lastKey;
     }
 
     /**
      * Get the last read key if there was one.
      */
     public K getKey() {
-        return last;
+        return lastKey;
     }
 
     /**
@@ -145,8 +145,8 @@ public final class Cursor<K, V> implements Iterator<K> {
             Page<K, V> root = cp.page;
             MVMap<K, V> map = root.mvMap;
             long index = map.getKeyIndex(next());
-            last = map.getKey(index + (reverse ? -n : n));
-            this.cursorPos = traverseDown(root, last, reverse);
+            lastKey = map.getKey(index + (reverse ? -n : n));
+            this.cursorPos = traverseDown(root, lastKey, reverse);
         }
     }
 

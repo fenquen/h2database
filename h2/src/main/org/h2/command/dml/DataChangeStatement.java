@@ -76,10 +76,10 @@ public abstract class DataChangeStatement extends Prepared {
     /**
      * Execute the statement with specified delta change collector and collection mode.
      *
-     * @param deltaChangeCollector      target result
-     * @param deltaChangeCollectionMode collection mode
+     * @param resultTarget target result
+     * @param resultOption collection mode
      * @return the update count
      */
-    public abstract long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode);
+    public abstract long update(ResultTarget resultTarget, ResultOption resultOption);
 
 }

@@ -42,7 +42,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     private final String mvMapNameInTransactionMap;
     private final TransactionMap<Long, SearchRow> transactionMap;
     private final AtomicLong lastKey = new AtomicLong();
-    private int mainIndexColumn = SearchRow.ROWID_INDEX;
+    public int mainIndexColumn = SearchRow.ROWID_INDEX;
 
     public MVPrimaryIndex(Database database,
                           MVTable mvTable,
@@ -352,8 +352,8 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public long getRowCount(SessionLocal session) {
-        return getTransactionMap(session).sizeAsLong();
+    public long getRowCount(SessionLocal sessionLocal) {
+        return getTransactionMap(sessionLocal).sizeAsLong();
     }
 
     /**
@@ -380,7 +380,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void addRowsToBuffer(List<Row> rows, String bufferName) {
+    public void addRowsToTemporaryMvMap(List<Row> rows, String temporaryMvMapName) {
         throw new UnsupportedOperationException();
     }
 

@@ -56,8 +56,8 @@ public abstract class VirtualTableIndex extends Index {
     }
 
     @Override
-    public long getRowCount(SessionLocal session) {
-        return table.getRowCount(session);
+    public long getRowCount(SessionLocal sessionLocal) {
+        return table.getRowCount(sessionLocal);
     }
 
     @Override

@@ -1265,10 +1265,13 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     public void checkCanceled() {
         throttle();
+
         long cancel = cancelAtNs;
+
         if (cancel == 0L) {
             return;
         }
+
         if (System.nanoTime() - cancel >= 0L) {
             cancelAtNs = 0L;
             throw DbException.get(ErrorCode.STATEMENT_WAS_CANCELED);

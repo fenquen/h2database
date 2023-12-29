@@ -549,8 +549,8 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public long getRowCount(SessionLocal session) {
-                    return table.getRowCount(session);
+                public long getRowCount(SessionLocal sessionLocal) {
+                    return table.getRowCount(sessionLocal);
                 }
 
                 @Override
@@ -616,8 +616,8 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
-                    int uniqueColumnCount, IndexType indexType, boolean create, String indexComment) {
+            public Index addIndex(SessionLocal sessionLocal, String name, int indexId, IndexColumn[] indexColumns,
+                                  int uniqueColumnCount, IndexType indexType, boolean create, String comment) {
                 return null;
             }
 
@@ -833,16 +833,16 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
-                int uniqueColumnCount, IndexType indexType, boolean create, String indexComment) {
+        public Index addIndex(SessionLocal sessionLocal, String name, int indexId, IndexColumn[] indexColumns,
+                              int uniqueColumnCount, IndexType indexType, boolean create, String comment) {
             if (indexes == null) {
                 indexes = new ArrayList<>(2);
                 // Scan must be always at 0.
                 indexes.add(scan);
             }
-            Index index = new TreeSetIndex(this, indexName, cols, indexType);
+            Index index = new TreeSetIndex(this, name, indexColumns, indexType);
             for (SearchRow row : scan.set) {
-                index.add(session, (Row) row);
+                index.add(sessionLocal, (Row) row);
             }
             indexes.add(index);
             dataModificationId++;
@@ -1017,7 +1017,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public long getRowCount(SessionLocal session) {
+        public long getRowCount(SessionLocal sessionLocal) {
             return set.size();
         }
 

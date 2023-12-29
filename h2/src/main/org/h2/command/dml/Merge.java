@@ -83,7 +83,7 @@ public final class Merge extends CommandWithValues {
     }
 
     @Override
-    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
+    public long update(ResultTarget resultTarget, ResultOption resultOption) {
         long count = 0;
         sessionLocal.getUser().checkTableRight(table, Right.INSERT);
         sessionLocal.getUser().checkTableRight(table, Right.UPDATE);
@@ -106,7 +106,7 @@ public final class Merge extends CommandWithValues {
                         }
                     }
                 }
-                count += merge(newRow, expr, deltaChangeCollector, deltaChangeCollectionMode);
+                count += merge(newRow, expr, resultTarget, resultOption);
             }
         } else {
             // process select data for list
@@ -121,7 +121,7 @@ public final class Merge extends CommandWithValues {
                 for (int j = 0; j < columns.length; j++) {
                     newRow.setValue(columns[j].getColumnId(), r[j]);
                 }
-                count += merge(newRow, null, deltaChangeCollector, deltaChangeCollectionMode);
+                count += merge(newRow, null, resultTarget, resultOption);
             }
             rows.close();
             table.fire(sessionLocal, Trigger.UPDATE | Trigger.INSERT, false);

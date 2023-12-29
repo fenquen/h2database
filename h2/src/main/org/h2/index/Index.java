@@ -118,8 +118,7 @@ public abstract class Index extends SchemaObject {
         RowFactory databaseRowFactory = database.getRowFactory();
         CompareMode compareMode = database.getCompareMode();
         Column[] tableColumns = table.getColumns();
-        rowFactory = databaseRowFactory.createRowFactory(database, compareMode, database, tableColumns,
-                newIndexType.isScan() ? null : newIndexColumns, true);
+        rowFactory = databaseRowFactory.createRowFactory(database, compareMode, database, tableColumns, newIndexType.isScan() ? null : newIndexColumns, true);
         RowFactory uniqueRowFactory;
         if (uniqueColumnCount > 0) {
             if (newIndexColumns == null || uniqueColumnCount == newIndexColumns.length) {
@@ -347,10 +346,10 @@ public abstract class Index extends SchemaObject {
     /**
      * Get the row count of this table, for the given session.
      *
-     * @param session the session
+     * @param sessionLocal the session
      * @return the row count
      */
-    public abstract long getRowCount(SessionLocal session);
+    public abstract long getRowCount(SessionLocal sessionLocal);
 
     /**
      * Get the approximated row count for this table.

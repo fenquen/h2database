@@ -76,7 +76,6 @@ public abstract class RowFactory {
 
     public abstract boolean getStoreKeys();
 
-
     /**
      * Default implementation of row factory.
      */
@@ -172,11 +171,13 @@ public abstract class RowFactory {
         public SearchRow createRow() {
             if (indexes == null) {
                 return new DefaultRow(columnCount);
-            } else if (indexes.length == 1) {
-                return new SimpleRowValue(columnCount, indexes[0]);
-            } else {
-                return new Sparse(columnCount, indexes.length, map);
             }
+
+            if (indexes.length == 1) {
+                return new SimpleRowValue(columnCount, indexes[0]);
+            }
+
+            return new Sparse(columnCount, indexes.length, map);
         }
 
         @Override

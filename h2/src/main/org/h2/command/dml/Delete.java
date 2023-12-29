@@ -36,7 +36,7 @@ public final class Delete extends FilteredDataChangeStatement {
     }
 
     @Override
-    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
+    public long update(ResultTarget resultTarget, ResultOption resultOption) {
         targetTableFilter.startQuery(sessionLocal);
         targetTableFilter.reset();
         Table table = targetTableFilter.getTable();
@@ -68,8 +68,8 @@ public final class Delete extends FilteredDataChangeStatement {
                         }
                     }
                 }
-                if (deltaChangeCollectionMode == ResultOption.OLD) {
-                    deltaChangeCollector.addRow(row.getValueList());
+                if (resultOption == ResultOption.OLD) {
+                    resultTarget.addRow(row.getValueList());
                 }
                 if (!table.fireRow() || !table.fireBeforeRow(sessionLocal, row, null)) {
                     rows.addRowForTable(row);

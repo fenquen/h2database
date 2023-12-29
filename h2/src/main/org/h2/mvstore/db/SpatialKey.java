@@ -6,6 +6,7 @@
 package org.h2.mvstore.db;
 
 import java.util.Arrays;
+
 import org.h2.engine.CastDataProvider;
 import org.h2.mvstore.rtree.Spatial;
 import org.h2.value.CompareMode;
@@ -23,7 +24,7 @@ public class SpatialKey extends Value implements Spatial {
     /**
      * Create a new key.
      *
-     * @param id the id
+     * @param id     the id
      * @param minMax min x, max x, min y, max y, and so on
      */
     public SpatialKey(long id, float... minMax) {
@@ -109,7 +110,7 @@ public class SpatialKey extends Value implements Spatial {
      */
     @Override
     public boolean equalsIgnoringId(Spatial o) {
-        return Arrays.equals(minMax, ((SpatialKey)o).minMax);
+        return Arrays.equals(minMax, ((SpatialKey) o).minMax);
     }
 
     @Override

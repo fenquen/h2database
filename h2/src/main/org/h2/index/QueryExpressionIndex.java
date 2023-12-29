@@ -399,7 +399,7 @@ public class QueryExpressionIndex extends Index implements SpatialIndex {
     }
 
     @Override
-    public long getRowCount(SessionLocal session) {
+    public long getRowCount(SessionLocal sessionLocal) {
         return 0;
     }
 

@@ -61,7 +61,7 @@ public final class Store {
      * The map of open tables.
      * Key: the map name, value: the table.
      */
-    private final ConcurrentHashMap<String, MVTable> tableMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MVTable> name_mvTable = new ConcurrentHashMap<>();
 
     public final MVStore mvStore;
 
@@ -202,7 +202,7 @@ public final class Store {
      * @return MVTable
      */
     public MVTable getTable(String tableName) {
-        return tableMap.get(tableName);
+        return name_mvTable.get(tableName);
     }
 
     /**
@@ -214,7 +214,7 @@ public final class Store {
     public MVTable createTable(CreateTableData createTableData) {
         try {
             MVTable mvTable = new MVTable(createTableData, this);
-            tableMap.put(mvTable.getMapName(), mvTable);
+            name_mvTable.put(mvTable.getMapName(), mvTable);
             return mvTable;
         } catch (MVStoreException e) {
             throw convertMVStoreException(e);
@@ -228,7 +228,7 @@ public final class Store {
      */
     public void removeTable(MVTable table) {
         try {
-            tableMap.remove(table.getMapName());
+            name_mvTable.remove(table.getMapName());
         } catch (MVStoreException e) {
             throw convertMVStoreException(e);
         }
@@ -279,7 +279,7 @@ public final class Store {
      *
      * @return the map name
      */
-    public synchronized String nextTemporaryMapName() {
+    public synchronized String nextTemporaryMvMapName() {
         return "temp." + temporaryMapId++;
     }
 

@@ -80,8 +80,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 DataUtils.readHexLong(config, "createVersion", 0),
                 new AtomicReference<>(),
                 ((MVStore) config.get("store")).keysPerPage,
-                config.containsKey("singleWriter") && (Boolean) config.get("singleWriter")
-        );
+                config.containsKey("singleWriter") && (Boolean) config.get("singleWriter"));
 
         setInitialRootReference(createEmptyLeaf(), mvStore.currentVersion);
     }
@@ -1851,7 +1850,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                         }
                         return oldValue;
                     case REMOVE: {
-                        if (index < 0) {
+                        if (0 > index) {
                             if (!locked && rootReference != getRootReference()) {
                                 decisionMaker.reset();
                                 continue;

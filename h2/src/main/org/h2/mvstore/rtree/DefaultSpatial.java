@@ -12,15 +12,14 @@ import java.util.Arrays;
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-final class DefaultSpatial implements Spatial
-{
+final class DefaultSpatial implements Spatial {
     private final long id;
     private final float[] minMax;
 
     /**
      * Create a new key.
      *
-     * @param id the id
+     * @param id     the id
      * @param minMax min x, max x, min y, max y, and so on
      */
     public DefaultSpatial(long id, float... minMax) {
@@ -70,6 +69,6 @@ final class DefaultSpatial implements Spatial
 
     @Override
     public boolean equalsIgnoringId(Spatial o) {
-        return Arrays.equals(minMax, ((DefaultSpatial)o).minMax);
+        return Arrays.equals(minMax, ((DefaultSpatial) o).minMax);
     }
 }

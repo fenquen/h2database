@@ -121,7 +121,7 @@ public abstract class DbObject implements HasSQL {
 
     private long modificationId;
 
-    private boolean temporary;
+    public boolean temporary;
 
     /**
      * Initialize some attributes of this object.

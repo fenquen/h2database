@@ -45,7 +45,7 @@ public final class SetClauseList implements HasSQL {
     /**
      * Add a single column.
      *
-     * @param column the column
+     * @param column     the column
      * @param expression the expression
      */
     public void addSingle(Column column, Expression expression) {
@@ -66,7 +66,7 @@ public final class SetClauseList implements HasSQL {
     /**
      * Add multiple columns.
      *
-     * @param columns the columns
+     * @param columns    the columns
      * @param expression the expression (e.g. an expression list)
      */
     public void addMultiple(ArrayList<Column> columns, Expression expression) {
@@ -111,9 +111,13 @@ public final class SetClauseList implements HasSQL {
         }
     }
 
-    boolean prepareUpdate(Table table, SessionLocal session, ResultTarget deltaChangeCollector,
-            ResultOption deltaChangeCollectionMode, LocalResult rows, Row oldRow,
-            boolean updateToCurrentValuesReturnsZero) {
+    boolean prepareUpdate(Table table,
+                          SessionLocal session,
+                          ResultTarget deltaChangeCollector,
+                          ResultOption deltaChangeCollectionMode,
+                          LocalResult rows,
+                          Row oldRow,
+                          boolean updateToCurrentValuesReturnsZero) {
         Column[] columns = table.getColumns();
         int columnCount = columns.length;
         Row newRow = table.getTemplateRow();
@@ -176,8 +180,7 @@ public final class SetClauseList implements HasSQL {
      * Check if this expression and all sub-expressions can fulfill a criteria.
      * If any part returns false, the result is false.
      *
-     * @param visitor
-     *            the visitor
+     * @param visitor the visitor
      * @return if the criteria can be fulfilled
      */
     boolean isEverything(ExpressionVisitor visitor) {
@@ -194,12 +197,9 @@ public final class SetClauseList implements HasSQL {
     /**
      * Map the columns and optimize expressions.
      *
-     * @param session
-     *            the session
-     * @param resolver1
-     *            the first column resolver
-     * @param resolver2
-     *            the second column resolver, or {@code null}
+     * @param session   the session
+     * @param resolver1 the first column resolver
+     * @param resolver2 the second column resolver, or {@code null}
      */
     void mapAndOptimize(SessionLocal session, ColumnResolver resolver1, ColumnResolver resolver2) {
         Column[] columns = table.getColumns();

@@ -332,6 +332,7 @@ public abstract class Prepared {
      */
     public void checkCanceled() {
         sessionLocal.checkCanceled();
+
         Command c = command != null ? command : sessionLocal.getCurrentCommand();
         if (c != null) {
             c.checkCanceled();

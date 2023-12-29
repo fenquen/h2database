@@ -107,7 +107,7 @@ public class MetaIndex extends Index {
     }
 
     @Override
-    public long getRowCount(SessionLocal session) {
+    public long getRowCount(SessionLocal sessionLocal) {
         return MetaTable.ROW_COUNT_APPROXIMATION;
     }
 

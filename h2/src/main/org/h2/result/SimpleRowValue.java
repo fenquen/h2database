@@ -52,8 +52,7 @@ public class SimpleRowValue extends SearchRow {
 
     @Override
     public String toString() {
-        return "( /* " + key + " */ " + (data == null ?
-                "null" : data.getTraceSQL()) + " )";
+        return "( /* " + key + " */ " + (data == null ? "null" : data.getTraceSQL()) + " )";
     }
 
     @Override

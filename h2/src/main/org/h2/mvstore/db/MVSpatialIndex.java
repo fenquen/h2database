@@ -111,7 +111,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     }
 
     @Override
-    public void addRowsToBuffer(List<Row> rows, String bufferName) {
+    public void addRowsToTemporaryMvMap(List<Row> rows, String temporaryMvMapName) {
         throw DbException.getInternalError();
     }
 
@@ -331,8 +331,8 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     }
 
     @Override
-    public long getRowCount(SessionLocal session) {
-        TransactionMap<Spatial, Value> map = getMap(session);
+    public long getRowCount(SessionLocal sessionLocal) {
+        TransactionMap<Spatial, Value> map = getMap(sessionLocal);
         return map.sizeAsLong();
     }
 

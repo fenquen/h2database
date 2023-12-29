@@ -10,8 +10,8 @@ package org.h2.index;
  */
 public class IndexType {
 
-    private boolean primaryKey, persistent, unique, hash, scan, spatial;
-    private boolean belongsToConstraint;
+    public boolean primaryKey, persistent, unique, hash, scan, spatial;
+    public boolean belongsToConstraint;
 
     /**
      * Create a primary key index.

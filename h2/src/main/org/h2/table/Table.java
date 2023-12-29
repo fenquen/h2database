@@ -160,18 +160,24 @@ public abstract class Table extends SchemaObject {
     /**
      * Create an index for this table
      *
-     * @param session           the session
-     * @param indexName         the name of the index
+     * @param sessionLocal      the session
+     * @param name              the name of the index
      * @param indexId           the id
-     * @param cols              the index columns
+     * @param indexColumns      the index columns
      * @param uniqueColumnCount the count of unique columns
      * @param indexType         the index type
      * @param create            whether this is a new index
-     * @param indexComment      the comment
+     * @param comment      the comment
      * @return the index
      */
-    public abstract Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
-                                   int uniqueColumnCount, IndexType indexType, boolean create, String indexComment);
+    public abstract Index addIndex(SessionLocal sessionLocal,
+                                   String name,
+                                   int indexId,
+                                   IndexColumn[] indexColumns,
+                                   int uniqueColumnCount,
+                                   IndexType indexType,
+                                   boolean create,
+                                   String comment);
 
     /**
      * Get the given row.
@@ -518,9 +524,9 @@ public abstract class Table extends SchemaObject {
     /**
      * Update a list of rows in this table.
      *
-     * @param prepared the prepared statement
-     * @param sessionLocal  the session
-     * @param rows     a list of row pairs of the form old row, new row, old row, new row
+     * @param prepared     the prepared statement
+     * @param sessionLocal the session
+     * @param rows         a list of row pairs of the form old row, new row, old row, new row
      */
     public void updateRows(Prepared prepared, SessionLocal sessionLocal, LocalResult rows) {
         // in case we need to undo the update

@@ -12,8 +12,7 @@ package org.h2.mvstore.rtree;
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-public interface Spatial
-{
+public interface Spatial {
     /**
      * Get the minimum value for the given dimension.
      *
@@ -26,7 +25,7 @@ public interface Spatial
      * Set the minimum value for the given dimension.
      *
      * @param dim the dimension
-     * @param x the value
+     * @param x   the value
      */
     void setMin(int dim, float x);
 
@@ -42,7 +41,7 @@ public interface Spatial
      * Set the maximum value for the given dimension.
      *
      * @param dim the dimension
-     * @param x the value
+     * @param x   the value
      */
     void setMax(int dim, float x);
 
@@ -56,12 +55,14 @@ public interface Spatial
 
     /**
      * Get id of this Spatial object
+     *
      * @return id
      */
     long getId();
 
     /**
      * Test whether this object has no value
+     *
      * @return true if it is NULL, false otherwise
      */
     boolean isNull();

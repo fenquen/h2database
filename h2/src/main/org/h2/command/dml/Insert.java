@@ -129,9 +129,9 @@ public final class Insert extends CommandWithValues implements ResultTarget {
     }
 
     @Override
-    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
-        this.deltaChangeCollector = deltaChangeCollector;
-        this.deltaChangeCollectionMode = deltaChangeCollectionMode;
+    public long update(ResultTarget resultTarget, ResultOption resultOption) {
+        this.deltaChangeCollector = resultTarget;
+        this.deltaChangeCollectionMode = resultOption;
         try {
             return insertRows();
         } finally {

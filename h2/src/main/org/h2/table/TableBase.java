@@ -30,7 +30,7 @@ public abstract class TableBase extends Table {
     /** Provided table parameters */
     private final List<String> tableEngineParams;
 
-    private final boolean globalTemporary;
+    protected final boolean globalTemporary;
 
     /**
      * Returns main index column if index is an primary key index and has only
@@ -44,10 +44,13 @@ public abstract class TableBase extends Table {
         if (!indexType.isPrimaryKey() || cols.length != 1) {
             return SearchRow.ROWID_INDEX;
         }
+
         IndexColumn first = cols[0];
+
         if ((first.sortType & SortOrder.DESCENDING) != 0) {
             return SearchRow.ROWID_INDEX;
         }
+
         switch (first.column.getType().getValueType()) {
         case Value.TINYINT:
         case Value.SMALLINT:

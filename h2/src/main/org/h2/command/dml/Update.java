@@ -52,12 +52,13 @@ public final class Update extends FilteredDataChangeStatement {
     }
 
     @Override
-    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
+    public long update(ResultTarget resultTarget, ResultOption resultOption) {
         targetTableFilter.startQuery(sessionLocal);
         targetTableFilter.reset();
 
         Table table = targetTableFilter.getTable();
 
+        // 以table蓝本生成相同模样的空的localResult
         try (LocalResult rows = LocalResult.forTable(sessionLocal, table)) {
             sessionLocal.getUser().checkTableRight(table, Right.UPDATE);
 
@@ -96,7 +97,8 @@ public final class Update extends FilteredDataChangeStatement {
                     }
                 }
 
-                if (setClauseList.prepareUpdate(table, sessionLocal, deltaChangeCollector, deltaChangeCollectionMode, rows, oldRow, onDuplicateKeyInsert != null)) {
+                // 会向rows添加oldRow和newRow
+                if (setClauseList.prepareUpdate(table, sessionLocal, resultTarget, resultOption, rows, oldRow, onDuplicateKeyInsert != null)) {
                     count++;
                 }
             }

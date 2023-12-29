@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.command.ddl.CreateTableData;
@@ -66,7 +67,7 @@ public class MVTable extends TableBase {
     /**
      * The type of trace lock events
      */
-    private enum TraceLockEvent{
+    private enum TraceLockEvent {
 
         TRACE_LOCK_OK("ok"),
         TRACE_LOCK_WAITING_FOR("waiting for"),
@@ -86,6 +87,7 @@ public class MVTable extends TableBase {
             return eventText;
         }
     }
+
     private static final String NO_EXTRA_INFO = "";
 
     static {
@@ -268,35 +270,35 @@ public class MVTable extends TableBase {
 
     private boolean doLock2(SessionLocal sessionLocal, int lockType) {
         switch (lockType) {
-        case Table.EXCLUSIVE_LOCK:
-            int size = lockSharedSessions.size();
+            case Table.EXCLUSIVE_LOCK:
+                int size = lockSharedSessions.size();
 
-            if (size == 0) {
-                traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_ADDED_FOR, NO_EXTRA_INFO);
-                sessionLocal.registerTableAsLocked(this);
-            } else if (size == 1 && lockSharedSessions.containsKey(sessionLocal)) {
-                traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_ADD_UPGRADED_FOR, NO_EXTRA_INFO);
-            } else {
-                return false;
-            }
+                if (size == 0) {
+                    traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_ADDED_FOR, NO_EXTRA_INFO);
+                    sessionLocal.registerTableAsLocked(this);
+                } else if (size == 1 && lockSharedSessions.containsKey(sessionLocal)) {
+                    traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_ADD_UPGRADED_FOR, NO_EXTRA_INFO);
+                } else {
+                    return false;
+                }
 
-            lockExclusiveSession = sessionLocal;
-
-            if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
-                addLockToDebugList(EXCLUSIVE_LOCKS);
-            }
-
-            break;
-        case Table.WRITE_LOCK:
-            if (lockSharedSessions.putIfAbsent(sessionLocal, sessionLocal) == null) {
-                traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_OK, NO_EXTRA_INFO);
-
-                sessionLocal.registerTableAsLocked(this);
+                lockExclusiveSession = sessionLocal;
 
                 if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
-                    addLockToDebugList(SHARED_LOCKS);
+                    addLockToDebugList(EXCLUSIVE_LOCKS);
                 }
-            }
+
+                break;
+            case Table.WRITE_LOCK:
+                if (lockSharedSessions.putIfAbsent(sessionLocal, sessionLocal) == null) {
+                    traceLock(sessionLocal, lockType, TraceLockEvent.TRACE_LOCK_OK, NO_EXTRA_INFO);
+
+                    sessionLocal.registerTableAsLocked(this);
+
+                    if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
+                        addLockToDebugList(SHARED_LOCKS);
+                    }
+                }
         }
 
         return true;
@@ -362,17 +364,24 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
-            int uniqueColumnCount, IndexType indexType, boolean create, String indexComment) {
-        cols = prepareColumns(database, cols, indexType);
-        boolean isSessionTemporary = isTemporary() && !isGlobalTemporary();
+    public Index addIndex(SessionLocal sessionLocal,
+                          String name,
+                          int indexId,
+                          IndexColumn[] indexColumns,
+                          int uniqueColumnCount,
+                          IndexType indexType,
+                          boolean create,
+                          String comment) {
+        indexColumns = prepareColumns(database, indexColumns, indexType);
+
+        boolean isSessionTemporary = temporary && !globalTemporary;
         if (!isSessionTemporary) {
-            database.lockMeta(session);
+            database.lockMeta(sessionLocal);
         }
-        MVIndex<?,?> index;
-        int mainIndexColumn = mvPrimaryIndex.getMainIndexColumn() != SearchRow.ROWID_INDEX
-                ? SearchRow.ROWID_INDEX : getMainIndexColumn(indexType, cols);
-        if (database.isStarting()) {
+
+        int mainIndexColumn = mvPrimaryIndex.mainIndexColumn != SearchRow.ROWID_INDEX ? SearchRow.ROWID_INDEX : getMainIndexColumn(indexType, indexColumns);
+
+        if (database.starting) {
             // if index does exists as a separate map it can't be a delegate
             if (transactionStore.hasMap("index." + indexId)) {
                 // we can not reuse primary index
@@ -382,46 +391,53 @@ public class MVTable extends TableBase {
             mainIndexColumn = SearchRow.ROWID_INDEX;
         }
 
+        MVIndex<?, ?> mvIndex;
         if (mainIndexColumn != SearchRow.ROWID_INDEX) {
-            mvPrimaryIndex.setMainIndexColumn(mainIndexColumn);
-            index = new MVDelegateIndex(this, indexId, indexName, mvPrimaryIndex,
-                    indexType);
-        } else if (indexType.isSpatial()) {
-            index = new MVSpatialIndex(session.getDatabase(), this, indexId,
-                    indexName, cols, uniqueColumnCount, indexType);
+            mvPrimaryIndex.mainIndexColumn = mainIndexColumn;
+            mvIndex = new MVDelegateIndex(this, indexId, name, mvPrimaryIndex, indexType);
+        } else if (indexType.spatial) {
+            mvIndex = new MVSpatialIndex(sessionLocal.database, this, indexId, name, indexColumns, uniqueColumnCount, indexType);
         } else {
-            index = new MVSecondaryIndex(session.getDatabase(), this, indexId,
-                    indexName, cols, uniqueColumnCount, indexType);
+            mvIndex = new MVSecondaryIndex(sessionLocal.database, this, indexId, name, indexColumns, uniqueColumnCount, indexType);
         }
-        if (index.needRebuild()) {
-            rebuildIndex(session, index, indexName);
+
+        // 要是当前的表有data
+        if (mvIndex.needRebuild()) {
+            rebuildIndex(sessionLocal, mvIndex, name);
         }
-        index.setTemporary(isTemporary());
-        if (index.getCreateSQL() != null) {
-            index.setComment(indexComment);
+
+        mvIndex.temporary = temporary;
+
+        if (mvIndex.getCreateSQL() != null) {
+            mvIndex.setComment(comment);
+
             if (isSessionTemporary) {
-                session.addLocalTempTableIndex(index);
+                sessionLocal.addLocalTempTableIndex(mvIndex);
             } else {
-                database.addSchemaObject(session, index);
+                database.addSchemaObject(sessionLocal, mvIndex);
             }
         }
-        indexList.add(index);
+
+        indexList.add(mvIndex);
+
         setModified();
-        return index;
+
+        return mvIndex;
     }
 
-    private void rebuildIndex(SessionLocal session, MVIndex<?,?> index, String indexName) {
+    private void rebuildIndex(SessionLocal sessionLocal, MVIndex<?, ?> mvIndex, String indexName) {
         try {
-            if (!session.getDatabase().isPersistent() || index instanceof MVSpatialIndex) {
-                // in-memory
-                rebuildIndexBuffered(session, index);
+            // in-memory
+            if (!sessionLocal.database.persistent || mvIndex instanceof MVSpatialIndex) {
+                rebuildIndexBuffered(sessionLocal, mvIndex);
             } else {
-                rebuildIndexBlockMerge(session, index);
+                rebuildIndexBlockMerge(sessionLocal, mvIndex);
             }
         } catch (DbException e) {
             getSchema().freeUniqueName(indexName);
+
             try {
-                index.remove(session);
+                mvIndex.remove(sessionLocal);
             } catch (DbException e2) {
                 // this could happen, for example on failure in the storage
                 // but if that is not the case it means
@@ -433,48 +449,60 @@ public class MVTable extends TableBase {
         }
     }
 
-    private void rebuildIndexBlockMerge(SessionLocal session, MVIndex<?,?> index) {
-        // Read entries in memory, sort them, write to a new map (in sorted
-        // order); repeat (using a new map for every block of 1 MB) until all
-        // record are read. Merge all maps to the target (using merge sort;
-        // duplicates are detected in the target). For randomly ordered data,
-        // this should use relatively few write operations.
-        // A possible optimization is: change the buffer size from "row count"
-        // to "amount of memory", and buffer index keys instead of rows.
-        Index scan = getScanIndex(session);
-        long remaining = scan.getRowCount(session);
-        long total = remaining;
-        Cursor cursor = scan.find(session, null, null);
-        long i = 0;
-        Store store = session.getDatabase().getStore();
+    // Read entries in memory, sort them, write to a new map (in sorted order)
+    // repeat (using a new map for every block of 1 MB) until all
+    // record are read. Merge all maps to the target (using merge sort;
+    // duplicates are detected in the target). For randomly ordered data,
+    // this should use relatively few write operations.
+    // A possible optimization is: change the buffer size from "row count"
+    // to "amount of memory", and buffer index keys instead of rows.
+    private void rebuildIndexBlockMerge(SessionLocal sessionLocal, MVIndex<?, ?> mvIndex) {
+        Index scanIndex = getScanIndex(sessionLocal);
 
-        int bufferSize = database.getMaxMemoryRows() / 2;
-        ArrayList<Row> buffer = new ArrayList<>(bufferSize);
-        String n = getName() + ':' + index.getName();
-        ArrayList<String> bufferNames = Utils.newSmallArrayList();
+        long remaining = scanIndex.getRowCount(sessionLocal);
+        long total = remaining;
+
+        Cursor cursor = scanIndex.find(sessionLocal, null, null);
+
+        int bufferRowCount = database.maxMemoryRows / 2;
+        ArrayList<Row> bufferRowList = new ArrayList<>(bufferRowCount);
+
+        ArrayList<String> temporaryMvMapNameList = Utils.newSmallArrayList();
+
+        long i = 0;
         while (cursor.next()) {
             Row row = cursor.get();
-            buffer.add(row);
-            database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n, i++, total);
-            if (buffer.size() >= bufferSize) {
-                sortRows(buffer, index);
-                String mapName = store.nextTemporaryMapName();
-                index.addRowsToBuffer(buffer, mapName);
-                bufferNames.add(mapName);
-                buffer.clear();
+
+            bufferRowList.add(row);
+
+            database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, name + ':' + mvIndex.name, i++, total);
+
+            if (bufferRowList.size() >= bufferRowCount) {
+                sortRows(bufferRowList, mvIndex);
+
+                String temporaryMvMapName = sessionLocal.database.store.nextTemporaryMvMapName();
+
+                mvIndex.addRowsToTemporaryMvMap(bufferRowList, temporaryMvMapName);
+                temporaryMvMapNameList.add(temporaryMvMapName);
+
+                bufferRowList.clear();
             }
+
             remaining--;
         }
-        sortRows(buffer, index);
-        if (!bufferNames.isEmpty()) {
-            String mapName = store.nextTemporaryMapName();
-            index.addRowsToBuffer(buffer, mapName);
-            bufferNames.add(mapName);
-            buffer.clear();
-            index.addBufferedRows(bufferNames);
+
+        sortRows(bufferRowList, mvIndex);
+
+        if (!temporaryMvMapNameList.isEmpty()) {
+            String mapName = sessionLocal.database.store.nextTemporaryMvMapName();
+            mvIndex.addRowsToTemporaryMvMap(bufferRowList, mapName);
+            temporaryMvMapNameList.add(mapName);
+            bufferRowList.clear();
+            mvIndex.addBufferedRows(temporaryMvMapNameList);
         } else {
-            addRowsToIndex(session, buffer, index);
+            addRowsToIndex(sessionLocal, bufferRowList, mvIndex);
         }
+
         if (remaining != 0) {
             throw DbException.getInternalError("rowcount remaining=" + remaining + ' ' + getName());
         }
@@ -731,12 +759,9 @@ public class MVTable extends TableBase {
     /**
      * Appends the specified rows to the specified index.
      *
-     * @param session
-     *            the session
-     * @param list
-     *            the rows, list is cleared on completion
-     * @param index
-     *            the index to append to
+     * @param session the session
+     * @param list    the rows, list is cleared on completion
+     * @param index   the index to append to
      */
     private static void addRowsToIndex(SessionLocal session, ArrayList<Row> list, Index index) {
         sortRows(list, index);
@@ -749,10 +774,8 @@ public class MVTable extends TableBase {
     /**
      * Formats details of a deadlock.
      *
-     * @param sessions
-     *            the list of sessions
-     * @param lockType
-     *            the type of lock
+     * @param sessions the list of sessions
+     * @param lockType the type of lock
      * @return formatted details of a deadlock
      */
     private static String getDeadlockDetails(ArrayList<SessionLocal> sessions, int lockType) {
@@ -793,10 +816,8 @@ public class MVTable extends TableBase {
     /**
      * Sorts the specified list of rows for a specified index.
      *
-     * @param list
-     *            the list of rows
-     * @param index
-     *            the index to sort for
+     * @param list  the list of rows
+     * @param index the index to sort for
      */
     private static void sortRows(ArrayList<? extends SearchRow> list, final Index index) {
         list.sort(index::compareRows);
@@ -940,8 +961,8 @@ public class MVTable extends TableBase {
     /**
      * Prepares columns of an index.
      *
-     * @param database the database
-     * @param cols the index columns
+     * @param database  the database
+     * @param cols      the index columns
      * @param indexType the type of an index
      * @return the prepared columns with flags set
      */
