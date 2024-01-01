@@ -297,7 +297,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
             return Long.MAX_VALUE;
         }
         for (Column column : columns) {
-            int index = column.getColumnId();
+            int index = column.getId();
             int mask = masks[index];
             if ((mask & IndexCondition.SPATIAL_INTERSECTS) != IndexCondition.SPATIAL_INTERSECTS) {
                 return Long.MAX_VALUE;
@@ -390,9 +390,9 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
         }
 
         @Override
-        public Row get() {
+        public Row getCurrentRow() {
             if (row == null) {
-                SearchRow r = getSearchRow();
+                SearchRow r = getCurrentSearchRow();
                 if (r != null) {
                     row = mvTable.getRow(session, r.getKey());
                 }
@@ -401,7 +401,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
         }
 
         @Override
-        public SearchRow getSearchRow() {
+        public SearchRow getCurrentSearchRow() {
             if (searchRow == null) {
                 if (current != null) {
                     searchRow = mvTable.getTemplateRow();

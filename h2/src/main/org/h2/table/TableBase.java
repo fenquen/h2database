@@ -56,7 +56,7 @@ public abstract class TableBase extends Table {
         case Value.SMALLINT:
         case Value.INTEGER:
         case Value.BIGINT:
-            return first.column.getColumnId();
+            return first.column.getId();
         default:
             return SearchRow.ROWID_INDEX;
         }

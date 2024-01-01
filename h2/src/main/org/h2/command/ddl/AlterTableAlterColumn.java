@@ -419,9 +419,9 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (addFirst) {
                 position = 0;
             } else if (addBefore != null) {
-                position = table.getColumn(addBefore).getColumnId();
+                position = table.getColumn(addBefore).getId();
             } else if (addAfter != null) {
-                position = table.getColumn(addAfter).getColumnId() + 1;
+                position = table.getColumn(addAfter).getId() + 1;
             } else {
                 position = columns.length;
             }
@@ -433,7 +433,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE:
-            newColumns.set(oldColumn.getColumnId(), newColumn);
+            newColumns.set(oldColumn.getId(), newColumn);
         }
 
         // create a table object in order to get the SQL statement

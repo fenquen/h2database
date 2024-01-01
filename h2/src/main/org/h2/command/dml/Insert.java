@@ -168,7 +168,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 for (int i = 0; i < columnLen; i++) {
                     Column column = columns[i];
 
-                    int columnId = column.columnId;
+                    int columnId = column.id;
 
                     Expression expression = expressions[i];
                     if (expression == ValueExpression.DEFAULT) {
@@ -252,7 +252,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
         Row newRow = table.getTemplateRow();
         setCurrentRowNumber(++insertedRowNum);
         for (int j = 0, len = columns.length; j < len; j++) {
-            newRow.setValue(columns[j].getColumnId(), values[j]);
+            newRow.setValue(columns[j].getId(), values[j]);
         }
         table.convertInsertRow(sessionLocal, newRow, overridingSystem);
         if (deltaChangeCollectionMode == ResultOption.NEW) {
@@ -389,7 +389,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
             } else {
                 value = row[i].getValue(sessionLocal);
             }
-            onDuplicateKeyRow[columns[i].getColumnId()] = value;
+            onDuplicateKeyRow[columns[i].getId()] = value;
         }
 
         StringBuilder builder = new StringBuilder("UPDATE ");

@@ -599,8 +599,8 @@ public class TransactionStore {
     }
 
     <K, V> MVMap<K, VersionedValue<V>> openVersionedMap(String name, DataType<K> keyType, DataType<V> valueType) {
-        VersionedValueType<V, ?> vt = valueType == null ? null : new VersionedValueType<>(valueType);
-        return openMap(name, keyType, vt);
+        VersionedValueType<V, ?> versionedValueType = valueType == null ? null : new VersionedValueType<>(valueType);
+        return openMap(name, keyType, versionedValueType);
     }
 
     /**

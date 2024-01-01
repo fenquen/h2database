@@ -979,8 +979,7 @@ public final class DataUtils {
      * @param message the message
      * @return the exception
      */
-    public static UnsupportedOperationException
-    newUnsupportedOperationException(String message) {
+    public static UnsupportedOperationException newUnsupportedOperationException(String message) {
         return new UnsupportedOperationException(formatMessage(0, message));
     }
 

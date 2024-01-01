@@ -24,7 +24,7 @@ public interface Cursor {
      *
      * @return the complete row
      */
-    Row get();
+    Row getCurrentRow();
 
     /**
      * Get the current row.
@@ -32,7 +32,7 @@ public interface Cursor {
      *
      * @return the search row
      */
-    SearchRow getSearchRow();
+    SearchRow getCurrentSearchRow();
 
     /**
      * Skip to the next row if one is available.

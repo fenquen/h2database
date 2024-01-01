@@ -198,7 +198,7 @@ public class Analyze extends DefineCommand {
             }
             long rowNumber = 0;
             do {
-                Row row = cursor.get();
+                Row row = cursor.getCurrentRow();
                 for (int i = 0; i < columnCount; i++) {
                     SelectivityData selectivity = array[i];
                     if (selectivity != null) {

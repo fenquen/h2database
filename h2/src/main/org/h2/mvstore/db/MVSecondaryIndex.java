@@ -36,15 +36,13 @@ import org.h2.value.Value;
 import org.h2.value.ValueNull;
 import org.h2.value.VersionedValue;
 
-/**
- * An index stored in a MVStore.
- */
 public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
 
-    /**
-     * The multi-value table.
-     */
     private final MVTable mvTable;
+
+    /**
+     * value 是ValueNull.INSTANCE
+     */
     private final TransactionMap<SearchRow, Value> dataMap;
 
     public MVSecondaryIndex(Database db, MVTable table, int id, String indexName,
@@ -64,9 +62,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
         }
         t.commit();
         if (!keyType.equals(dataMap.getKeyType())) {
-            throw DbException.getInternalError(
-                    "Incompatible key type, expected " + keyType + " but got "
-                            + dataMap.getKeyType() + " for index " + indexName);
+            throw DbException.getInternalError("incompatible key type, expected " + keyType + " but got " + dataMap.getKeyType() + " for index " + indexName);
         }
     }
 
@@ -268,10 +264,13 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
         return find(sessionLocal, first, false, last);
     }
 
-    private Cursor find(SessionLocal session, SearchRow first, boolean bigger, SearchRow last) {
+    private Cursor find(SessionLocal sessionLocal,
+                        SearchRow first,
+                        boolean bigger,
+                        SearchRow last) {
         SearchRow min = convertToKey(first, bigger);
         SearchRow max = convertToKey(last, Boolean.TRUE);
-        return new MVStoreCursor(session, getMap(session).keyIterator(min, max), mvTable);
+        return new MVStoreCursor(sessionLocal, getMap(sessionLocal).keyIterator(min, max), mvTable);
     }
 
     private SearchRow convertToKey(SearchRow r, Boolean minMax) {
@@ -280,10 +279,13 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
         }
 
         SearchRow row = getRowFactory().createRow();
+
         row.copyFrom(r);
+
         if (minMax != null) {
             row.setKey(minMax ? Long.MAX_VALUE : Long.MIN_VALUE);
         }
+
         return row;
     }
 
@@ -375,18 +377,14 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
         return find(session, higherThan, true, last);
     }
 
-    /**
-     * Get the map to store the data.
-     *
-     * @param session the session
-     * @return the map
-     */
-    private TransactionMap<SearchRow, Value> getMap(SessionLocal session) {
-        if (session == null) {
+    private TransactionMap<SearchRow, Value> getMap(SessionLocal sessionLocal) {
+        if (sessionLocal == null) {
             return dataMap;
         }
-        Transaction t = session.getTransaction();
-        return dataMap.getInstance(t);
+
+        Transaction transaction = sessionLocal.getTransaction();
+
+        return dataMap.getInstance(transaction);
     }
 
     @Override
@@ -399,39 +397,42 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
      */
     static final class MVStoreCursor implements Cursor {
 
-        private final SessionLocal session;
-        private final TransactionMapIterator<SearchRow, Value, SearchRow> it;
+        private final SessionLocal sessionLocal;
+        private final TransactionMapIterator<SearchRow, Value, SearchRow> transactionMapIterator;
         private final MVTable mvTable;
-        private SearchRow current;
-        private Row row;
+        private SearchRow currentSearchRow;
+        private Row currentRow;
 
-        MVStoreCursor(SessionLocal session, TransactionMapIterator<SearchRow, Value, SearchRow> it, MVTable mvTable) {
-            this.session = session;
-            this.it = it;
+        MVStoreCursor(SessionLocal sessionLocal,
+                      TransactionMapIterator<SearchRow, Value, SearchRow> transactionMapIterator,
+                      MVTable mvTable) {
+            this.sessionLocal = sessionLocal;
+            this.transactionMapIterator = transactionMapIterator;
             this.mvTable = mvTable;
         }
 
         @Override
-        public Row get() {
-            if (row == null) {
-                SearchRow r = getSearchRow();
-                if (r != null) {
-                    row = mvTable.getRow(session, r.getKey());
+        public Row getCurrentRow() {
+            if (currentRow == null) {
+                if (currentSearchRow != null) {
+                    // 体现了索引保存的是row的物理position
+                    currentRow = mvTable.getRow(sessionLocal, currentSearchRow.key);
                 }
             }
-            return row;
+
+            return currentRow;
         }
 
         @Override
-        public SearchRow getSearchRow() {
-            return current;
+        public SearchRow getCurrentSearchRow() {
+            return currentSearchRow;
         }
 
         @Override
         public boolean next() {
-            current = it.fetchNext();
-            row = null;
-            return current != null;
+            currentSearchRow = transactionMapIterator.fetchNext();
+            currentRow = null;
+            return currentSearchRow != null;
         }
 
         @Override

@@ -524,7 +524,7 @@ public class ScriptCommand extends ScriptBase {
         builder = null;
         int columnCount = columns.length;
         while (cursor.next()) {
-            Row row = cursor.get();
+            Row row = cursor.getCurrentRow();
             if (builder == null) {
                 builder = new StringBuilder(ins);
             } else {

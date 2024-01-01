@@ -26,12 +26,12 @@ public class SingleRowCursor implements Cursor {
     }
 
     @Override
-    public Row get() {
+    public Row getCurrentRow() {
         return row;
     }
 
     @Override
-    public SearchRow getSearchRow() {
+    public SearchRow getCurrentSearchRow() {
         return row;
     }
 

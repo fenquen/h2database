@@ -715,7 +715,7 @@ public final class InformationSchemaTableLegacy extends MetaTable {
             indexColumn = -1;
             metaIndex = null;
         } else {
-            indexColumn = getColumn(database.sysIdentifier(indexColumnName)).getColumnId();
+            indexColumn = getColumn(database.sysIdentifier(indexColumnName)).getId();
             IndexColumn[] indexCols = IndexColumn.wrap(
                     new Column[] { cols[indexColumn] });
             metaIndex = new MetaIndex(this, indexCols, false);

@@ -30,7 +30,7 @@ public final class OnDuplicateKeyValues extends Operation0 {
 
     @Override
     public Value getValue(SessionLocal session) {
-        Value v = update.getOnDuplicateKeyInsert().getOnDuplicateKeyValue(column.getColumnId());
+        Value v = update.getOnDuplicateKeyInsert().getOnDuplicateKeyValue(column.getId());
         if (v == null) {
             throw DbException.getUnsupportedException(getTraceSQL());
         }

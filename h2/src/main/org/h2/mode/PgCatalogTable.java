@@ -632,7 +632,7 @@ public final class PgCatalogTable extends MetaTable {
                 }
                 List<ValueSmallint> conkey = new ArrayList<>();
                 for (Column column : constraint.getReferencedColumns(table)) {
-                    conkey.add(ValueSmallint.get((short) (column.getColumnId() + 1)));
+                    conkey.add(ValueSmallint.get((short) (column.getId() + 1)));
                 }
                 Table refTable = constraint.getRefTable();
                 add(session,

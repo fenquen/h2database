@@ -362,7 +362,7 @@ public class QueryExpressionIndex extends Index implements SpatialIndex {
                 }
                 Column column = table.getColumn(i);
                 indexColumns[indexColumnId] = new IndexColumn(column);
-                columnIds[indexColumnId] = column.getColumnId();
+                columnIds[indexColumnId] = column.getId();
                 indexColumnId++;
             }
         }

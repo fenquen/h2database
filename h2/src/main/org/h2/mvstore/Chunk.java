@@ -251,7 +251,7 @@ public final class Chunk {
     }
 
     /**
-     * "chunk.chunkId"
+     * "chunk.chunkId的hex的文本"
      */
     static String getMetaKey(int chunkId) {
         return ATTR_CHUNK + "." + Integer.toHexString(chunkId);

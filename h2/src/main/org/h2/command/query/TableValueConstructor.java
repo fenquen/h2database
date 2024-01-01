@@ -384,12 +384,12 @@ public class TableValueConstructor extends Query {
 
         @Override
         public Value getValue(Column column) {
-            return currentRow[column.getColumnId()];
+            return currentRow[column.getId()];
         }
 
         @Override
         public Expression optimize(ExpressionColumn expressionColumn, Column column) {
-            return expressionList.get(column.getColumnId());
+            return expressionList.get(column.getId());
         }
 
     }

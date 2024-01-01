@@ -63,11 +63,12 @@ public class IndexCondition {
      */
     public static final int SPATIAL_INTERSECTS = 16;
 
-    private final Column column;
+    public final Column column;
+
     /**
      * see constants in {@link Comparison}
      */
-    private final int compareType;
+    public final int compareType;
 
     private final Expression expression;
     private List<Expression> expressionList;
@@ -131,12 +132,9 @@ public class IndexCondition {
 
     /**
      * Get the current value of the expression.
-     *
-     * @param session the session
-     * @return the value
      */
-    public Value getCurrentValue(SessionLocal session) {
-        return expression.getValue(session);
+    public Value getCurrentValue(SessionLocal sessionLocal) {
+        return expression.getValue(sessionLocal);
     }
 
     /**

@@ -127,7 +127,7 @@ public abstract class RowFactory {
                     sortTypes = new int[len];
                     for (int i = 0; i < len; i++) {
                         IndexColumn indexColumn = indexColumns[i];
-                        indexes[i] = indexColumn.column.getColumnId();
+                        indexes[i] = indexColumn.column.getId();
                         sortTypes[i] = indexColumn.sortType;
                     }
                 }

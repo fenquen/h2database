@@ -490,7 +490,7 @@ public final class MergeUsing extends DataChangeStatement {
             Expression[] expr = values;
             for (int i = 0, len = columns.length; i < len; i++) {
                 Column c = columns[i];
-                int index = c.getColumnId();
+                int index = c.getId();
                 Expression e = expr[i];
                 if (e != ValueExpression.DEFAULT) {
                     try {

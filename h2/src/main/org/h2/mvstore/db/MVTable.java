@@ -359,8 +359,8 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public Row getRow(SessionLocal session, long key) {
-        return mvPrimaryIndex.getRow(session, key);
+    public Row getRow(SessionLocal sessionLocal, long key) {
+        return mvPrimaryIndex.getRow(sessionLocal, key);
     }
 
     @Override
@@ -471,7 +471,7 @@ public class MVTable extends TableBase {
 
         long i = 0;
         while (cursor.next()) {
-            Row row = cursor.get();
+            Row row = cursor.getCurrentRow();
 
             bufferRowList.add(row);
 
@@ -518,7 +518,7 @@ public class MVTable extends TableBase {
         ArrayList<Row> buffer = new ArrayList<>(bufferSize);
         String n = getName() + ':' + index.getName();
         while (cursor.next()) {
-            Row row = cursor.get();
+            Row row = cursor.getCurrentRow();
             buffer.add(row);
             database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n, i++, total);
             if (buffer.size() >= bufferSize) {

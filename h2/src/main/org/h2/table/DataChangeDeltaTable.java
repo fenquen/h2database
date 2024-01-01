@@ -53,7 +53,7 @@ public class DataChangeDeltaTable extends VirtualConstructedTable {
         if (session.getMode().takeInsertedIdentity) {
             Column column = table.getIdentityColumn();
             if (column != null) {
-                session.setLastIdentity(newRow.getValue(column.getColumnId()));
+                session.setLastIdentity(newRow.getValue(column.getId()));
             }
         }
         if (deltaChangeCollectionMode == ResultOption.FINAL) {

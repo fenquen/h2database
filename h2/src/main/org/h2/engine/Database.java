@@ -631,7 +631,7 @@ public final class Database implements DataHandler, CastDataProvider {
         ArrayList<MetaRecord> lastRecords = new ArrayList<>();
 
         while (cursor.next()) {
-            MetaRecord rec = new MetaRecord(cursor.get());
+            MetaRecord rec = new MetaRecord(cursor.getCurrentRow());
             objectIds.set(rec.getId());
             switch (rec.getObjectType()) {
                 case DbObject.SETTING:
@@ -785,7 +785,7 @@ public final class Database implements DataHandler, CastDataProvider {
                     meta.addRow(session, r);
                 } else {
                     assert starting;
-                    Row oldRow = cursor.get();
+                    Row oldRow = cursor.getCurrentRow();
                     MetaRecord rec = new MetaRecord(oldRow);
                     assert rec.getId() == obj.getId();
                     assert rec.getObjectType() == obj.getType();
@@ -893,7 +893,7 @@ public final class Database implements DataHandler, CastDataProvider {
             try {
                 Cursor cursor = metaIdIndex.find(session, r, r);
                 if (cursor.next()) {
-                    Row found = cursor.get();
+                    Row found = cursor.getCurrentRow();
                     meta.removeRow(session, found);
                     if (SysProperties.CHECK) {
                         checkMetaFree(session, id);

@@ -1054,12 +1054,12 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public SearchRow getSearchRow() {
-            return get();
+        public SearchRow getCurrentSearchRow() {
+            return getCurrentRow();
         }
 
         @Override
-        public Row get() {
+        public Row getCurrentRow() {
             return current;
         }
 

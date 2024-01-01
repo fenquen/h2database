@@ -39,8 +39,12 @@ public class VirtualConstructedTableIndex extends VirtualTableIndex {
     }
 
     @Override
-    public double getCost(SessionLocal session, int[] masks, TableFilter[] filters, int filter, SortOrder sortOrder,
-            AllColumnsForPlan allColumnsSet) {
+    public double getCost(SessionLocal session,
+                          int[] masks,
+                          TableFilter[] filters,
+                          int filter,
+                          SortOrder sortOrder,
+                          AllColumnsForPlan allColumnsSet) {
         if (masks != null) {
             throw DbException.getUnsupportedException("Virtual table");
         }

@@ -86,7 +86,7 @@ class GeneratedColumnResolver implements ColumnResolver {
 
     @Override
     public Value getValue(Column column) {
-        int columnId = column.getColumnId();
+        int columnId = column.getId();
         if (columnId == -1) {
             return ValueBigint.get(current.getKey());
         }

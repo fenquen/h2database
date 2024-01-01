@@ -159,7 +159,7 @@ final class Percentile {
         }
         Cursor cursor = index.find(session, null, null);
         cursor.next();
-        int columnId = index.getColumns()[0].getColumnId();
+        int columnId = index.getColumns()[0].getId();
         ExpressionColumn expr = (ExpressionColumn) expression;
         if (expr.getColumn().isNullable()) {
             boolean hasNulls = false;
@@ -167,7 +167,7 @@ final class Percentile {
             // Try to skip nulls from the start first with the same cursor that
             // will be used to read values.
             while (count > 0) {
-                row = cursor.getSearchRow();
+                row = cursor.getCurrentSearchRow();
                 if (row == null) {
                     return ValueNull.INSTANCE;
                 }
@@ -220,7 +220,7 @@ final class Percentile {
         for (int i = 0; i < skip; i++) {
             cursor.next();
         }
-        SearchRow row = cursor.getSearchRow();
+        SearchRow row = cursor.getCurrentSearchRow();
         if (row == null) {
             return ValueNull.INSTANCE;
         }
@@ -230,7 +230,7 @@ final class Percentile {
         }
         if (interpolate) {
             cursor.next();
-            row = cursor.getSearchRow();
+            row = cursor.getCurrentSearchRow();
             if (row == null) {
                 return v;
             }

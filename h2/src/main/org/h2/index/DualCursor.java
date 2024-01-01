@@ -21,12 +21,12 @@ class DualCursor implements Cursor {
     }
 
     @Override
-    public Row get() {
+    public Row getCurrentRow() {
         return currentRow;
     }
 
     @Override
-    public SearchRow getSearchRow() {
+    public SearchRow getCurrentSearchRow() {
         return currentRow;
     }
 

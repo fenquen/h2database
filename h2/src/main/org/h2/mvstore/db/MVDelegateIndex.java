@@ -64,8 +64,8 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public Row getRow(SessionLocal session, long key) {
-        return mainIndex.getRow(session, key);
+    public Row getRow(SessionLocal sessionLocal, long key) {
+        return mainIndex.getRow(sessionLocal, key);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class MVDelegateIndex extends MVIndex<Long, SearchRow> {
 
     @Override
     public int getColumnIndex(Column col) {
-        if (col.getColumnId() == mainIndex.getMainIndexColumn()) {
+        if (col.getId() == mainIndex.getMainIndexColumn()) {
             return 0;
         }
         return -1;

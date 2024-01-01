@@ -283,9 +283,9 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public Row getRow(SessionLocal session, long key) {
-        TransactionMap<Long, SearchRow> map = getTransactionMap(session);
-        Row row = (Row) map.getFromSnapshot(key);
+    public Row getRow(SessionLocal sessionLocal, long key) {
+        TransactionMap<Long, SearchRow> transactionMap = getTransactionMap(sessionLocal);
+        Row row = (Row) transactionMap.getFromSnapshot(key);
         if (row == null) {
             throw DbException.get(ErrorCode.ROW_NOT_FOUND_IN_PRIMARY_INDEX, getTraceSQL(), String.valueOf(key));
         }
@@ -437,36 +437,36 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
 
         private final TransactionMap.TransactionMapIterator<Long, SearchRow, Entry<Long, SearchRow>> transactionMapIterator;
         private Entry<Long, SearchRow> currentEntry;
-        private Row row;
+        private Row currentRow;
 
         public MVStoreCursor(TransactionMap.TransactionMapIterator<Long, SearchRow, Entry<Long, SearchRow>> transactionMapIterator) {
             this.transactionMapIterator = transactionMapIterator;
         }
 
         @Override
-        public Row get() {
-            if (row == null) {
+        public Row getCurrentRow() {
+            if (currentRow == null) {
                 if (currentEntry != null) {
-                    row = (Row) currentEntry.getValue();
+                    currentRow = (Row) currentEntry.getValue();
 
-                    if (row.getKey() == 0) {
-                        row.setKey(currentEntry.getKey());
+                    if (currentRow.getKey() == 0) {
+                        currentRow.setKey(currentEntry.getKey());
                     }
                 }
             }
 
-            return row;
+            return currentRow;
         }
 
         @Override
-        public SearchRow getSearchRow() {
-            return get();
+        public SearchRow getCurrentSearchRow() {
+            return getCurrentRow();
         }
 
         @Override
         public boolean next() {
             currentEntry = transactionMapIterator.fetchNext();
-            row = null;
+            currentRow = null;
             return currentEntry != null;
         }
 

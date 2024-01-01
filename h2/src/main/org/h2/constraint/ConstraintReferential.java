@@ -136,7 +136,7 @@ public class ConstraintReferential extends Constraint {
             Column[] cols = searchIndex.getColumns();
             int len = Math.min(columns.length, cols.length);
             for (int i = 0; i < len; i++) {
-                int idx = cols[i].getColumnId();
+                int idx = cols[i].getId();
                 Value c = check.getValue(idx);
                 if (i > 0) {
                     builder.append(", ");
@@ -263,7 +263,7 @@ public class ConstraintReferential extends Constraint {
         }
         boolean constraintColumnsEqual = oldRow != null;
         for (IndexColumn col : columns) {
-            int idx = col.column.getColumnId();
+            int idx = col.column.getId();
             Value v = newRow.getValue(idx);
             if (v == ValueNull.INSTANCE) {
                 // return early if one of the columns is NULL
@@ -284,10 +284,10 @@ public class ConstraintReferential extends Constraint {
             // check the inserted row first
             boolean self = true;
             for (int i = 0, len = columns.length; i < len; i++) {
-                int idx = columns[i].column.getColumnId();
+                int idx = columns[i].column.getId();
                 Value v = newRow.getValue(idx);
                 Column refCol = refColumns[i].column;
-                int refIdx = refCol.getColumnId();
+                int refIdx = refCol.getId();
                 Value r = newRow.getValue(refIdx);
                 if (!session.areEqual(r, v)) {
                     self = false;
@@ -300,10 +300,10 @@ public class ConstraintReferential extends Constraint {
         }
         Row check = refTable.getTemplateRow();
         for (int i = 0, len = columns.length; i < len; i++) {
-            int idx = columns[i].column.getColumnId();
+            int idx = columns[i].column.getId();
             Value v = newRow.getValue(idx);
             Column refCol = refColumns[i].column;
-            int refIdx = refCol.getColumnId();
+            int refIdx = refCol.getId();
             check.setValue(refIdx, refCol.convert(session, v));
         }
         Index refIndex = refConstraint.getIndex();
@@ -320,7 +320,7 @@ public class ConstraintReferential extends Constraint {
         Cursor cursor = searchIndex.find(session, check, check);
         while (cursor.next()) {
             SearchRow found;
-            found = cursor.getSearchRow();
+            found = cursor.getCurrentSearchRow();
             if (excluding != null && found.getKey() == excluding.getKey()) {
                 continue;
             }
@@ -328,7 +328,7 @@ public class ConstraintReferential extends Constraint {
             boolean allEqual = true;
             int len = Math.min(columns.length, cols.length);
             for (int i = 0; i < len; i++) {
-                int idx = cols[i].getColumnId();
+                int idx = cols[i].getId();
                 Value c = check.getValue(idx);
                 Value f = found.getValue(idx);
                 if (searchTable.compareValues(session, c, f) != 0) {
@@ -351,13 +351,13 @@ public class ConstraintReferential extends Constraint {
         SearchRow check = table.getRowFactory().createRow();
         for (int i = 0, len = columns.length; i < len; i++) {
             Column refCol = refColumns[i].column;
-            int refIdx = refCol.getColumnId();
+            int refIdx = refCol.getId();
             Column col = columns[i].column;
             Value v = col.convert(session, oldRow.getValue(refIdx));
             if (v == ValueNull.INSTANCE) {
                 return;
             }
-            check.setValue(col.getColumnId(), v);
+            check.setValue(col.getId(), v);
         }
         // exclude the row only for self-referencing constraints
         Row excluding = (refTable == table) ? oldRow : null;
@@ -397,7 +397,7 @@ public class ConstraintReferential extends Constraint {
                     for (int i = 0, len = columns.length; i < len; i++) {
                         Parameter param = params.get(i);
                         Column refCol = refColumns[i].column;
-                        param.setValue(newRow.getValue(refCol.getColumnId()));
+                        param.setValue(newRow.getValue(refCol.getId()));
                     }
                 }
                 setWhere(updateCommand, columns.length, oldRow);
@@ -421,7 +421,7 @@ public class ConstraintReferential extends Constraint {
 
     private void setWhere(Prepared command, int pos, Row row) {
         for (int i = 0, len = refColumns.length; i < len; i++) {
-            int idx = refColumns[i].column.getColumnId();
+            int idx = refColumns[i].column.getId();
             Value v = row.getValue(idx);
             ArrayList<Parameter> params = command.getParameterList();
             Parameter param = params.get(pos + i);

@@ -49,7 +49,7 @@ class VirtualTableCursor implements Cursor {
     }
 
     @Override
-    public Row get() {
+    public Row getCurrentRow() {
         if (values == null) {
             return null;
         }
@@ -60,8 +60,8 @@ class VirtualTableCursor implements Cursor {
     }
 
     @Override
-    public SearchRow getSearchRow() {
-        return get();
+    public SearchRow getCurrentSearchRow() {
+        return getCurrentRow();
     }
 
     @Override
@@ -71,7 +71,7 @@ class VirtualTableCursor implements Cursor {
             return nextImpl();
         }
         while (nextImpl()) {
-            Row current = get();
+            Row current = getCurrentRow();
             if (first != null) {
                 int comp = index.compareRows(current, first);
                 if (comp < 0) {

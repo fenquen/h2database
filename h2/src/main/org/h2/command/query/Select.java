@@ -656,7 +656,7 @@ public class Select extends Query {
                 return index;
             }
         }
-        if (sortCols.length == 1 && sortCols[0].getColumnId() == -1) {
+        if (sortCols.length == 1 && sortCols[0].getId() == -1) {
             // special case: order by _ROWID_
             Index index = topTableFilter.getTable().getScanIndex(sessionLocal);
             if (index.isRowIdIndex()) {
@@ -679,7 +679,7 @@ public class Select extends Query {
         setCurrentRowNumber(0);
         Index index = topTableFilter.getIndex();
         SearchRow first = null;
-        int columnIndex = index.getColumns()[0].getColumnId();
+        int columnIndex = index.getColumns()[0].getId();
         if (!quickOffset) {
             offset = 0;
         }
@@ -689,7 +689,7 @@ public class Select extends Query {
             if (!cursor.next()) {
                 break;
             }
-            SearchRow found = cursor.getSearchRow();
+            SearchRow found = cursor.getCurrentSearchRow();
             Value value = found.getValue(columnIndex);
             if (first == null) {
                 first = index.getRowFactory().createRow();
@@ -1926,7 +1926,7 @@ public class Select extends Query {
      */
     private final class LazyResultQueryFlat extends LazyResultSelect {
 
-        private boolean forUpdate;
+        private final boolean forUpdate;
 
         LazyResultQueryFlat(Expression[] expressions, int columnCount, boolean forUpdate) {
             super(expressions, columnCount);

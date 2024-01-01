@@ -49,7 +49,7 @@ public final class SetClauseList implements HasSQL {
      * @param expression the expression
      */
     public void addSingle(Column column, Expression expression) {
-        int id = column.getColumnId();
+        int id = column.getId();
         if (actions[id] != null) {
             throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, column.getName());
         }
@@ -91,7 +91,7 @@ public final class SetClauseList implements HasSQL {
             RowExpression row = new RowExpression(expression, cols);
             int minId = table.getColumns().length - 1, maxId = 0;
             for (int i = 0; i < columnCount; i++) {
-                int id = columns.get(i).getColumnId();
+                int id = columns.get(i).getId();
                 if (id < minId) {
                     minId = id;
                 }
@@ -101,7 +101,7 @@ public final class SetClauseList implements HasSQL {
             }
             for (int i = 0; i < columnCount; i++) {
                 Column column = columns.get(i);
-                int id = column.getColumnId();
+                int id = column.getId();
                 cols[i] = id;
                 if (actions[id] != null) {
                     throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, column.getName());

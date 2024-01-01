@@ -74,7 +74,7 @@ public class SelectListColumnResolver implements ColumnResolver {
 
     @Override
     public Expression optimize(ExpressionColumn expressionColumn, Column column) {
-        return expressions[column.getColumnId()];
+        return expressions[column.getId()];
     }
 
 }

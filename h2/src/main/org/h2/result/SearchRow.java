@@ -33,7 +33,7 @@ public abstract class SearchRow extends Value {
     public static final int MEMORY_CALCULATE = -1;
 
     /**
-     * The row key.
+     * row key 对映了row的rowid
      */
     public long key;
 
@@ -81,8 +81,6 @@ public abstract class SearchRow extends Value {
 
     /**
      * Get the unique key of the row.
-     *
-     * @return the key
      */
     public long getKey() {
         return key;

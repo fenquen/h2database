@@ -1043,7 +1043,7 @@ public final class PgServerThread implements Runnable {
                         oids[i] = table.getId();
                         Column column = table.findColumn(name);
                         if (column != null) {
-                            attnums[i] = column.getColumnId() + 1;
+                            attnums[i] = column.getId() + 1;
                         }
                     }
                 }

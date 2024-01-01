@@ -157,6 +157,7 @@ public class CompareMode implements Comparator<Value> {
         if (ignoreCase) {
             return a.compareToIgnoreCase(b);
         }
+
         return a.compareTo(b);
     }
 

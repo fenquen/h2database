@@ -471,22 +471,29 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         }
     }
 
-    private V getFromSnapshot(RootReference<K, VersionedValue<V>> rootRef, BitSet committingTransactions, K key) {
-        VersionedValue<V> data = mvMap.get(rootRef.rootPage, key);
-        if (data == null) {
-            // doesn't exist
+    private V getFromSnapshot(RootReference<K, VersionedValue<V>> rootReference,
+                              BitSet committingTransactions,
+                              K key) {
+        VersionedValue<V> versionedValue = mvMap.get(rootReference.rootPage, key);
+
+        // doesn't exist
+        if (versionedValue == null) {
             return null;
         }
-        long id = data.getOperationId();
-        if (id != 0) {
-            int tx = TransactionStore.getTransactionId(id);
-            if (tx != transaction.id && !committingTransactions.get(tx)) {
-                // added/modified/removed by uncommitted transaction, change should not be visible
-                return data.getCommittedValue();
+
+        long operationId = versionedValue.getOperationId();
+
+        if (operationId != 0) {
+            int transactionId = TransactionStore.getTransactionId(operationId);
+
+            // added/modified/removed by uncommitted transaction, change should not be visible
+            if (transactionId != transaction.id && !committingTransactions.get(transactionId)) {
+                return versionedValue.getCommittedValue();
             }
         }
+
         // added/modified/removed by this transaction or another transaction which is committed by now
-        return data.getCurrentValue();
+        return versionedValue.getCurrentValue();
     }
 
     /**
@@ -497,8 +504,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
      * @return the value, or null if not found
      */
     public V getImmediate(K key) {
-        return useSnapshot((rootReference, committedTransactions) ->
-                getFromSnapshot(rootReference, committedTransactions, key));
+        return useSnapshot((rootReference, committedTransactions) -> getFromSnapshot(rootReference, committedTransactions, key));
     }
 
     Snapshot<K, VersionedValue<V>> getSnapshot() {
@@ -1112,8 +1118,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         /**
          * Fetches a next entry.
          * <p>
-         * This method cannot be used together with {@link #hasNext()} and
-         * {@link #next()}.
+         * This method cannot be used together with {@link #hasNext()} and {@link #next()}.
          *
          * @return the next entry or {@code null}
          */

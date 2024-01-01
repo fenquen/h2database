@@ -2570,18 +2570,24 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
         if (this == v) {
             return 0;
         }
+
         if (this == ValueNull.INSTANCE) {
             return -1;
-        } else if (v == ValueNull.INSTANCE) {
+        }
+
+        if (v == ValueNull.INSTANCE) {
             return 1;
         }
+
         return compareToNotNullable(v, provider, compareMode);
     }
 
     private int compareToNotNullable(Value v, CastDataProvider provider, CompareMode compareMode) {
         Value l = this;
+
         int leftType = l.getValueType();
         int rightType = v.getValueType();
+
         if (leftType != rightType || leftType == ENUM) {
             int dataType = getHigherOrder(leftType, rightType);
             if (dataType == ENUM) {
@@ -2602,6 +2608,7 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
                 v = v.convertTo(dataType, provider);
             }
         }
+
         return l.compareTypeSafe(v, compareMode, provider);
     }
 

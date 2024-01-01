@@ -284,9 +284,9 @@ public final class ExpressionColumn extends Expression {
         if (value == null) {
             if (select == null) {
                 throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, getTraceSQL());
-            } else {
-                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getTraceSQL());
             }
+
+            throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getTraceSQL());
         }
 
         return value;

@@ -248,7 +248,7 @@ public class CommandContainer extends Command {
         int[] indexes = new int[columnCount];
         ExpressionColumn[] expressions = expressionColumns.toArray(new ExpressionColumn[0]);
         for (int i = 0; i < columnCount; i++) {
-            indexes[i] = expressions[i].getColumn().getColumnId();
+            indexes[i] = expressions[i].getColumn().getId();
         }
 
         LocalResult result = new LocalResult(sessionLocal, expressions, columnCount, columnCount);

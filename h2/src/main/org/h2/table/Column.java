@@ -62,7 +62,7 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
     private TypeInfo type;
     private Table table;
     private String name;
-    public int columnId;
+    public int id;
     private boolean nullable = true;
     private Expression defaultExpression;
     private Expression onUpdateExpression;
@@ -130,11 +130,11 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
         this.type = type;
     }
 
-    public Column(String name, TypeInfo type, Table table, int columnId) {
+    public Column(String name, TypeInfo type, Table table, int id) {
         this.name = name;
         this.type = type;
         this.table = table;
-        this.columnId = columnId;
+        this.id = id;
     }
 
     @Override
@@ -235,7 +235,7 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
      */
     public void setTable(Table table, int columnId) {
         this.table = table;
-        this.columnId = columnId;
+        this.id = columnId;
     }
 
     public Table getTable() {
@@ -268,8 +268,8 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
         this.onUpdateExpression = onUpdateExpression;
     }
 
-    public int getColumnId() {
-        return columnId;
+    public int getId() {
+        return id;
     }
 
     @Override

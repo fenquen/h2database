@@ -619,11 +619,6 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         return keyType.compare(a, b);
     }
 
-    /**
-     * Get the key type.
-     *
-     * @return the key type
-     */
     public final DataType<K> getKeyType() {
         return keyType;
     }

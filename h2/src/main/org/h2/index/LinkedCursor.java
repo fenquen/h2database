@@ -37,12 +37,12 @@ public class LinkedCursor implements Cursor {
     }
 
     @Override
-    public Row get() {
+    public Row getCurrentRow() {
         return current;
     }
 
     @Override
-    public SearchRow getSearchRow() {
+    public SearchRow getCurrentSearchRow() {
         return current;
     }
 

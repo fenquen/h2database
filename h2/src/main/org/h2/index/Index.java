@@ -112,7 +112,7 @@ public abstract class Index extends SchemaObject {
             for (int i = 0; i < len; i++) {
                 Column col = newIndexColumns[i].column;
                 columns[i] = col;
-                columnIds[i] = col.getColumnId();
+                columnIds[i] = col.getId();
             }
         }
         RowFactory databaseRowFactory = database.getRowFactory();
@@ -486,11 +486,11 @@ public abstract class Index extends SchemaObject {
     /**
      * Get the row with the given key.
      *
-     * @param session the session
+     * @param sessionLocal the session
      * @param key     the unique key
      * @return the row
      */
-    public Row getRow(SessionLocal session, long key) {
+    public Row getRow(SessionLocal sessionLocal, long key) {
         throw DbException.getUnsupportedException(toString());
     }
 
@@ -573,7 +573,7 @@ public abstract class Index extends SchemaObject {
             boolean tryAdditional = false;
             while (i < len) {
                 Column column = columns[i++];
-                int index = column.getColumnId();
+                int index = column.getId();
                 int mask = masks[index];
                 if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
                     if (i > 0 && i == uniqueColumnColumn) {
@@ -609,7 +609,7 @@ public abstract class Index extends SchemaObject {
             }
             // Some additional columns can still be used
             if (tryAdditional) {
-                while (i < len && masks[columns[i].getColumnId()] != 0) {
+                while (i < len && masks[columns[i].getId()] != 0) {
                     i++;
                     rowsCost--;
                 }
@@ -672,7 +672,7 @@ public abstract class Index extends SchemaObject {
                 int main = table.getMainIndexColumn();
                 loop:
                 for (Column c : foundCols) {
-                    int id = c.getColumnId();
+                    int id = c.getId();
                     if (id == SearchRow.ROWID_INDEX || id == main) {
                         continue;
                     }

@@ -242,7 +242,7 @@ public class TableFilter implements ColumnResolver {
                     break;
                 }
 
-                int id = indexCondition.getColumn().getColumnId();
+                int id = indexCondition.getColumn().getId();
                 if (id >= 0) {
                     masks[id] |= indexCondition.getMask(indexConditions);
                 }
@@ -344,7 +344,7 @@ public class TableFilter implements ColumnResolver {
             IndexCondition condition = indexConditions.get(i);
             if (!condition.isAlwaysFalse()) {
                 Column col = condition.getColumn();
-                if (col.getColumnId() >= 0) {
+                if (col.getId() >= 0) {
                     if (index.getColumnIndex(col) < 0) {
                         indexConditions.remove(i);
                         i--;
@@ -453,7 +453,7 @@ public class TableFilter implements ColumnResolver {
                 }
 
                 if (indexCursor.next()) {
-                    currentSearchRow = indexCursor.cursor.getSearchRow();
+                    currentSearchRow = indexCursor.cursor.getCurrentSearchRow();
                     currentRow = null;
                     state = FOUND;
                 } else {
@@ -550,7 +550,7 @@ public class TableFilter implements ColumnResolver {
      */
     public Row get() {
         if (currentRow == null && currentSearchRow != null) {
-            currentRow = indexCursor.get();
+            currentRow = indexCursor.getCurrentRow();
         }
         return currentRow;
     }
@@ -1053,7 +1053,7 @@ public class TableFilter implements ColumnResolver {
             return null;
         }
 
-        int columnId = column.getColumnId();
+        int columnId = column.getId();
         if (columnId == -1) {
             return ValueBigint.get(currentSearchRow.getKey());
         }
@@ -1068,7 +1068,7 @@ public class TableFilter implements ColumnResolver {
                 return getDelegatedValue(column);
             }
 
-            currentRow = indexCursor.get();
+            currentRow = indexCursor.getCurrentRow();
             if (currentRow == null) {
                 return ValueNull.INSTANCE;
             }

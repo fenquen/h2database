@@ -515,12 +515,12 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 first = !first;
             }
             Cursor cursor = index.findFirstOrLast(session, first);
-            SearchRow row = cursor.getSearchRow();
+            SearchRow row = cursor.getCurrentSearchRow();
             Value v;
             if (row == null) {
                 v = ValueNull.INSTANCE;
             } else {
-                v = row.getValue(index.getColumns()[0].getColumnId());
+                v = row.getValue(index.getColumns()[0].getId());
             }
             return v;
         }

@@ -168,7 +168,7 @@ public final class Transaction {
     /**
      * Map of transactional maps for this transaction
      */
-    private final Map<Integer, TransactionMap<?, ?>> transactionMaps = new HashMap<>();
+    private final Map<Integer, TransactionMap<?, ?>> transactionMapMvMapId_transactionMap = new HashMap<>();
 
     /**
      * The current isolation level.
@@ -309,7 +309,7 @@ public final class Transaction {
      * @return whether statement dependencies are currently set
      */
     public boolean hasStatementDependencies() {
-        return !transactionMaps.isEmpty();
+        return !transactionMapMvMapId_transactionMap.isEmpty();
     }
 
     /**
@@ -387,7 +387,7 @@ public final class Transaction {
             releaseSnapshot();
         }
 
-        for (TransactionMap<?, ?> transactionMap : transactionMaps.values()) {
+        for (TransactionMap<?, ?> transactionMap : transactionMapMvMapId_transactionMap.values()) {
             transactionMap.statementSnapshot = null;
         }
     }
@@ -399,7 +399,7 @@ public final class Transaction {
     }
 
     private void releaseSnapshot() {
-        transactionMaps.clear();
+        transactionMapMvMapId_transactionMap.clear();
         undoLogRootReferences = null;
         MVStore.TxCounter counter = txCounter;
         if (counter != null) {
@@ -483,12 +483,10 @@ public final class Transaction {
     public <K, V> TransactionMap<K, V> openMapX(MVMap<K, VersionedValue<V>> mvMap) {
         checkNotClosed();
 
-        int id = mvMap.getId();
-
-        TransactionMap<K, V> transactionMap = (TransactionMap<K, V>) transactionMaps.get(id);
+        TransactionMap<K, V> transactionMap = (TransactionMap<K, V>) transactionMapMvMapId_transactionMap.get(mvMap.id);
         if (transactionMap == null) {
             transactionMap = new TransactionMap<>(this, mvMap);
-            transactionMaps.put(id, transactionMap);
+            transactionMapMvMapId_transactionMap.put(mvMap.id, transactionMap);
         }
 
         return transactionMap;
@@ -655,7 +653,7 @@ public final class Transaction {
      * Transition this transaction into a closed state.
      */
     void closeIt() {
-        transactionMaps.clear();
+        transactionMapMvMapId_transactionMap.clear();
         long lastState = setStatus(STATUS_CLOSED);
         transactionStore.mvStore.deregisterVersionUsage(txCounter);
         if ((hasChanges(lastState) || hasRollback(lastState))) {

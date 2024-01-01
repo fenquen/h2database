@@ -8,9 +8,6 @@ package org.h2.mvstore;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-/**
- * A cursor to iterate over elements in ascending or descending order.
- */
 public final class Cursor<K, V> implements Iterator<K> {
     private final boolean reverse;
     private final K to;
@@ -45,14 +42,15 @@ public final class Cursor<K, V> implements Iterator<K> {
 
                 // 要是当前的page用光了会不断向上到root
                 if (reverse ? index < 0 : index >= upperBound(page)) {
-                    CursorPos<K, V> tmp = cursorPos;
+                    CursorPos<K, V> cursorPosOld = cursorPos;
+
                     cursorPos = cursorPos.parent;
                     if (cursorPos == null) {
                         return false;
                     }
 
-                    tmp.parent = keeper;
-                    keeper = tmp;
+                    cursorPosOld.parent = keeper;
+                    keeper = cursorPosOld;
                 } else {
                     while (!page.isLeaf()) {
                         // traverse down to the leaf
@@ -75,6 +73,7 @@ public final class Cursor<K, V> implements Iterator<K> {
 
                     if (reverse ? index >= 0 : index < page.getKeyCount()) {
                         K key = page.getKey(index);
+
                         if (to != null && Integer.signum(page.mvMap.getKeyType().compare(key, to)) == increment) {
                             return false;
                         }

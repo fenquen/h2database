@@ -96,7 +96,7 @@ public final class Merge extends CommandWithValues {
                 Row newRow = table.getTemplateRow();
                 for (int i = 0, len = columns.length; i < len; i++) {
                     Column c = columns[i];
-                    int index = c.getColumnId();
+                    int index = c.getId();
                     Expression e = expr[i];
                     if (e != ValueExpression.DEFAULT) {
                         try {
@@ -119,7 +119,7 @@ public final class Merge extends CommandWithValues {
                 Row newRow = table.getTemplateRow();
                 setCurrentRowNumber(count);
                 for (int j = 0; j < columns.length; j++) {
-                    newRow.setValue(columns[j].getColumnId(), r[j]);
+                    newRow.setValue(columns[j].getId(), r[j]);
                 }
                 count += merge(newRow, null, resultTarget, resultOption);
             }
@@ -157,7 +157,7 @@ public final class Merge extends CommandWithValues {
                                 col.getSQLWithTable(new StringBuilder(), HasSQL.TRACE_SQL_FLAGS).toString());
                     }
                 } else {
-                    Value v = row.getValue(col.getColumnId());
+                    Value v = row.getValue(col.getId());
                     if (v == null) {
                         Expression defaultExpression = col.getEffectiveDefaultExpression();
                         v = defaultExpression != null ? defaultExpression.getValue(sessionLocal) : ValueNull.INSTANCE;
@@ -166,7 +166,7 @@ public final class Merge extends CommandWithValues {
                 }
             }
             for (Column col : keys) {
-                Value v = row.getValue(col.getColumnId());
+                Value v = row.getValue(col.getId());
                 if (v == null) {
                     throw DbException.get(ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1, col.getTraceSQL());
                 }
@@ -299,7 +299,7 @@ public final class Merge extends CommandWithValues {
             for (Column key : keys) {
                 boolean found = false;
                 for (Column column : columns) {
-                    if (column.getColumnId() == key.getColumnId()) {
+                    if (column.getId() == key.getId()) {
                         found = true;
                         break;
                     }

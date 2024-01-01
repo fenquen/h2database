@@ -1406,6 +1406,7 @@ public class MVStore implements AutoCloseable {
         if (chunk == null) {
             checkOpen();
 
+            // chunk.chunkId的hex的文本
             String s = layout.get(Chunk.getMetaKey(chunkId));
             if (s == null) {
                 throw DataUtils.newMVStoreException(DataUtils.ERROR_CHUNK_NOT_FOUND, "Chunk {0} not found", chunkId);
