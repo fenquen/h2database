@@ -116,7 +116,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     }
 
     @Override
-    public void addBufferedRows(List<String> bufferNames) {
+    public void addBufferedRows(List<String> temporaryMvMapNameList) {
         throw DbException.getInternalError();
     }
 

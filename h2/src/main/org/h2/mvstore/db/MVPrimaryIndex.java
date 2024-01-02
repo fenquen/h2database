@@ -385,7 +385,7 @@ public class MVPrimaryIndex extends MVIndex<Long, SearchRow> {
     }
 
     @Override
-    public void addBufferedRows(List<String> bufferNames) {
+    public void addBufferedRows(List<String> temporaryMvMapNameList) {
         throw new UnsupportedOperationException();
     }
 

@@ -61,7 +61,7 @@ public final class Store {
      * The map of open tables.
      * Key: the map name, value: the table.
      */
-    private final ConcurrentHashMap<String, MVTable> name_mvTable = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MVTable> mvTable的mvPrimaryIndex内部的mvMap名_mvTable = new ConcurrentHashMap<>();
 
     public final MVStore mvStore;
 
@@ -202,7 +202,7 @@ public final class Store {
      * @return MVTable
      */
     public MVTable getTable(String tableName) {
-        return name_mvTable.get(tableName);
+        return mvTable的mvPrimaryIndex内部的mvMap名_mvTable.get(tableName);
     }
 
     /**
@@ -214,7 +214,7 @@ public final class Store {
     public MVTable createTable(CreateTableData createTableData) {
         try {
             MVTable mvTable = new MVTable(createTableData, this);
-            name_mvTable.put(mvTable.getMapName(), mvTable);
+            mvTable的mvPrimaryIndex内部的mvMap名_mvTable.put(mvTable.getMapName(), mvTable);
             return mvTable;
         } catch (MVStoreException e) {
             throw convertMVStoreException(e);
@@ -228,7 +228,7 @@ public final class Store {
      */
     public void removeTable(MVTable table) {
         try {
-            name_mvTable.remove(table.getMapName());
+            mvTable的mvPrimaryIndex内部的mvMap名_mvTable.remove(table.getMapName());
         } catch (MVStoreException e) {
             throw convertMVStoreException(e);
         }

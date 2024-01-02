@@ -1238,11 +1238,11 @@ public class Parser {
     }
 
     private IndexColumn[] parseIndexColumnList() {
-        ArrayList<IndexColumn> columns = Utils.newSmallArrayList();
+        ArrayList<IndexColumn> indexColumns = Utils.newSmallArrayList();
         do {
-            columns.add(new IndexColumn(readIdentifier(), parseSortType()));
+            indexColumns.add(new IndexColumn(readIdentifier(), parseSortType()));
         } while (readIfMore());
-        return columns.toArray(new IndexColumn[0]);
+        return indexColumns.toArray(new IndexColumn[0]);
     }
 
     private int parseSortType() {
@@ -6867,35 +6867,55 @@ public class Parser {
         return p;
     }
 
+    // parse sql 得到 createIndex,createIndex.update(),table.addIndex
     private Prepared parseCreate() {
-        boolean orReplace = false;
-        if (readIf(OR, "REPLACE")) {
-            orReplace = true;
-        }
+        boolean orReplace = readIf(OR, "REPLACE");
         boolean force = readIf("FORCE");
+
         if (readIf("VIEW")) {
             return parseCreateView(force, orReplace);
-        } else if (readIf("ALIAS")) {
+        }
+
+        if (readIf("ALIAS")) {
             return parseCreateFunctionAlias(force);
-        } else if (readIf("SEQUENCE")) {
+        }
+
+        if (readIf("SEQUENCE")) {
             return parseCreateSequence();
-        } else if (readIf(USER)) {
+        }
+
+        if (readIf(USER)) {
             return parseCreateUser();
-        } else if (readIf("TRIGGER")) {
+        }
+
+        if (readIf("TRIGGER")) {
             return parseCreateTrigger(force);
-        } else if (readIf("ROLE")) {
+        }
+
+        if (readIf("ROLE")) {
             return parseCreateRole();
-        } else if (readIf("SCHEMA")) {
+        }
+
+        if (readIf("SCHEMA")) {
             return parseCreateSchema();
-        } else if (readIf("CONSTANT")) {
+        }
+
+        if (readIf("CONSTANT")) {
             return parseCreateConstant();
-        } else if (readIf("DOMAIN") || readIf("TYPE") || readIf("DATATYPE")) {
+        }
+
+        if (readIf("DOMAIN") || readIf("TYPE") || readIf("DATATYPE")) {
             return parseCreateDomain();
-        } else if (readIf("AGGREGATE")) {
+        }
+
+        if (readIf("AGGREGATE")) {
             return parseCreateAggregate(force);
-        } else if (readIf("LINKED")) {
+        }
+
+        if (readIf("LINKED")) {
             return parseCreateLinkedTable(false, false, force);
         }
+
         // tables or linked tables
         boolean memory = false, cached = false;
         if (readIf("MEMORY")) {
@@ -6903,118 +6923,151 @@ public class Parser {
         } else if (readIf("CACHED")) {
             cached = true;
         }
+
         if (readIf("LOCAL", "TEMPORARY")) {
             if (readIf("LINKED")) {
                 return parseCreateLinkedTable(true, false, force);
             }
+
             read(TABLE);
             return parseCreateTable(true, false, cached);
-        } else if (readIf("GLOBAL", "TEMPORARY")) {
+        }
+
+        if (readIf("GLOBAL", "TEMPORARY")) {
             if (readIf("LINKED")) {
                 return parseCreateLinkedTable(true, true, force);
             }
+
             read(TABLE);
             return parseCreateTable(true, true, cached);
-        } else if (readIf("TEMP") || readIf("TEMPORARY")) {
+        }
+
+        if (readIf("TEMP") || readIf("TEMPORARY")) {
             if (readIf("LINKED")) {
                 return parseCreateLinkedTable(true, true, force);
             }
+
             read(TABLE);
             return parseCreateTable(true, true, cached);
-        } else if (readIf(TABLE)) {
+        }
+
+        if (readIf(TABLE)) {
             if (!cached && !memory) {
                 cached = database.getDefaultTableType() == Table.TYPE_CACHED;
             }
+
             return parseCreateTable(false, false, cached);
-        } else if (readIf("SYNONYM")) {
-            return parseCreateSynonym(orReplace);
-        } else {
-            boolean hash = false, primaryKey = false;
-            boolean unique = false, spatial = false;
-            String indexName = null;
-            Schema oldSchema = null;
-            boolean ifNotExists = false;
-            if (sessionLocal.isQuirksMode() && readIf(PRIMARY, KEY)) {
-                if (readIf("HASH")) {
-                    hash = true;
-                }
-                primaryKey = true;
-                if (!isToken(ON)) {
-                    ifNotExists = readIfNotExists();
-                    indexName = readIdentifierWithSchema(null);
-                    oldSchema = getSchema();
-                }
-            } else {
-                if (readIf(UNIQUE)) {
-                    unique = true;
-                }
-                if (readIf("HASH")) {
-                    hash = true;
-                } else if (!unique && readIf("SPATIAL")) {
-                    spatial = true;
-                }
-                read("INDEX");
-                if (!isToken(ON)) {
-                    ifNotExists = readIfNotExists();
-                    indexName = readIdentifierWithSchema(null);
-                    oldSchema = getSchema();
-                }
-            }
-            read(ON);
-            String tableName = readIdentifierWithSchema();
-            checkSchema(oldSchema);
-            String comment = readCommentIf();
-            if (!readIf(OPEN_PAREN)) {
-                // PostgreSQL compatibility
-                if (hash || spatial) {
-                    throw getSyntaxError();
-                }
-                read(USING);
-                if (readIf("BTREE")) {
-                    // default
-                } else if (readIf("HASH")) {
-                    hash = true;
-                } else {
-                    read("RTREE");
-                    spatial = true;
-                }
-                read(OPEN_PAREN);
-            }
-            CreateIndex command = new CreateIndex(sessionLocal, getSchema());
-            command.setIfNotExists(ifNotExists);
-            command.setPrimaryKey(primaryKey);
-            command.setTableName(tableName);
-            command.setHash(hash);
-            command.setSpatial(spatial);
-            command.setIndexName(indexName);
-            command.setComment(comment);
-            IndexColumn[] columns;
-            int uniqueColumnCount = 0;
-            if (spatial) {
-                columns = new IndexColumn[]{new IndexColumn(readIdentifier())};
-                if (unique) {
-                    uniqueColumnCount = 1;
-                }
-                read(CLOSE_PAREN);
-            } else {
-                columns = parseIndexColumnList();
-                if (unique) {
-                    uniqueColumnCount = columns.length;
-                    if (readIf("INCLUDE")) {
-                        read(OPEN_PAREN);
-                        IndexColumn[] columnsToInclude = parseIndexColumnList();
-                        int nonUniqueCount = columnsToInclude.length;
-                        columns = Arrays.copyOf(columns, uniqueColumnCount + nonUniqueCount);
-                        System.arraycopy(columnsToInclude, 0, columns, uniqueColumnCount, nonUniqueCount);
-                    }
-                } else if (primaryKey) {
-                    uniqueColumnCount = columns.length;
-                }
-            }
-            command.setIndexColumns(columns);
-            command.setUniqueColumnCount(uniqueColumnCount);
-            return command;
         }
+
+        if (readIf("SYNONYM")) {
+            return parseCreateSynonym(orReplace);
+        }
+
+        boolean hash = false;
+        boolean primaryKey = false;
+        boolean unique = false;
+        boolean spatial = false;
+        String indexName = null;
+        Schema oldSchema = null;
+        boolean ifNotExists = false;
+
+        if (sessionLocal.isQuirksMode() && readIf(PRIMARY, KEY)) {
+            if (readIf("HASH")) {
+                hash = true;
+            }
+            primaryKey = true;
+            if (!isToken(ON)) {
+                ifNotExists = readIfNotExists();
+                indexName = readIdentifierWithSchema(null);
+                oldSchema = getSchema();
+            }
+        } else {
+            if (readIf(UNIQUE)) {
+                unique = true;
+            }
+            if (readIf("HASH")) {
+                hash = true;
+            } else if (!unique && readIf("SPATIAL")) {
+                spatial = true;
+            }
+            read("INDEX");
+            if (!isToken(ON)) {
+                ifNotExists = readIfNotExists();
+                indexName = readIdentifierWithSchema(null);
+                oldSchema = getSchema();
+            }
+        }
+
+        read(ON);
+
+        String tableName = readIdentifierWithSchema();
+
+        checkSchema(oldSchema);
+
+        String comment = readCommentIf();
+
+        if (!readIf(OPEN_PAREN)) {
+            // PostgreSQL compatibility
+            if (hash || spatial) {
+                throw getSyntaxError();
+            }
+
+            read(USING);
+
+            if (readIf("BTREE")) {
+                // default
+            } else if (readIf("HASH")) {
+                hash = true;
+            } else {
+                read("RTREE");
+                spatial = true;
+            }
+
+            read(OPEN_PAREN);
+        }
+
+        CreateIndex createIndex = new CreateIndex(sessionLocal, getSchema());
+
+        createIndex.ifNotExists = ifNotExists;
+        createIndex.primaryKey = primaryKey;
+        createIndex.tableName = tableName;
+        createIndex.hash = hash;
+        createIndex.spatial = spatial;
+        createIndex.indexName = indexName;
+        createIndex.comment = comment;
+
+        IndexColumn[] indexColumns;
+        int uniqueColumnCount = 0;
+
+        if (spatial) {
+            indexColumns = new IndexColumn[]{new IndexColumn(readIdentifier())};
+            if (unique) {
+                uniqueColumnCount = 1;
+            }
+
+            read(CLOSE_PAREN);
+        } else {
+            indexColumns = parseIndexColumnList();
+
+            if (unique) {
+                uniqueColumnCount = indexColumns.length;
+
+                if (readIf("INCLUDE")) {
+                    read(OPEN_PAREN);
+                    IndexColumn[] columnsToInclude = parseIndexColumnList();
+                    int nonUniqueCount = columnsToInclude.length;
+                    indexColumns = Arrays.copyOf(indexColumns, uniqueColumnCount + nonUniqueCount);
+                    System.arraycopy(columnsToInclude, 0, indexColumns, uniqueColumnCount, nonUniqueCount);
+                }
+            } else if (primaryKey) {
+                uniqueColumnCount = indexColumns.length;
+            }
+        }
+
+        createIndex.indexColumns = indexColumns;
+        createIndex.uniqueColumnCount = uniqueColumnCount;
+
+        return createIndex;
     }
 
     /**

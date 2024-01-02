@@ -1106,7 +1106,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
                                boolean forEntries) {
             this.transactionId = transactionMap.transaction.id;
             this.forEntries = forEntries;
-            this.cursor = transactionMap.mvMap.cursor(snapshotFromTransactionMap.rootReference, from, to, reverse);
+            this.cursor = new Cursor<>(snapshotFromTransactionMap.rootReference, from, to, reverse);
             this.committingTransactions = snapshotFromTransactionMap.committingTxs;
         }
 
@@ -1141,7 +1141,5 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
             }
             return result;
         }
-
     }
-
 }

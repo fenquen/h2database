@@ -7,6 +7,7 @@ package org.h2.engine;
 
 import java.sql.SQLException;
 import java.util.Comparator;
+
 import org.h2.api.DatabaseEventListener;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
@@ -23,8 +24,7 @@ import org.h2.value.ValueVarchar;
 public class MetaRecord implements Comparable<MetaRecord> {
 
     /**
-     * Comparator for prepared constraints, sorts unique and primary key
-     * constraints first.
+     * comparator for prepared constraints, sorts unique and primary key constraints first.
      */
     static final Comparator<Prepared> CONSTRAINTS_COMPARATOR = (o1, o2) -> {
         int t1 = o1.getType(), t2 = o2.getType();
@@ -45,13 +45,11 @@ public class MetaRecord implements Comparable<MetaRecord> {
     /**
      * Copy metadata from the specified object into specified search row.
      *
-     * @param obj
-     *            database object
-     * @param r
-     *            search row
+     * @param obj database object
+     * @param r   search row
      */
     public static void populateRowFromDBObject(DbObject obj, SearchRow r) {
-        r.setValue(0, ValueInteger.get(obj.getId()));
+        r.setValue(0, ValueInteger.get(obj.id));
         r.setValue(1, ValueInteger.get(0));
         r.setValue(2, ValueInteger.get(obj.getType()));
         r.setValue(3, ValueVarchar.get(obj.getCreateSQLForMeta()));
@@ -66,9 +64,9 @@ public class MetaRecord implements Comparable<MetaRecord> {
     /**
      * Execute the meta data statement.
      *
-     * @param db the database
+     * @param db            the database
      * @param systemSession the system session
-     * @param listener the database event listener
+     * @param listener      the database event listener
      */
     void prepareAndExecute(Database db, SessionLocal systemSession, DatabaseEventListener listener) {
         try {
@@ -83,9 +81,9 @@ public class MetaRecord implements Comparable<MetaRecord> {
     /**
      * Prepares the meta data statement.
      *
-     * @param db the database
+     * @param db            the database
      * @param systemSession the system session
-     * @param listener the database event listener
+     * @param listener      the database event listener
      * @return the prepared command
      */
     Prepared prepare(Database db, SessionLocal systemSession, DatabaseEventListener listener) {
@@ -102,10 +100,10 @@ public class MetaRecord implements Comparable<MetaRecord> {
     /**
      * Execute the meta data statement.
      *
-     * @param db the database
-     * @param command the prepared command
+     * @param db       the database
+     * @param command  the prepared command
      * @param listener the database event listener
-     * @param sql SQL
+     * @param sql      SQL
      */
     static void execute(Database db, Prepared command, DatabaseEventListener listener, String sql) {
         try {
@@ -163,40 +161,40 @@ public class MetaRecord implements Comparable<MetaRecord> {
      */
     private int getCreateOrder() {
         switch (objectType) {
-        case DbObject.SETTING:
-            return 0;
-        case DbObject.USER:
-            return 1;
-        case DbObject.SCHEMA:
-            return 2;
-        case DbObject.FUNCTION_ALIAS:
-            return 3;
-        case DbObject.DOMAIN:
-            return 4;
-        case DbObject.SEQUENCE:
-            return 5;
-        case DbObject.CONSTANT:
-            return 6;
-        case DbObject.TABLE_OR_VIEW:
-            return 7;
-        case DbObject.INDEX:
-            return 8;
-        case DbObject.CONSTRAINT:
-            return 9;
-        case DbObject.TRIGGER:
-            return 10;
-        case DbObject.SYNONYM:
-            return 11;
-        case DbObject.ROLE:
-            return 12;
-        case DbObject.RIGHT:
-            return 13;
-        case DbObject.AGGREGATE:
-            return 14;
-        case DbObject.COMMENT:
-            return 15;
-        default:
-            throw DbException.getInternalError("type=" + objectType);
+            case DbObject.SETTING:
+                return 0;
+            case DbObject.USER:
+                return 1;
+            case DbObject.SCHEMA:
+                return 2;
+            case DbObject.FUNCTION_ALIAS:
+                return 3;
+            case DbObject.DOMAIN:
+                return 4;
+            case DbObject.SEQUENCE:
+                return 5;
+            case DbObject.CONSTANT:
+                return 6;
+            case DbObject.TABLE_OR_VIEW:
+                return 7;
+            case DbObject.INDEX:
+                return 8;
+            case DbObject.CONSTRAINT:
+                return 9;
+            case DbObject.TRIGGER:
+                return 10;
+            case DbObject.SYNONYM:
+                return 11;
+            case DbObject.ROLE:
+                return 12;
+            case DbObject.RIGHT:
+                return 13;
+            case DbObject.AGGREGATE:
+                return 14;
+            case DbObject.COMMENT:
+                return 15;
+            default:
+                throw DbException.getInternalError("type=" + objectType);
         }
     }
 

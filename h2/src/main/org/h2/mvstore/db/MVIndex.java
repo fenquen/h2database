@@ -42,9 +42,9 @@ public abstract class MVIndex<K, V> extends Index {
      * Add all the index data from the buffers to the index. The index will
      * typically use merge sort to add the data more quickly in sorted order.
      *
-     * @param bufferNames the names of the temporary storage
+     * @param temporaryMvMapNameList the names of the temporary storage
      */
-    public abstract void addBufferedRows(List<String> bufferNames);
+    public abstract void addBufferedRows(List<String> temporaryMvMapNameList);
 
     public abstract MVMap<K, VersionedValue<V>> getMVMap();
 

@@ -20,7 +20,6 @@ import org.h2.index.IndexType;
 import org.h2.index.SingleRowCursor;
 import org.h2.message.DbException;
 import org.h2.mvstore.MVMap;
-import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreException;
 import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionMap;
@@ -43,26 +42,39 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     /**
      * value 是ValueNull.INSTANCE
      */
-    private final TransactionMap<SearchRow, Value> dataMap;
+    private final TransactionMap<SearchRow, Value> transactionMap;
 
-    public MVSecondaryIndex(Database db, MVTable table, int id, String indexName,
-                            IndexColumn[] columns, int uniqueColumnCount, IndexType indexType) {
-        super(table, id, indexName, columns, uniqueColumnCount, indexType);
-        this.mvTable = table;
-        if (!database.isStarting()) {
+    public MVSecondaryIndex(Database database,
+                            MVTable mvTable,
+                            int id,
+                            String indexName,
+                            IndexColumn[] columns,
+                            int uniqueColumnCount,
+                            IndexType indexType) {
+        super(mvTable, id, indexName, columns, uniqueColumnCount, indexType);
+
+        if (!this.database.isStarting()) {
             checkIndexColumnTypes(columns);
         }
+
         String mapName = "index." + getId();
         RowDataType keyType = getRowFactory().getRowDataType();
-        Transaction t = mvTable.getTransactionBegin();
-        dataMap = t.openMap(mapName, keyType, NullValueDataType.INSTANCE);
-        dataMap.mvMap.setVolatile(!table.isPersistData() || !indexType.isPersistent());
-        if (!db.isStarting()) {
-            dataMap.clear();
+
+        this.mvTable = mvTable;
+
+        Transaction transaction = this.mvTable.getTransactionBegin();
+
+        transactionMap = transaction.openMap(mapName, keyType, NullValueDataType.INSTANCE);
+        transactionMap.mvMap.setVolatile(!mvTable.isPersistData() || !indexType.isPersistent());
+
+        if (!database.isStarting()) {
+            transactionMap.clear();
         }
-        t.commit();
-        if (!keyType.equals(dataMap.getKeyType())) {
-            throw DbException.getInternalError("incompatible key type, expected " + keyType + " but got " + dataMap.getKeyType() + " for index " + indexName);
+
+        transaction.commit();
+
+        if (!keyType.equals(transactionMap.getKeyType())) {
+            throw DbException.getInternalError("incompatible key type, expected " + keyType + " but got " + transactionMap.getKeyType() + " for index " + indexName);
         }
     }
 
@@ -80,84 +92,78 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
 
         private final Iterator<SearchRow> iterator;
 
-        SearchRow currentRowData;
+        SearchRow currentSearchRow;
 
         public Source(Iterator<SearchRow> iterator) {
             assert iterator.hasNext();
             this.iterator = iterator;
-            this.currentRowData = iterator.next();
+            this.currentSearchRow = iterator.next();
         }
 
         public boolean hasNext() {
             boolean result = iterator.hasNext();
             if (result) {
-                currentRowData = iterator.next();
+                currentSearchRow = iterator.next();
             }
             return result;
         }
 
         public SearchRow next() {
-            return currentRowData;
+            return currentSearchRow;
         }
 
         static final class Comparator implements java.util.Comparator<Source> {
 
-            private final DataType<SearchRow> type;
+            private final DataType<SearchRow> dataType;
 
-            public Comparator(DataType<SearchRow> type) {
-                this.type = type;
+            public Comparator(DataType<SearchRow> dataType) {
+                this.dataType = dataType;
             }
 
             @Override
             public int compare(Source one, Source two) {
-                return type.compare(one.currentRowData, two.currentRowData);
+                return dataType.compare(one.currentSearchRow, two.currentSearchRow);
             }
         }
     }
 
     @Override
-    public void addBufferedRows(List<String> bufferNames) {
-        int buffersCount = bufferNames.size();
-        Queue<Source> queue = new PriorityQueue<>(buffersCount,
-                new Source.Comparator(getRowFactory().getRowDataType()));
-        for (String bufferName : bufferNames) {
-            Iterator<SearchRow> iter = openMap(bufferName).keyIterator(null);
-            if (iter.hasNext()) {
-                queue.offer(new Source(iter));
+    public void addBufferedRows(List<String> temporaryMvMapNameList) {
+        Queue<Source> priorityQueue = new PriorityQueue<>(temporaryMvMapNameList.size(), new Source.Comparator(getRowFactory().getRowDataType()));
+
+        for (String temporaryMvMapName : temporaryMvMapNameList) {
+            Iterator<SearchRow> iterator = openMap(temporaryMvMapName).keyIterator(null);
+            if (iterator.hasNext()) {
+                priorityQueue.offer(new Source(iterator));
             }
         }
 
         try {
-            while (!queue.isEmpty()) {
-                Source s = queue.poll();
-                SearchRow row = s.next();
+            while (!priorityQueue.isEmpty()) {
+                Source source = priorityQueue.poll();
+                SearchRow searchRow = source.next();
 
-                if (uniqueColumnColumn > 0 && !mayHaveNullDuplicates(row)) {
-                    checkUnique(false, dataMap, row, Long.MIN_VALUE);
+                if (uniqueColumnColumn > 0 && !mayHaveNullDuplicates(searchRow)) {
+                    checkUnique(false, transactionMap, searchRow, Long.MIN_VALUE);
                 }
 
-                dataMap.putCommitted(row, ValueNull.INSTANCE);
+                transactionMap.putCommitted(searchRow, ValueNull.INSTANCE);
 
-                if (s.hasNext()) {
-                    queue.offer(s);
+                if (source.hasNext()) {
+                    priorityQueue.offer(source);
                 }
             }
         } finally {
-            MVStore mvStore = database.getStore().getMvStore();
-            for (String tempMapName : bufferNames) {
-                mvStore.removeMap(tempMapName);
+            for (String tempMapName : temporaryMvMapNameList) {
+                database.store.mvStore.removeMap(tempMapName);
             }
         }
     }
 
     private MVMap<SearchRow, Value> openMap(String mapName) {
         RowDataType keyType = getRowFactory().getRowDataType();
-        MVMap.Builder<SearchRow, Value> builder = new MVMap.Builder<SearchRow, Value>()
-                .singleWriter()
-                .keyType(keyType)
-                .valueType(NullValueDataType.INSTANCE);
-        MVMap<SearchRow, Value> map = database.getStore().getMvStore()
-                .openMap(mapName, builder);
+        MVMap.Builder<SearchRow, Value> builder = new MVMap.Builder<SearchRow, Value>().singleWriter().keyType(keyType).valueType(NullValueDataType.INSTANCE);
+        MVMap<SearchRow, Value> map = database.getStore().getMvStore().openMap(mapName, builder);
         if (!keyType.equals(map.getKeyType())) {
             throw DbException.getInternalError("incompatible key type, expected " + keyType + " but got " + map.getKeyType() + " for map " + mapName);
         }
@@ -299,7 +305,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
                           TableFilter[] filters, int filter, SortOrder sortOrder,
                           AllColumnsForPlan allColumnsSet) {
         try {
-            return 10 * getCostRangeIndex(masks, dataMap.sizeAsLongMax(),
+            return 10 * getCostRangeIndex(masks, transactionMap.sizeAsLongMax(),
                     filters, filter, sortOrder, false, allColumnsSet);
         } catch (MVStoreException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
@@ -340,7 +346,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     @Override
     public boolean needRebuild() {
         try {
-            return dataMap.sizeAsLongMax() == 0;
+            return transactionMap.sizeAsLongMax() == 0;
         } catch (MVStoreException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         }
@@ -355,7 +361,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     @Override
     public long getRowCountApproximation(SessionLocal session) {
         try {
-            return dataMap.sizeAsLongMax();
+            return transactionMap.sizeAsLongMax();
         } catch (MVStoreException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         }
@@ -379,17 +385,17 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
 
     private TransactionMap<SearchRow, Value> getMap(SessionLocal sessionLocal) {
         if (sessionLocal == null) {
-            return dataMap;
+            return transactionMap;
         }
 
         Transaction transaction = sessionLocal.getTransaction();
 
-        return dataMap.getInstance(transaction);
+        return transactionMap.getInstance(transaction);
     }
 
     @Override
     public MVMap<SearchRow, VersionedValue<Value>> getMVMap() {
-        return dataMap.mvMap;
+        return transactionMap.mvMap;
     }
 
     /**

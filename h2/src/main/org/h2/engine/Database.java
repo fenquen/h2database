@@ -153,8 +153,12 @@ public final class Database implements DataHandler, CastDataProvider {
     private final User systemUser;
     private SessionLocal systemSession;
     private SessionLocal lobSession;
-    private final Table meta;
-    private final Index metaIdIndex;
+    /**
+     * 表名SYS 对应的schema是public
+     * ID HEAD TYPE SQL
+     */
+    private final Table metaTable;
+    private final Index metaTableIndex;
     private FileLock lock;
     public volatile boolean starting;
     private final TraceSystem traceSystem;
@@ -381,25 +385,27 @@ public final class Database implements DataHandler, CastDataProvider {
             store.transactionStore.init(lobSession);
             settingKeys.removeIf(name -> name.startsWith("PAGE_STORE_"));
 
-            CreateTableData createTableData = createSysTableData();
+            CreateTableData createSysTableData = createSysTableData();
 
             starting = true;
-            meta = mainSchema.createTable(createTableData);
-            IndexColumn[] pkCols = IndexColumn.wrap(new Column[]{createTableData.columns.get(0)});
-            metaIdIndex = meta.addIndex(systemSession,
-                    "SYS_ID",
-                    0, pkCols,
-                    1,
-                    IndexType.createPrimaryKey(false, false), true, null);
+
+            metaTable = mainSchema.createTable(createSysTableData);
+
+            IndexColumn[] pkCols = IndexColumn.wrap(new Column[]{createSysTableData.columns.get(0)});
+            metaTableIndex = metaTable.addIndex(systemSession, "SYS_ID", 0, pkCols, 1, IndexType.createPrimaryKey(false, false), true, null);
+
             systemSession.commit(true);
+
             objectIds.set(0);
 
             executeMeta();
+
             systemSession.commit(true);
 
             store.transactionStore.endLeftoverTransactions();
             store.removeTemporaryMaps(objectIds);
             recompileInvalidViews();
+
             starting = false;
 
             if (!readOnly) {
@@ -605,7 +611,6 @@ public final class Database implements DataHandler, CastDataProvider {
 
         Column columnId = new Column("ID", TypeInfo.TYPE_INTEGER);
         columnId.setNullable(false);
-
         createTableData.columns.add(columnId);
         createTableData.columns.add(new Column("HEAD", TypeInfo.TYPE_INTEGER));
         createTableData.columns.add(new Column("TYPE", TypeInfo.TYPE_INTEGER));
@@ -622,7 +627,7 @@ public final class Database implements DataHandler, CastDataProvider {
     }
 
     private void executeMeta() {
-        Cursor cursor = metaIdIndex.find(systemSession, null, null);
+        Cursor cursor = metaTableIndex.find(systemSession, null, null);
 
         ArrayList<MetaRecord> firstRecords = new ArrayList<>();
         ArrayList<MetaRecord> domainRecords = new ArrayList<>();
@@ -771,18 +776,24 @@ public final class Database implements DataHandler, CastDataProvider {
 
     private void addMeta(SessionLocal session, DbObject obj) {
         assert Thread.holdsLock(this);
+
         int id = obj.getId();
         if (id > 0 && !obj.isTemporary()) {
             if (!isReadOnly()) {
-                Row r = meta.getTemplateRow();
+                Row r = metaTable.getTemplateRow();
+
                 MetaRecord.populateRowFromDBObject(obj, r);
+
                 assert objectIds.get(id);
+
                 if (SysProperties.CHECK) {
                     verifyMetaLocked(session);
                 }
-                Cursor cursor = metaIdIndex.find(session, r, r);
+
+                Cursor cursor = metaTableIndex.find(session, r, r);
+
                 if (!cursor.next()) {
-                    meta.addRow(session, r);
+                    metaTable.addRow(session, r);
                 } else {
                     assert starting;
                     Row oldRow = cursor.getCurrentRow();
@@ -790,7 +801,7 @@ public final class Database implements DataHandler, CastDataProvider {
                     assert rec.getId() == obj.getId();
                     assert rec.getObjectType() == obj.getType();
                     if (!rec.getSQL().equals(obj.getCreateSQLForMeta())) {
-                        meta.updateRow(session, oldRow, r);
+                        metaTable.updateRow(session, oldRow, r);
                     }
                 }
             }
@@ -803,7 +814,7 @@ public final class Database implements DataHandler, CastDataProvider {
      * @param session the session
      */
     public void verifyMetaLocked(SessionLocal session) {
-        if (lockMode != Constants.LOCK_MODE_OFF && meta != null && !meta.isLockedExclusivelyBy(session)) {
+        if (lockMode != Constants.LOCK_MODE_OFF && metaTable != null && !metaTable.isLockedExclusivelyBy(session)) {
             throw DbException.getInternalError();
         }
     }
@@ -811,23 +822,23 @@ public final class Database implements DataHandler, CastDataProvider {
     /**
      * Lock the metadata table for updates.
      *
-     * @param session the session
+     * @param sessionLocal the session
      * @return whether it was already locked before by this session
      */
-    public boolean lockMeta(SessionLocal session) {
+    public boolean lockMeta(SessionLocal sessionLocal) {
         // this method can not be synchronized on the database object,
         // as unlocking is also synchronized on the database object -
         // so if locking starts just before unlocking, locking could
         // never be successful
-        if (meta == null) {
+        if (metaTable == null) {
             return true;
         }
 
         if (ASSERT) {
-            lockMetaAssertion(session);
+            lockMetaAssertion(sessionLocal);
         }
 
-        return meta.lock(session, Table.EXCLUSIVE_LOCK);
+        return metaTable.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
     }
 
     private void lockMetaAssertion(SessionLocal session) {
@@ -856,10 +867,10 @@ public final class Database implements DataHandler, CastDataProvider {
      * @param session the session
      */
     public void unlockMeta(SessionLocal session) {
-        if (meta != null) {
+        if (metaTable != null) {
             unlockMetaDebug(session);
-            meta.unlock(session);
-            session.unlock(meta);
+            metaTable.unlock(session);
+            session.unlock(metaTable);
         }
     }
 
@@ -887,14 +898,14 @@ public final class Database implements DataHandler, CastDataProvider {
      */
     public void removeMeta(SessionLocal session, int id) {
         if (id > 0 && !starting) {
-            SearchRow r = meta.getRowFactory().createRow();
+            SearchRow r = metaTable.getRowFactory().createRow();
             r.setValue(0, ValueInteger.get(id));
             boolean wasLocked = lockMeta(session);
             try {
-                Cursor cursor = metaIdIndex.find(session, r, r);
+                Cursor cursor = metaTableIndex.find(session, r, r);
                 if (cursor.next()) {
                     Row found = cursor.getCurrentRow();
-                    meta.removeRow(session, found);
+                    metaTable.removeRow(session, found);
                     if (SysProperties.CHECK) {
                         checkMetaFree(session, id);
                     }
@@ -951,21 +962,16 @@ public final class Database implements DataHandler, CastDataProvider {
         return (Map<String, DbObject>) result;
     }
 
-    /**
-     * Add a schema object to the database.
-     *
-     * @param session the session
-     * @param obj     the object to add
-     */
-    public void addSchemaObject(SessionLocal session, SchemaObject obj) {
-        int id = obj.getId();
-        if (id > 0 && !starting) {
+    public void addSchemaObject(SessionLocal sessionLocal, SchemaObject schemaObject) {
+        if (schemaObject.id > 0 && !starting) {
             checkWritingAllowed();
         }
-        lockMeta(session);
+
+        lockMeta(sessionLocal);
+
         synchronized (this) {
-            obj.getSchema().add(obj);
-            addMeta(session, obj);
+            schemaObject.schema.add(schemaObject);
+            addMeta(sessionLocal, schemaObject);
         }
     }
 
@@ -1276,7 +1282,7 @@ public final class Database implements DataHandler, CastDataProvider {
                         }
                     }
                     if (powerOffCount != -1) {
-                        meta.close(systemSession);
+                        metaTable.close(systemSession);
                         systemSession.commit(true);
                     }
                     if (lobSession != null) {
@@ -1351,9 +1357,9 @@ public final class Database implements DataHandler, CastDataProvider {
     }
 
     private void checkMetaFree(SessionLocal session, int id) {
-        SearchRow r = meta.getRowFactory().createRow();
+        SearchRow r = metaTable.getRowFactory().createRow();
         r.setValue(0, ValueInteger.get(id));
-        Cursor cursor = metaIdIndex.find(session, r, r);
+        Cursor cursor = metaTableIndex.find(session, r, r);
         if (cursor.next()) {
             throw DbException.getInternalError();
         }
@@ -1515,11 +1521,11 @@ public final class Database implements DataHandler, CastDataProvider {
         int id = obj.getId();
         if (id > 0) {
             if (!starting && !obj.isTemporary()) {
-                Row newRow = meta.getTemplateRow();
+                Row newRow = metaTable.getTemplateRow();
                 MetaRecord.populateRowFromDBObject(obj, newRow);
-                Row oldRow = metaIdIndex.getRow(session, id);
+                Row oldRow = metaTableIndex.getRow(session, id);
                 if (oldRow != null) {
-                    meta.updateRow(session, oldRow, newRow);
+                    metaTable.updateRow(session, oldRow, newRow);
                 }
             }
             // for temporary objects
@@ -2187,7 +2193,7 @@ public final class Database implements DataHandler, CastDataProvider {
      * @return true if it is currently locked
      */
     public boolean isSysTableLocked() {
-        return meta == null || meta.isLockedExclusively();
+        return metaTable == null || metaTable.isLockedExclusively();
     }
 
     /**
@@ -2198,7 +2204,7 @@ public final class Database implements DataHandler, CastDataProvider {
      * @return true if it is currently locked
      */
     public boolean isSysTableLockedBy(SessionLocal session) {
-        return meta == null || meta.isLockedExclusivelyBy(session);
+        return metaTable == null || metaTable.isLockedExclusivelyBy(session);
     }
 
     /**

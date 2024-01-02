@@ -113,9 +113,9 @@ public abstract class DbObject implements HasSQL {
     /**
      * The comment (if set).
      */
-    protected String comment;
+    public String comment;
 
-    private int id;
+    public int id;
 
     public String name;
 

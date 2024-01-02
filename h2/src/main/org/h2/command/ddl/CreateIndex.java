@@ -18,22 +18,21 @@ import org.h2.table.IndexColumn;
 import org.h2.table.Table;
 
 /**
- * This class represents the statement
- * CREATE INDEX
+ * This class represents the statement CREATE INDEX
  */
 public class CreateIndex extends SchemaCommand {
 
-    private String tableName;
-    private String indexName;
-    private IndexColumn[] indexColumns;
-    private int uniqueColumnCount;
-    private boolean primaryKey, hash, spatial;
-    private boolean ifTableExists;
-    private boolean ifNotExists;
-    private String comment;
+    public String tableName;
+    public String indexName;
+    public IndexColumn[] indexColumns;
+    public int uniqueColumnCount;
+    public boolean primaryKey, hash, spatial;
+    public boolean ifTableExists;
+    public boolean ifNotExists;
+    public String comment;
 
-    public CreateIndex(SessionLocal session, Schema schema) {
-        super(session, schema);
+    public CreateIndex(SessionLocal sessionLocal, Schema schema) {
+        super(sessionLocal, schema);
     }
 
     public void setIfTableExists(boolean b) {
@@ -58,36 +57,45 @@ public class CreateIndex extends SchemaCommand {
 
     @Override
     public long update() {
-        Database db = sessionLocal.getDatabase();
-        boolean persistent = db.isPersistent();
         Table table = getSchema().findTableOrView(sessionLocal, tableName);
+
+        // table不存在
         if (table == null) {
             if (ifTableExists) {
                 return 0;
             }
+
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
         }
+
+        // 相同名的index存在
         if (indexName != null && getSchema().findIndex(sessionLocal, indexName) != null) {
             if (ifNotExists) {
                 return 0;
             }
+
             throw DbException.get(ErrorCode.INDEX_ALREADY_EXISTS_1, indexName);
         }
+
         sessionLocal.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
+
         table.lock(sessionLocal, Table.EXCLUSIVE_LOCK);
+
+        boolean persistent = sessionLocal.database.persistent;
+
         if (!table.isPersistIndexes()) {
             persistent = false;
         }
+
         int id = getObjectId();
         if (indexName == null) {
             if (primaryKey) {
-                indexName = table.getSchema().getUniqueIndexName(sessionLocal,
-                        table, Constants.PREFIX_PRIMARY_KEY);
+                indexName = table.getSchema().getUniqueIndexName(sessionLocal, table, Constants.PREFIX_PRIMARY_KEY);
             } else {
-                indexName = table.getSchema().getUniqueIndexName(sessionLocal,
-                        table, Constants.PREFIX_INDEX);
+                indexName = table.getSchema().getUniqueIndexName(sessionLocal, table, Constants.PREFIX_INDEX);
             }
         }
+
         IndexType indexType;
         if (primaryKey) {
             if (table.findPrimaryKey() != null) {
@@ -99,8 +107,11 @@ public class CreateIndex extends SchemaCommand {
         } else {
             indexType = IndexType.createNonUnique(persistent, hash, spatial);
         }
+
         IndexColumn.mapColumns(indexColumns, table);
+
         table.addIndex(sessionLocal, indexName, id, indexColumns, uniqueColumnCount, indexType, create, comment);
+
         return 0;
     }
 

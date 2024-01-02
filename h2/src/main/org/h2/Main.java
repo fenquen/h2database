@@ -9,7 +9,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Class.forName("org.h2.Driver");
         Connection connection = DriverManager.getConnection("jdbc:h2:file:./data", "root", "root");
-        PreparedStatement preparedStatement = connection.prepareStatement("select * from  TEST_TABLE");
+        PreparedStatement preparedStatement = connection.prepareStatement("select * from TEST_TABLE where NAME = 'd'");
         ResultSet resultSet = preparedStatement.executeQuery();
         resultSet.next();
     }

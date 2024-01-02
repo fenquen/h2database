@@ -39,12 +39,9 @@ public class IndexColumn {
     /**
      * Appends the specified columns to the specified builder.
      *
-     * @param builder
-     *            string builder
-     * @param columns
-     *            index columns
-     * @param sqlFlags
-     *            formatting flags
+     * @param builder  string builder
+     * @param columns  index columns
+     * @param sqlFlags formatting flags
      * @return the specified string builder
      */
     public static StringBuilder writeColumns(StringBuilder builder, IndexColumn[] columns, int sqlFlags) {
@@ -54,25 +51,20 @@ public class IndexColumn {
     /**
      * Appends the specified columns to the specified builder.
      *
-     * @param builder
-     *            string builder
-     * @param startOffset
-     *            start offset, inclusive
-     * @param endOffset
-     *            end offset, exclusive
-     * @param columns
-     *            index columns
-     * @param sqlFlags
-     *            formatting flags
+     * @param builder     string builder
+     * @param startOffset start offset, inclusive
+     * @param endOffset   end offset, exclusive
+     * @param columns     index columns
+     * @param sqlFlags    formatting flags
      * @return the specified string builder
      */
     public static StringBuilder writeColumns(StringBuilder builder, IndexColumn[] columns, int startOffset,
-            int endOffset, int sqlFlags) {
+                                             int endOffset, int sqlFlags) {
         for (int i = startOffset; i < endOffset; i++) {
             if (i > startOffset) {
                 builder.append(", ");
             }
-            columns[i].getSQL(builder,  sqlFlags);
+            columns[i].getSQL(builder, sqlFlags);
         }
         return builder;
     }
@@ -80,20 +72,15 @@ public class IndexColumn {
     /**
      * Appends the specified columns to the specified builder.
      *
-     * @param builder
-     *            string builder
-     * @param columns
-     *            index columns
-     * @param separator
-     *            separator
-     * @param suffix
-     *            additional SQL to append after each column
-     * @param sqlFlags
-     *            formatting flags
+     * @param builder   string builder
+     * @param columns   index columns
+     * @param separator separator
+     * @param suffix    additional SQL to append after each column
+     * @param sqlFlags  formatting flags
      * @return the specified string builder
      */
     public static StringBuilder writeColumns(StringBuilder builder, IndexColumn[] columns, String separator,
-            String suffix, int sqlFlags) {
+                                             String suffix, int sqlFlags) {
         for (int i = 0, l = columns.length; i < l; i++) {
             if (i > 0) {
                 builder.append(separator);
@@ -106,8 +93,7 @@ public class IndexColumn {
     /**
      * Creates a new instance with the specified name.
      *
-     * @param columnName
-     *            the column name
+     * @param columnName the column name
      */
     public IndexColumn(String columnName) {
         this.columnName = columnName;
@@ -116,10 +102,8 @@ public class IndexColumn {
     /**
      * Creates a new instance with the specified name.
      *
-     * @param columnName
-     *            the column name
-     * @param sortType
-     *            the sort type
+     * @param columnName the column name
+     * @param sortType   the sort type
      */
     public IndexColumn(String columnName, int sortType) {
         this.columnName = columnName;
@@ -129,8 +113,7 @@ public class IndexColumn {
     /**
      * Creates a new instance with the specified column.
      *
-     * @param column
-     *            the column
+     * @param column the column
      */
     public IndexColumn(Column column) {
         columnName = null;
@@ -140,10 +123,8 @@ public class IndexColumn {
     /**
      * Appends the SQL snippet for this index column to the specified string builder.
      *
-     * @param builder
-     *            string builder
-     * @param sqlFlags
-     *            formatting flags
+     * @param builder  string builder
+     * @param sqlFlags formatting flags
      * @return the specified string builder
      */
     public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
@@ -177,7 +158,7 @@ public class IndexColumn {
      * Map the columns using the column names and the specified table.
      *
      * @param indexColumns the column list with column names set
-     * @param table the table from where to map the column names to columns
+     * @param table        the table from where to map the column names to columns
      */
     public static void mapColumns(IndexColumn[] indexColumns, Table table) {
         for (IndexColumn col : indexColumns) {

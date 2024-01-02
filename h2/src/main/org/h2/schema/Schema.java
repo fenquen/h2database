@@ -266,18 +266,20 @@ public class Schema extends DbObject {
      * This method must not be called within CreateSchemaObject;
      * use Database.addSchemaObject() instead
      *
-     * @param obj the object to add
+     * @param schemaObject the object to add
      */
-    public void add(SchemaObject obj) {
-        if (obj.getSchema() != this) {
+    public void add(SchemaObject schemaObject) {
+        if (schemaObject.schema != this) {
             throw DbException.getInternalError("wrong schema");
         }
-        String name = obj.getName();
-        Map<String, SchemaObject> map = getMap(obj.getType());
-        if (map.putIfAbsent(name, obj) != null) {
+
+        Map<String, SchemaObject> map = getMap(schemaObject.getType());
+
+        if (map.putIfAbsent(schemaObject.name, schemaObject) != null) {
             throw DbException.getInternalError("object already exists: " + name);
         }
-        freeUniqueName(name);
+
+        freeUniqueName(schemaObject.name);
     }
 
     /**

@@ -12,7 +12,7 @@ import org.h2.engine.DbObject;
  */
 public abstract class SchemaObject extends DbObject {
 
-    private final Schema schema;
+    public final Schema schema;
 
     /**
      * Initialize some attributes of this object.

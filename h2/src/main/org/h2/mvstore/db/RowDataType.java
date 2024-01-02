@@ -7,6 +7,7 @@ package org.h2.mvstore.db;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+
 import org.h2.engine.CastDataProvider;
 import org.h2.engine.Database;
 import org.h2.mvstore.DataUtils;
@@ -29,13 +30,13 @@ import org.h2.value.Value;
 public final class RowDataType extends BasicDataType<SearchRow> implements StatefulDataType<Database> {
 
     private final ValueDataType valueDataType;
-    private final int[]         sortTypes;
-    private final int[]         indexes;
-    private final int           columnCount;
-    private final boolean       storeKeys;
+    private final int[] sortTypes;
+    private final int[] indexes;
+    private final int columnCount;
+    private final boolean storeKeys;
 
     public RowDataType(CastDataProvider provider, CompareMode compareMode, DataHandler handler, int[] sortTypes,
-            int[] indexes, int columnCount, boolean storeKeys) {
+                       int[] indexes, int columnCount, boolean storeKeys) {
         this.valueDataType = new ValueDataType(provider, compareMode, handler, sortTypes);
         this.sortTypes = sortTypes;
         this.indexes = indexes;
@@ -74,6 +75,7 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
         if (a == b) {
             return 0;
         }
+
         if (indexes == null) {
             int len = a.getColumnCount();
             assert len == b.getColumnCount() : len + " != " + b.getColumnCount();
@@ -83,10 +85,11 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
                     return comp;
                 }
             }
+
             return 0;
-        } else {
-            return compareSearchRows(a, b);
         }
+
+        return compareSearchRows(a, b);
     }
 
     private int compareSearchRows(SearchRow a, SearchRow b) {
@@ -105,8 +108,7 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
         }
         long aKey = a.getKey();
         long bKey = b.getKey();
-        return aKey == SearchRow.MATCH_ALL_ROW_KEY || bKey == SearchRow.MATCH_ALL_ROW_KEY ?
-                0 : Long.compare(aKey, bKey);
+        return aKey == SearchRow.MATCH_ALL_ROW_KEY || bKey == SearchRow.MATCH_ALL_ROW_KEY ? 0 : Long.compare(aKey, bKey);
     }
 
     public int binarySearch(SearchRow key, SearchRow[] keys, int size, int initialGuess) {
@@ -185,9 +187,9 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
         }
         RowDataType other = (RowDataType) obj;
         return columnCount == other.columnCount
-            && Arrays.equals(indexes, other.indexes)
-            && Arrays.equals(sortTypes, other.sortTypes)
-            && valueDataType.equals(other.valueDataType);
+                && Arrays.equals(indexes, other.indexes)
+                && Arrays.equals(sortTypes, other.sortTypes)
+                && valueDataType.equals(other.valueDataType);
     }
 
     @Override
@@ -209,7 +211,7 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
     }
 
     private static void writeIntArray(WriteBuffer buff, int[] array) {
-        if(array == null) {
+        if (array == null) {
             buff.putVarInt(0);
         } else {
             buff.putVarInt(array.length + 1);
@@ -223,7 +225,6 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
     public Factory getFactory() {
         return FACTORY;
     }
-
 
 
     private static final Factory FACTORY = new Factory();
@@ -244,7 +245,7 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
 
         private static int[] readIntArray(ByteBuffer buff) {
             int len = DataUtils.readVarInt(buff) - 1;
-            if(len < 0) {
+            if (len < 0) {
                 return null;
             }
             int[] res = new int[len];

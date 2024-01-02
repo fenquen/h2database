@@ -459,13 +459,13 @@ public class MVTable extends TableBase {
     private void rebuildIndexBlockMerge(SessionLocal sessionLocal, MVIndex<?, ?> mvIndex) {
         Index scanIndex = getScanIndex(sessionLocal);
 
-        long remaining = scanIndex.getRowCount(sessionLocal);
-        long total = remaining;
+        long total = scanIndex.getRowCount(sessionLocal);
+        long remaining = total;
 
         Cursor cursor = scanIndex.find(sessionLocal, null, null);
 
         int bufferRowCount = database.maxMemoryRows / 2;
-        ArrayList<Row> bufferRowList = new ArrayList<>(bufferRowCount);
+        ArrayList<Row> rows = new ArrayList<>(bufferRowCount);
 
         ArrayList<String> temporaryMvMapNameList = Utils.newSmallArrayList();
 
@@ -473,34 +473,35 @@ public class MVTable extends TableBase {
         while (cursor.next()) {
             Row row = cursor.getCurrentRow();
 
-            bufferRowList.add(row);
+            rows.add(row);
 
             database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, name + ':' + mvIndex.name, i++, total);
 
-            if (bufferRowList.size() >= bufferRowCount) {
-                sortRows(bufferRowList, mvIndex);
+            if (rows.size() >= bufferRowCount) {
+                sortRows(rows, mvIndex);
 
                 String temporaryMvMapName = sessionLocal.database.store.nextTemporaryMvMapName();
 
-                mvIndex.addRowsToTemporaryMvMap(bufferRowList, temporaryMvMapName);
+                mvIndex.addRowsToTemporaryMvMap(rows, temporaryMvMapName);
                 temporaryMvMapNameList.add(temporaryMvMapName);
 
-                bufferRowList.clear();
+                rows.clear();
             }
 
             remaining--;
         }
 
-        sortRows(bufferRowList, mvIndex);
+        sortRows(rows, mvIndex);
 
+        // 说明有过因为内存不够落地过temporaryMvMap
         if (!temporaryMvMapNameList.isEmpty()) {
             String mapName = sessionLocal.database.store.nextTemporaryMvMapName();
-            mvIndex.addRowsToTemporaryMvMap(bufferRowList, mapName);
+            mvIndex.addRowsToTemporaryMvMap(rows, mapName);
             temporaryMvMapNameList.add(mapName);
-            bufferRowList.clear();
+            rows.clear();
             mvIndex.addBufferedRows(temporaryMvMapNameList);
         } else {
-            addRowsToIndex(sessionLocal, bufferRowList, mvIndex);
+            addRowsToIndex(sessionLocal, rows, mvIndex);
         }
 
         if (remaining != 0) {
