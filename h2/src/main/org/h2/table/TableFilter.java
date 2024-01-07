@@ -97,9 +97,9 @@ public class TableFilter implements ColumnResolver {
     private Expression filterCondition;
 
     /**
-     * The complete join condition.
+     * the complete join condition 对应了on
      */
-    private Expression joinCondition;
+    public Expression joinCondition;
 
     private SearchRow currentSearchRow;
     private Row currentRow;
@@ -108,7 +108,7 @@ public class TableFilter implements ColumnResolver {
     /**
      * The joined table (if there is one).
      */
-    private TableFilter join;
+    public TableFilter join;
 
     /**
      * Whether this is an outer join.
@@ -428,8 +428,8 @@ public class TableFilter implements ColumnResolver {
                 }
             }
         } else {
-            // state == FOUND || NULL_ROW
-            // the last row was ok - try next row of the join
+            // 1边不动另边不断next
+            // state == FOUND || NULL_ROW the last row was ok - try next row of the join
             if (join != null && join.next()) {
                 return true;
             }
@@ -486,6 +486,7 @@ public class TableFilter implements ColumnResolver {
             }
 
             boolean joinConditionOk = isOk(joinCondition);
+
             if (state == FOUND) {
                 if (joinConditionOk) {
                     foundOne = true;
@@ -873,9 +874,6 @@ public class TableFilter implements ColumnResolver {
         return used;
     }
 
-    /**
-     * Remove the joined table
-     */
     public void removeJoin() {
         this.join = null;
     }

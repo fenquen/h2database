@@ -1830,7 +1830,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 Page<K, V> page = cursorPos.page;
                 int index = cursorPos.index;
                 tip = cursorPos;
+
                 cursorPos = cursorPos.parent;
+
                 V oldValue = index < 0 ? null : page.getValue(index);
 
                 Decision decision = decisionMaker.decide(oldValue, value, tip);
@@ -1899,22 +1901,29 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
                             int keyCount;
                             // page太大需要分裂了
-                            while ((keyCount = page.getKeyCount()) > mvStore.keysPerPage
+                            while ((keyCount = page.keys.length) > mvStore.keysPerPage
                                     || page.getMemory() > mvStore.getMaxPageSize() && keyCount > (page.isLeaf() ? 1 : 2)) {
 
                                 long totalCount = page.getTotalCount();
-                                int at = keyCount >> 1;
-                                K k = page.getKey(at);
-                                Page<K, V> split = page.split(at);
+
+                                // pivot点
+                                int pivotIndex = keyCount >> 1;
+                                K pivotKey = page.getKey(pivotIndex);
+
+                                Page<K, V> split = page.split(pivotIndex);
                                 unsavedMemoryHolder.value += page.getMemory() + split.getMemory();
 
+                                // 说明之前的便是rootPage顶部到了
                                 if (cursorPos == null) {
                                     K[] keys = page.createKeyStorage(1);
-                                    keys[0] = k;
+                                    keys[0] = pivotKey;
+
                                     Page.PageReference<K, V>[] children = Page.createRefStorage(2);
                                     children[0] = new Page.PageReference<>(page);
                                     children[1] = new Page.PageReference<>(split);
+
                                     page = Page.createNoLeaf(this, keys, children, totalCount, 0);
+
                                     break;
                                 }
 
@@ -1924,7 +1933,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                 cursorPos = cursorPos.parent;
                                 page = page.copy();
                                 page.setChild(index, split);
-                                page.insertNode(index, k, c);
+                                page.insertNode(index, pivotKey, c);
                             }
                         } else {
                             page.setValue(index, value);

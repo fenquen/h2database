@@ -249,6 +249,7 @@ class Optimizer {
         // TableFilter[] f2 = bestPlan.tableFilters;
         topTableFilter = bestPlan.tableFilters[0];
 
+        // tableFilters当outer join的时候是1个 inner的时候是2个
         for (int i = 0; i < bestPlan.tableFilters.length - 1; i++) {
             bestPlan.tableFilters[i].addJoin(bestPlan.tableFilters[i + 1], false, null);
         }

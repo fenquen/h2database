@@ -115,13 +115,6 @@ public interface ColumnResolver {
         return null;
     }
 
-    /**
-     * Get the expression that represents this column.
-     *
-     * @param expressionColumn the expression column
-     * @param column the column
-     * @return the optimized expression
-     */
     default Expression optimize(ExpressionColumn expressionColumn, Column column) {
         return expressionColumn;
     }

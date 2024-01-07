@@ -55,24 +55,20 @@ public class MetaRecord implements Comparable<MetaRecord> {
         r.setValue(3, ValueVarchar.get(obj.getCreateSQLForMeta()));
     }
 
-    public MetaRecord(SearchRow r) {
-        id = r.getValue(0).getInt();
-        objectType = r.getValue(2).getInt();
-        sql = r.getValue(3).getString();
+    public MetaRecord(SearchRow searchRow) {
+        id = searchRow.getValue(0).getInt();
+        objectType = searchRow.getValue(2).getInt();
+        sql = searchRow.getValue(3).getString();
     }
 
     /**
-     * Execute the meta data statement.
-     *
-     * @param db            the database
-     * @param systemSession the system session
-     * @param listener      the database event listener
+     * execute the meta data statement.
      */
     void prepareAndExecute(Database db, SessionLocal systemSession, DatabaseEventListener listener) {
         try {
-            Prepared command = systemSession.prepare(sql);// create cached table TEST
-            command.setPersistedObjectId(id);
-            command.update();
+            Prepared prepared = systemSession.prepare(sql);// create cached table TEST
+            prepared.setPersistedObjectId(id);
+            prepared.update();
         } catch (DbException e) {
             throwException(db, listener, e, sql);
         }

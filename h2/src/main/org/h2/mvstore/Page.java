@@ -82,7 +82,7 @@ public abstract class Page<K, V> implements Cloneable {
     /**
      * The keys.
      */
-    private K[] keys;
+    public K[] keys;
 
     /**
      * Updater for pos field, which can be updated when page is saved,
@@ -380,12 +380,11 @@ public abstract class Page<K, V> implements Cloneable {
      * key is smaller than any keys in this page. See also Arrays.binarySearch.
      *
      * @param key the key
-     * @return the value or null
      */
     int binarySearch(K key) {
-        int res = mvMap.getKeyType().binarySearch(key, keys, getKeyCount(), cachedCompare);
-        cachedCompare = res < 0 ? ~res : res + 1;
-        return res;
+        int index = mvMap.keyType.binarySearch(key, keys, keys.length, cachedCompare);
+        cachedCompare = index < 0 ? ~index : index + 1;
+        return index;
     }
 
     /**

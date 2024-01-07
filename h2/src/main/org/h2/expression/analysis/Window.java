@@ -124,7 +124,7 @@ public final class Window {
             Select select = resolver.getSelect();
             Window p;
             while ((p = select.getWindow(parent)) == null) {
-                select = select.getParentSelect();
+                select = select.parentSelect;
                 if (select == null) {
                     throw DbException.get(ErrorCode.WINDOW_NOT_FOUND_1, parent);
                 }

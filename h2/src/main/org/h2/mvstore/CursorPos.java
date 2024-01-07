@@ -80,11 +80,7 @@ public final class CursorPos<K, V> {
 
     @Override
     public String toString() {
-        return "CursorPos{" +
-                "page=" + page +
-                ", index=" + index +
-                ", parent=" + parent +
-                '}';
+        return "CursorPos{" + "page=" + page + ", index=" + index + ", parent=" + parent + '}';
     }
 }
 

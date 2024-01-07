@@ -393,13 +393,11 @@ public final class Database implements DataHandler, CastDataProvider {
 
             IndexColumn[] pkCols = IndexColumn.wrap(new Column[]{createSysTableData.columns.get(0)});
             metaTableIndex = metaTable.addIndex(systemSession, "SYS_ID", 0, pkCols, 1, IndexType.createPrimaryKey(false, false), true, null);
-
             systemSession.commit(true);
 
             objectIds.set(0);
 
             executeMeta();
-
             systemSession.commit(true);
 
             store.transactionStore.endLeftoverTransactions();

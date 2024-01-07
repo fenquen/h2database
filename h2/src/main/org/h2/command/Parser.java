@@ -1596,7 +1596,7 @@ public class Parser {
     private MergeUsing parseMergeUsing(TableFilter targetTableFilter, int start) {
         MergeUsing command = new MergeUsing(sessionLocal, targetTableFilter);
         currentPrepared = command;
-        command.setSourceTableFilter(readTableReference());
+        command.setSourceTableFilter(readTopTableFilter());
         read(ON);
         Expression condition = readExpression();
         command.setOnCondition(condition);
@@ -1834,7 +1834,7 @@ public class Parser {
             }
 
             // Parenthesized joined table
-            TableFilter tableFilter = readTableReference();
+            TableFilter tableFilter = readTopTableFilter();
             read(CLOSE_PAREN);
             return readCorrelation(tableFilter);
         } else if (readIf(VALUES)) {
@@ -2392,7 +2392,7 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readTableReference() {
+    private TableFilter readTopTableFilter() {
         for (TableFilter top, last = top = readTablePrimary(), join; ; last = join) {
             switch (currentTokenType) {
                 case RIGHT: {
@@ -2400,7 +2400,7 @@ public class Parser {
                     readIf("OUTER");
                     read(JOIN);
                     // the right hand side is the 'inner' table usually
-                    join = readTableReference();
+                    join = readTopTableFilter();
                     Expression on = readJoinSpecification(top, join, true);
                     addJoin(join, top, true, on);
                     top = join;
@@ -2410,7 +2410,7 @@ public class Parser {
                     read();
                     readIf("OUTER");
                     read(JOIN);
-                    join = readTableReference();
+                    join = readTopTableFilter();
                     Expression on = readJoinSpecification(top, join, false);
                     addJoin(top, join, true, on);
                     break;
@@ -2421,14 +2421,14 @@ public class Parser {
                 case INNER: {
                     read();
                     read(JOIN);
-                    join = readTableReference();
+                    join = readTopTableFilter();
                     Expression on = readJoinSpecification(top, join, false);
                     addJoin(top, join, false, on);
                     break;
                 }
                 case JOIN: {
                     read();
-                    join = readTableReference();
+                    join = readTopTableFilter();
                     Expression on = readJoinSpecification(top, join, false);
                     addJoin(top, join, false, on);
                     break;
@@ -2850,18 +2850,20 @@ public class Parser {
     }
 
     private void parseSelectFrom(Select select) {
+        // 循环 topTableFilter
         do {
-            TableFilter topTableFilter = readTableReference();
+            TableFilter topTableFilter = readTopTableFilter();
             select.addTableFilter(topTableFilter, true);
             boolean isOuter = false;
 
+            // 循环当前 topTableFilter 的 join
             for (; ; ) {
                 TableFilter nestedJoin = topTableFilter.getNestedJoin();
                 if (nestedJoin != null) {
-                    nestedJoin.visit(tableFilter -> select.addTableFilter(tableFilter, false));
+                    nestedJoin.visit(tableFilter0 -> select.addTableFilter(tableFilter0, false));
                 }
 
-                TableFilter join = topTableFilter.getJoin();
+                TableFilter join = topTableFilter.join;
                 if (join == null) {
                     break;
                 }
@@ -2871,13 +2873,15 @@ public class Parser {
                     select.addTableFilter(join, false);
                 } else {
                     // make flat so the optimizer can work better
-                    Expression on = join.getJoinCondition();
+                    Expression on = join.joinCondition;
+                    // inner join的 on条件会变为where
                     if (on != null) {
-                        select.addCondition(on);
+                        select.addWhereCondition(on);
                     }
 
                     join.removeJoinCondition();
                     topTableFilter.removeJoin();
+
                     select.addTableFilter(join, true);
                 }
 
@@ -2987,12 +2991,13 @@ public class Parser {
         }
 
         if (readIf(WHERE)) {
-            select.addCondition(readExpressionWithGlobalConditions());
+            select.addWhereCondition(readExpressionWithGlobalConditions());
         }
 
         // the group by is read for the outer select (or not a select)
         // so that columns that are not grouped can be used
         currentSelect = oldSelect;
+
         if (readIf(GROUP, "BY")) {
             select.setGroupQuery();
 

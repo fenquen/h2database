@@ -88,12 +88,12 @@ public class Select extends Query {
     /**
      * Parent select for selects in table filters.
      */
-    private Select parentSelect;
+    public final Select parentSelect;
 
     /**
      * WHERE condition.
      */
-    private Expression condition;
+    private Expression where;
 
     /**
      * HAVING condition.
@@ -182,6 +182,7 @@ public class Select extends Query {
         // }
         // filterNames.add(alias);
         tableFilters.add(filter);
+
         if (isTop) {
             topTableFilters.add(filter);
         }
@@ -295,21 +296,16 @@ public class Select extends Query {
         return windows != null ? windows.get(name) : null;
     }
 
-    /**
-     * Add a condition to the list of conditions.
-     *
-     * @param cond the condition to add
-     */
-    public void addCondition(Expression cond) {
-        if (condition == null) {
-            condition = cond;
+    public void addWhereCondition(Expression condition) {
+        if (where == null) {
+            where = condition;
         } else {
-            condition = new ConditionAndOr(ConditionAndOr.AND, cond, condition);
+            where = new ConditionAndOr(ConditionAndOr.AND, condition, where);
         }
     }
 
-    public Expression getCondition() {
-        return condition;
+    public Expression getWhere() {
+        return where;
     }
 
     private LazyResult queryGroupSorted(int columnCount, ResultTarget result, long offset, boolean quickOffset) {
@@ -443,7 +439,8 @@ public class Select extends Query {
     }
 
     boolean isConditionMet() {
-        return condition == null || condition.getBooleanValue(sessionLocal);
+        // inner join 的 on 变为 where
+        return where == null || where.getBooleanValue(sessionLocal);
     }
 
     private void queryWindow(int columnCount, LocalResult result, long offset, boolean quickOffset) {
@@ -1039,6 +1036,7 @@ public class Select extends Query {
 
         tableFilters.sort(TableFilter.ORDER_IN_FROM_COMPARATOR);
 
+        // 应对 wildcard
         expandColumnList();
 
         if ((visibleColumnCount = expressionList.size()) > Constants.MAX_COLUMNS) {
@@ -1251,15 +1249,15 @@ public class Select extends Query {
             cleanupOrder();
         }
 
-        if (condition != null) {
-            condition = condition.optimizeCondition(sessionLocal);
+        if (where != null) {
+            where = where.optimizeCondition(sessionLocal);
         }
 
         if (isGroupQuery &&
                 groupIndex == null &&
                 havingIndex < 0 &&
                 qualifyIndex < 0 &&
-                condition == null &&
+                where == null &&
                 tableFilters.size() == 1) {
 
             isQuickAggregateQuery = isEverything(ExpressionVisitor.getOptimizableVisitor(tableFilters.get(0).getTable()));
@@ -1270,7 +1268,7 @@ public class Select extends Query {
 
     @Override
     public void preparePlan() {
-        if (condition != null) {
+        if (where != null) {
             for (TableFilter tableFilter : tableFilters) {
                 // outer joins: must not add index conditions such as "c is null" - example:
                 // create table parent(p int primary key) as select 1;
@@ -1279,7 +1277,7 @@ public class Select extends Query {
                 // select p, c from parent
                 // left outer join child on p = pc where c is null;
                 if (!tableFilter.isJoinOuter() && !tableFilter.isJoinOuterIndirect()) {
-                    condition.createIndexConditions(sessionLocal, tableFilter);
+                    where.createIndexConditions(sessionLocal, tableFilter);
                 }
             }
         }
@@ -1291,7 +1289,7 @@ public class Select extends Query {
                 !isGroupQuery &&
                 tableFilters.size() == 1 &&
                 expressionList.size() == 1 &&
-                condition == null) {
+                where == null) {
             Expression expr = expressionList.get(0);
             expr = expr.getNonAliasExpression();
 
@@ -1411,10 +1409,10 @@ public class Select extends Query {
         TableFilter[] topTableFilers = topTableFilters.toArray(new TableFilter[0]);
         for (TableFilter topTableFilter : topTableFilers) {
             topTableFilter.createIndexConditions();
-            topTableFilter.setFullCondition(condition);
+            topTableFilter.setFullCondition(where);
         }
 
-        Optimizer optimizer = new Optimizer(topTableFilers, condition, sessionLocal);
+        Optimizer optimizer = new Optimizer(topTableFilers, where, sessionLocal);
         optimizer.optimize(parsingCreateView);
 
         topTableFilter = optimizer.topTableFilter;
@@ -1432,8 +1430,8 @@ public class Select extends Query {
     private void setEvaluatableRecursive(TableFilter f) {
         for (; f != null; f = f.getJoin()) {
             f.setEvaluatable(f, true);
-            if (condition != null) {
-                condition.setEvaluatable(f, true);
+            if (where != null) {
+                where.setEvaluatable(f, true);
             }
 
             TableFilter n = f.getNestedJoin();
@@ -1448,7 +1446,7 @@ public class Select extends Query {
                     on = on.optimize(sessionLocal);
                     if (!f.isJoinOuter() && !f.isJoinOuterIndirect()) {
                         f.removeJoinCondition();
-                        addCondition(on);
+                        addWhereCondition(on);
                     }
                 }
             }
@@ -1457,7 +1455,7 @@ public class Select extends Query {
             if (on != null) {
                 if (!on.isEverything(ExpressionVisitor.EVALUATABLE_VISITOR)) {
                     f.removeFilterCondition();
-                    addCondition(on);
+                    addWhereCondition(on);
                 }
             }
 
@@ -1526,8 +1524,8 @@ public class Select extends Query {
             } else if (!filter.isNoFromClauseFilter()) {
                 getPlanFromFilter(builder.append("\nFROM "), sqlFlags, filter, false);
             }
-            if (condition != null) {
-                getFilterSQL(builder, "\nWHERE ", condition, sqlFlags);
+            if (where != null) {
+                getFilterSQL(builder, "\nWHERE ", where, sqlFlags);
             }
             if (groupIndex != null) {
                 builder.append("\nGROUP BY ");
@@ -1652,8 +1650,8 @@ public class Select extends Query {
             expression.mapColumns(columnResolver, level, Expression.MAP_INITIAL);
         }
 
-        if (condition != null) {
-            condition.mapColumns(columnResolver, level, Expression.MAP_INITIAL);
+        if (where != null) {
+            where.mapColumns(columnResolver, level, Expression.MAP_INITIAL);
         }
     }
 
@@ -1662,8 +1660,8 @@ public class Select extends Query {
         for (Expression e : expressionList) {
             e.setEvaluatable(tableFilter, b);
         }
-        if (condition != null) {
-            condition.setEvaluatable(tableFilter, b);
+        if (where != null) {
+            where.setEvaluatable(tableFilter, b);
         }
     }
 
@@ -1725,7 +1723,7 @@ public class Select extends Query {
         } else if (isGroupQuery) {
             for (int i = 0; groupIndex != null && i < groupIndex.length; i++) {
                 if (groupIndex[i] == columnId) {
-                    condition = addGlobalCondition(condition, comp);
+                    where = addGlobalCondition(where, comp);
                     return;
                 }
             }
@@ -1734,7 +1732,7 @@ public class Select extends Query {
             }
             having = addGlobalCondition(having, comp);
         } else {
-            condition = addGlobalCondition(condition, comp);
+            where = addGlobalCondition(where, comp);
         }
     }
 
@@ -1758,8 +1756,8 @@ public class Select extends Query {
         for (Expression e : expressionList) {
             e.updateAggregate(s, stage);
         }
-        if (condition != null) {
-            condition.updateAggregate(s, stage);
+        if (where != null) {
+            where.updateAggregate(s, stage);
         }
         if (having != null) {
             having.updateAggregate(s, stage);
@@ -1819,7 +1817,7 @@ public class Select extends Query {
             }
         }
 
-        if (condition != null && !condition.isEverything(v2)) {
+        if (where != null && !where.isEverything(v2)) {
             return false;
         }
 
@@ -1845,18 +1843,9 @@ public class Select extends Query {
         return sort;
     }
 
-    /**
-     * Returns parent select, or null.
-     *
-     * @return parent select, or null
-     */
-    public Select getParentSelect() {
-        return parentSelect;
-    }
-
     @Override
     public boolean isConstantQuery() {
-        if (!super.isConstantQuery() || distinctExpressions != null || condition != null || isGroupQuery
+        if (!super.isConstantQuery() || distinctExpressions != null || where != null || isGroupQuery
                 || isWindowQuery || !isNoFromClause()) {
             return false;
         }
@@ -1870,7 +1859,7 @@ public class Select extends Query {
 
     @Override
     public Expression getIfSingleRow() {
-        if (offsetExpr != null || fetchExpr != null || condition != null || isGroupQuery || isWindowQuery
+        if (offsetExpr != null || fetchExpr != null || where != null || isGroupQuery || isWindowQuery
                 || !isNoFromClause()) {
             return null;
         }

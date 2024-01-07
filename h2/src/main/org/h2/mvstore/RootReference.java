@@ -140,8 +140,6 @@ public final class RootReference<K, V> {
     }
 
     /**
-     * Try to lock.
-     *
      * @param attemptCounter the number of attempts so far
      * @return the new, locked, root reference, or null if not successful
      */
