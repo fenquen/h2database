@@ -113,7 +113,7 @@ public class TestRandomMapOps extends TestBase {
                 break;
             case 6:
                 log(op, k, v, "s.compact(90, 1024)");
-                mvStore.compact(90, 1024);
+                mvStore.rewrite(90, 1024);
                 break;
             case 7:
                 if (op % 64 == 0) {
@@ -142,7 +142,7 @@ public class TestRandomMapOps extends TestBase {
                 log(op, k, v, "s.commit()");
                 mvStore.commit();
                 log(op, k, v, "s.compactMoveChunks()");
-                mvStore.compactMoveChunks();
+                mvStore. moveChunks(100, Long.MAX_VALUE);;
                 break;
             case 11: {
                 int rangeSize = r.nextInt(2 * keysPerPage);

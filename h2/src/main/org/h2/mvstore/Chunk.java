@@ -36,9 +36,8 @@ public final class Chunk {
     static final int MAX_HEADER_LENGTH = 1024;
 
     /**
-     * The length of the chunk footer. The longest footer is:
-     * chunk:ffffffff,block:ffffffffffffffff,
-     * version:ffffffffffffffff,fletcher:ffffffff
+     * The length of the chunk footer. The longest footer is <br>
+     * chunk:ffffffff,block:ffffffffffffffff,version:ffffffffffffffff,fletcher:ffffffff
      */
     static final int FOOTER_LENGTH = 128;
 
@@ -127,14 +126,14 @@ public final class Chunk {
     /**
      * When this chunk was created, in milliseconds after the store was created.
      */
-    public long time;
+    public long creationTime;
 
     /**
      * When this chunk was no longer needed, in milliseconds after the store was
      * created. After this, the chunk is kept alive a bit longer (in case it is
      * referenced in older versions).
      */
-    public long unused;
+    public long noLongerNeededTime;
 
     /**
      * Version of the store at which chunk become unused and therefore can be
@@ -150,7 +149,7 @@ public final class Chunk {
     /**
      * The predicted position of the next chunk.
      */
-    public long next;
+    public long nextChunkPosition;
 
     /**
      * Number of live pinned pages.
@@ -179,10 +178,10 @@ public final class Chunk {
             maxLen = DataUtils.readHexLong(map, ATTR_MAX, 0);
             maxLenLive = DataUtils.readHexLong(map, ATTR_LIVE_MAX, maxLen);
             layoutRootPos = DataUtils.readHexLong(map, ATTR_ROOT, 0);
-            time = DataUtils.readHexLong(map, ATTR_TIME, 0);
-            unused = DataUtils.readHexLong(map, ATTR_UNUSED, 0);
+            creationTime = DataUtils.readHexLong(map, ATTR_TIME, 0);
+            noLongerNeededTime = DataUtils.readHexLong(map, ATTR_UNUSED, 0);
             unusedAtVersion = DataUtils.readHexLong(map, ATTR_UNUSED_AT_VERSION, 0);
-            next = DataUtils.readHexLong(map, ATTR_NEXT, 0);
+            nextChunkPosition = DataUtils.readHexLong(map, ATTR_NEXT, 0);
             pinCount = DataUtils.readHexInt(map, ATTR_PIN_COUNT, 0);
             tocPos = DataUtils.readHexInt(map, ATTR_TOC, 0);
 
@@ -208,28 +207,29 @@ public final class Chunk {
     /**
      * Read the header from the byte buffer.
      *
-     * @param buff  the source buffer
+     * @param byteBuffer  the source buffer
      * @param start the start of the chunk in the file
      * @return the chunk
      */
-    static Chunk readChunkHeader(ByteBuffer buff, long start) {
-        int pos = buff.position();
-        byte[] data = new byte[Math.min(buff.remaining(), MAX_HEADER_LENGTH)];
-        buff.get(data);
+    static Chunk readChunkHeader(ByteBuffer byteBuffer, long start) {
+        int pos = byteBuffer.position();
+        byte[] data = new byte[Math.min(byteBuffer.remaining(), MAX_HEADER_LENGTH)];
+        byteBuffer.get(data);
         try {
             for (int i = 0; i < data.length; i++) {
                 if (data[i] == '\n') {
                     // set the position to the start of the first page
-                    buff.position(pos + i + 1);
+                    byteBuffer.position(pos + i + 1);
                     String s = new String(data, 0, i, StandardCharsets.ISO_8859_1).trim();
                     return fromString(s);
                 }
             }
         } catch (Exception e) {
             // there could be various reasons
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "File corrupt reading chunk at position {0}", start, e);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "file corrupt reading chunk at position {0}", start, e);
         }
-        throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "File corrupt reading chunk at position {0}", start);
+
+        throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "file corrupt reading chunk at position {0}", start);
     }
 
     /**
@@ -271,11 +271,15 @@ public final class Chunk {
      */
     int getFillRate() {
         assert maxLenLive <= maxLen : maxLenLive + " > " + maxLen;
+
         if (maxLenLive <= 0) {
             return 0;
-        } else if (maxLenLive == maxLen) {
+        }
+
+        if (maxLenLive == maxLen) {
             return 100;
         }
+
         return 1 + (int) (98 * maxLenLive / maxLen);
     }
 
@@ -310,16 +314,16 @@ public final class Chunk {
         DataUtils.appendMap(stringBuilder, ATTR_MAP, mapId);
         DataUtils.appendMap(stringBuilder, ATTR_MAX, maxLen);
 
-        if (next != 0) {
-            DataUtils.appendMap(stringBuilder, ATTR_NEXT, next);
+        if (nextChunkPosition != 0) {
+            DataUtils.appendMap(stringBuilder, ATTR_NEXT, nextChunkPosition);
         }
 
         DataUtils.appendMap(stringBuilder, ATTR_PAGES, pageCount);
         DataUtils.appendMap(stringBuilder, ATTR_ROOT, layoutRootPos);
-        DataUtils.appendMap(stringBuilder, ATTR_TIME, time);
+        DataUtils.appendMap(stringBuilder, ATTR_TIME, creationTime);
 
-        if (unused != 0) {
-            DataUtils.appendMap(stringBuilder, ATTR_UNUSED, unused);
+        if (noLongerNeededTime != 0) {
+            DataUtils.appendMap(stringBuilder, ATTR_UNUSED, noLongerNeededTime);
         }
 
         if (unusedAtVersion != 0) {
@@ -432,16 +436,16 @@ public final class Chunk {
         }
     }
 
-    long[] readToC(FileStore fileStore) {
+    long[] readToc(FileStore fileStore) {
         assert isSaved() : this;
         assert tocPos > 0;
+
         while (true) {
             long originalBlock = startBlockNumInFile;
             try {
                 long filePos = originalBlock * MVStore.BLOCK_SIZE + tocPos;
-                int length = pageCount * 8;
                 long[] toc = new long[pageCount];
-                fileStore.readFully(filePos, length).asLongBuffer().get(toc);
+                fileStore.readFully(filePos, pageCount * 8).asLongBuffer().get(toc);
                 if (originalBlock == startBlockNumInFile) {
                     return toc;
                 }
@@ -477,29 +481,35 @@ public final class Chunk {
      * Modifies internal state to reflect the fact that one the pages within
      * this chunk was removed from the map.
      *
-     * @param pageNo     sequential page number within the chunk
-     * @param pageLength on disk of the removed page
-     * @param pinned     whether removed page was pinned
-     * @param now        is a moment in time (since creation of the store), when
-     *                   removal is recorded, and retention period starts
-     * @param version    at which page was removed
+     * @param pageNo                       sequential page number within the chunk
+     * @param pageLength                   on disk of the removed page
+     * @param pinned                       whether removed page was pinned
+     * @param durationSinceMvStoreCreation is a moment in time (since creation of the store), when
+     *                                     removal is recorded, and retention period starts
+     * @param version                      at which page was removed
      * @return true if all of the pages, this chunk contains, were already
      * removed, and false otherwise
      */
-    boolean accountForRemovedPage(int pageNo, int pageLength, boolean pinned, long now, long version) {
+    boolean accountForRemovedPage(int pageNo,
+                                  int pageLength,
+                                  boolean pinned,
+                                  long durationSinceMvStoreCreation,
+                                  long version) {
         assert isSaved() : this;
+
         // legacy chunks do not have a table of content,
         // therefore pageNo is not valid, skip
         if (tocPos > 0) {
             assert pageNo >= 0 && pageNo < pageCount : pageNo + " // " + pageCount;
             assert !occupancy.get(pageNo) : pageNo + " " + this + " " + occupancy;
-            assert pageCount - pageCountLive == occupancy.cardinality()
-                    : pageCount + " - " + pageCountLive + " <> " + occupancy.cardinality() + " : " + occupancy;
+            assert pageCount - pageCountLive == occupancy.cardinality() : pageCount + " - " + pageCountLive + " <> " + occupancy.cardinality() + " : " + occupancy;
+
             occupancy.set(pageNo);
         }
 
         maxLenLive -= pageLength;
         pageCountLive--;
+
         if (pinned) {
             pinCount--;
         }
@@ -515,9 +525,10 @@ public final class Chunk {
         assert (pageCountLive == 0) == (maxLenLive == 0) : this;
 
         if (!isLive()) {
-            unused = now;
+            noLongerNeededTime = durationSinceMvStoreCreation;
             return true;
         }
+
         return false;
     }
 

@@ -19,7 +19,7 @@ public class FreeSpaceBitSet {
     /**
      * The first usable block.
      */
-    private final int firstFreeBlock;
+    private final int firstFreeBlockNum;
 
     /**
      * The block size in bytes.
@@ -40,11 +40,11 @@ public class FreeSpaceBitSet {
     /**
      * Create a new free space map.
      *
-     * @param firstFreeBlock the first free block
-     * @param blockSize      the block size
+     * @param firstFreeBlockNum the first free block
+     * @param blockSize         the block size
      */
-    public FreeSpaceBitSet(int firstFreeBlock, int blockSize) {
-        this.firstFreeBlock = firstFreeBlock;
+    public FreeSpaceBitSet(int firstFreeBlockNum, int blockSize) {
+        this.firstFreeBlockNum = firstFreeBlockNum;
         this.blockSize = blockSize;
         clear();
     }
@@ -54,7 +54,7 @@ public class FreeSpaceBitSet {
      */
     public void clear() {
         bitSet.clear();
-        bitSet.set(0, firstFreeBlock);
+        bitSet.set(0, firstFreeBlockNum);
     }
 
     /**
@@ -122,7 +122,7 @@ public class FreeSpaceBitSet {
      * @param blocks       the number of blocks to allocate
      * @param reservedLow  start block index of the reserved area (inclusive)
      * @param reservedHigh end block index of the reserved area (exclusive),
-     *                     special value -1 means beginning of the infinite free area
+     *                     special value -1 means beginning of the last free area
      * @return the starting block index
      */
     long predictAllocation(int blocks, long reservedLow, long reservedHigh) {
@@ -135,33 +135,41 @@ public class FreeSpaceBitSet {
 
     private int allocate(int blocks, int reservedLow, int reservedHigh, boolean allocate) {
         int freeBlocksTotal = 0;
+
         for (int i = 0; ; ) {
             int start = bitSet.nextClearBit(i);
             int end = bitSet.nextSetBit(start + 1);
+
             int freeBlocks = end - start;
+
             if (end < 0 || freeBlocks >= blocks) {
                 if ((reservedHigh < 0 || start < reservedHigh) && start + blocks > reservedLow) { // overlap detected
                     if (reservedHigh < 0) {
-                        start = getAfterLastBlock();
+                        start = getLastFreeBlockNum();
                         end = -1;
                     } else {
                         i = reservedHigh;
                         continue;
                     }
                 }
-                assert bitSet.nextSetBit(start) == -1 || bitSet.nextSetBit(start) >= start + blocks :
-                        "Double alloc: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this;
+
+                assert bitSet.nextSetBit(start) == -1 || bitSet.nextSetBit(start) >= start + blocks : "double alloc: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this;
+
                 if (allocate) {
                     bitSet.set(start, start + blocks);
                 } else {
                     failureFlags <<= 1;
+
                     if (end < 0 && freeBlocksTotal > 4 * blocks) {
                         failureFlags |= 1;
                     }
                 }
+
                 return start;
             }
+
             freeBlocksTotal += freeBlocks;
+
             i = end;
         }
     }
@@ -177,9 +185,7 @@ public class FreeSpaceBitSet {
         int blocks = getBlockCount(length);
         // this is not an assert because we get called during file opening
         if (bitSet.nextSetBit(start) != -1 && bitSet.nextSetBit(start) < start + blocks) {
-            throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT,
-                    "Double mark: " + Integer.toHexString(start) +
-                            "/" + Integer.toHexString(blocks) + " " + this);
+            throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "double mark: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this);
         }
         bitSet.set(start, start + blocks);
     }
@@ -193,8 +199,7 @@ public class FreeSpaceBitSet {
     public void free(long pos, int length) {
         int start = getBlock(pos);
         int blocks = getBlockCount(length);
-        assert bitSet.nextClearBit(start) >= start + blocks :
-                "Double free: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this;
+        assert bitSet.nextClearBit(start) >= start + blocks : "double free: " + Integer.toHexString(start) + "/" + Integer.toHexString(blocks) + " " + this;
         bitSet.clear(start, start + blocks);
     }
 
@@ -246,60 +251,54 @@ public class FreeSpaceBitSet {
             usedBlocks = bitSet.cardinality();
         } while (totalBlocks != bitSet.length() || usedBlocks > totalBlocks);
 
-        usedBlocks -= firstFreeBlock + vacatedBlocks;
-        totalBlocks -= firstFreeBlock;
+        usedBlocks -= firstFreeBlockNum + vacatedBlocks;
+        totalBlocks -= firstFreeBlockNum;
 
         return usedBlocks == 0 ? 0 : (int) ((100L * usedBlocks + totalBlocks - 1) / totalBlocks);
     }
 
     /**
      * Get the position of the first free space.
-     *
-     * @return the position.
      */
-    long getFirstFree() {
+    long getFirstFreePosition() {
         return getPos(bitSet.nextClearBit(0));
     }
 
     /**
      * Get the position of the last (infinite) free space.
-     *
-     * @return the position.
      */
-    long getLastFree() {
-        return getPos(getAfterLastBlock());
+    long getLastFreePosition() {
+        return getPos(getLastFreeBlockNum());
     }
 
     /**
      * Get the index of the first block after last occupied one.
      * It marks the beginning of the last (infinite) free space.
-     *
-     * @return block index
      */
-    int getAfterLastBlock() {
+    int getLastFreeBlockNum() {
         return bitSet.previousSetBit(bitSet.size() - 1) + 1;
     }
 
     /**
      * Calculates relative "priority" for chunk to be moved.
      *
-     * @param block where chunk starts
+     * @param startBlockNumInFile where chunk starts
      * @return priority, bigger number indicate that chunk need to be moved sooner
      */
-    int getMovePriority(int block) {
+    int getMovePriority(int startBlockNumInFile) {
         // The most desirable chunks to move are the ones sitting within
         // a relatively short span of occupied blocks which is surrounded
         // from both sides by relatively long free spans
-        int prevEnd = bitSet.previousClearBit(block);
+        int prevEnd = bitSet.previousClearBit(startBlockNumInFile);
         int freeSize;
         if (prevEnd < 0) {
-            prevEnd = firstFreeBlock;
+            prevEnd = firstFreeBlockNum;
             freeSize = 0;
         } else {
             freeSize = prevEnd - bitSet.previousSetBit(prevEnd);
         }
 
-        int nextStart = bitSet.nextClearBit(block);
+        int nextStart = bitSet.nextClearBit(startBlockNumInFile);
         int nextEnd = bitSet.nextSetBit(nextStart);
         if (nextEnd >= 0) {
             freeSize += nextEnd - nextStart;

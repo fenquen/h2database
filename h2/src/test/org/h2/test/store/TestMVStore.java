@@ -487,7 +487,7 @@ public class TestMVStore extends TestBase {
             s.commit();
         }
         long sizeOld = s.getFileStore().size();
-        s.compactMoveChunks();
+        s. moveChunks(100, Long.MAX_VALUE);;
         s.close();
         long sizeNew = s.getFileStore().size();
         assertTrue("old: " + sizeOld + " new: " + sizeNew, sizeNew < sizeOld);
@@ -897,7 +897,7 @@ public class TestMVStore extends TestBase {
                 map = s.openMap("test" + i);
                 s.removeMap(map);
                 s.commit();
-                s.compact(100, 1);
+                s.rewrite(100, 1);
                 if (fs.getFileChannel().size() <= size) {
                     break;
                 }
@@ -1366,9 +1366,9 @@ public class TestMVStore extends TestBase {
                     s.commit();
                 }
             }
-            assertTrue(s.compact(100, 50 * 1024));
+            assertTrue(s.rewrite(100, 50 * 1024));
             // compaction alone will not guarantee file size reduction
-            s.compactMoveChunks();
+            s. moveChunks(100, Long.MAX_VALUE);;
         }
         long len2 = FileUtils.size(fileName);
         assertTrue("len2: " + len2 + " len: " + len, len2 < len);
@@ -1691,8 +1691,8 @@ public class TestMVStore extends TestBase {
 
             Map<String, String> layout = s.getLayoutMap();
             int chunkCount1 = getChunkCount(layout);
-            s.compact(80, 1);
-            s.compact(80, 1);
+            s.rewrite(80, 1);
+            s.rewrite(80, 1);
 
             int chunkCount2 = getChunkCount(layout);
             assertTrue(chunkCount2 >= chunkCount1);
@@ -1700,13 +1700,13 @@ public class TestMVStore extends TestBase {
             MVMap<Integer, String> m = s.openMap("data");
             for (int i = 0; i < 10; i++) {
                 sleep(1);
-                boolean result = s.compact(50, 50 * 1024);
+                boolean result = s.rewrite(50, 50 * 1024);
                 s.commit();
                 if (!result) {
                     break;
                 }
             }
-            assertFalse(s.compact(50, 1024));
+            assertFalse(s.rewrite(50, 1024));
 
             int chunkCount3 = getChunkCount(layout);
 
@@ -1744,8 +1744,8 @@ public class TestMVStore extends TestBase {
                 }
                 trace("Before - fill rate: " + s.getFillRate() + "%, chunks fill rate: "
                         + s.getChunksFillRate() + ", len: " + FileUtils.size(fileName));
-                s.compact(80, 2048);
-                s.compactMoveChunks();
+                s.rewrite(80, 2048);
+                s. moveChunks(100, Long.MAX_VALUE);;
                 trace("After  - fill rate: " + s.getFillRate() + "%, chunks fill rate: "
                         + s.getChunksFillRate() + ", len: " + FileUtils.size(fileName));
             }
@@ -1765,14 +1765,14 @@ public class TestMVStore extends TestBase {
             for (int i = 0; i < 100; i++) {
                 m.remove(i);
             }
-            s.compact(80, 1024);
+            s.rewrite(80, 1024);
         }
 
         // len = FileUtils.size(fileName);
         // System.out.println("len1: " + len);
         try (MVStore s = openStore(fileName)) {
             MVMap<Integer, String> m = s.openMap("data");
-            s.compact(80, 1024);
+            s.rewrite(80, 1024);
         }
         // len = FileUtils.size(fileName);
         // System.out.println("len2: " + len);

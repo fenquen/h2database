@@ -119,7 +119,7 @@ public class TestMVStoreConcurrent extends TestMVStore {
                 public void call() {
                     int i = 0;
                     while (!stop) {
-                        s.compact(100, 1024 * 1024);
+                        s.rewrite(100, 1024 * 1024);
                         MVStore.TxCounter token = s.registerVersionUsage();
                         try {
                             dataMap.put(i % 1000, i * 10);
@@ -133,7 +133,7 @@ public class TestMVStoreConcurrent extends TestMVStore {
             };
             task.execute();
             for (int i = 0; i < 1000 && !task.isFinished(); i++) {
-                s.compact(100, 1024 * 1024);
+                s.rewrite(100, 1024 * 1024);
                 MVStore.TxCounter token = s.registerVersionUsage();
                 try {
                     dataMap.put(i % 1000, i * 10);
@@ -214,7 +214,7 @@ public class TestMVStoreConcurrent extends TestMVStore {
                 public void call() {
                     latch.countDown();
                     while (!stop) {
-                        s.compact(100, 1024 * 1024);
+                        s.rewrite(100, 1024 * 1024);
                     }
                 }
             };
@@ -296,7 +296,7 @@ public class TestMVStoreConcurrent extends TestMVStore {
                 @Override
                 public void call() {
                     while (!stop) {
-                        s.compact(100, 1024 * 1024);
+                        s.rewrite(100, 1024 * 1024);
                     }
                 }
             };
@@ -305,7 +305,7 @@ public class TestMVStoreConcurrent extends TestMVStore {
                 @Override
                 public void call() {
                     while (!stop) {
-                        s.compact(100, 1024 * 1024);
+                        s.rewrite(100, 1024 * 1024);
                     }
                 }
             };

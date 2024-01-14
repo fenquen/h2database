@@ -1596,7 +1596,7 @@ public class Parser {
     private MergeUsing parseMergeUsing(TableFilter targetTableFilter, int start) {
         MergeUsing command = new MergeUsing(sessionLocal, targetTableFilter);
         currentPrepared = command;
-        command.setSourceTableFilter(readTopTableFilter());
+        command.setSourceTableFilter(readTableFilter());
         read(ON);
         Expression condition = readExpression();
         command.setOnCondition(condition);
@@ -1834,7 +1834,7 @@ public class Parser {
             }
 
             // Parenthesized joined table
-            TableFilter tableFilter = readTopTableFilter();
+            TableFilter tableFilter = readTableFilter();
             read(CLOSE_PAREN);
             return readCorrelation(tableFilter);
         } else if (readIf(VALUES)) {
@@ -2392,7 +2392,7 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readTopTableFilter() {
+    private TableFilter readTableFilter() {
         for (TableFilter top, last = top = readTablePrimary(), join; ; last = join) {
             switch (currentTokenType) {
                 case RIGHT: {
@@ -2400,7 +2400,7 @@ public class Parser {
                     readIf("OUTER");
                     read(JOIN);
                     // the right hand side is the 'inner' table usually
-                    join = readTopTableFilter();
+                    join = readTableFilter();
                     Expression on = readJoinSpecification(top, join, true);
                     addJoin(join, top, true, on);
                     top = join;
@@ -2410,7 +2410,7 @@ public class Parser {
                     read();
                     readIf("OUTER");
                     read(JOIN);
-                    join = readTopTableFilter();
+                    join = readTableFilter();
                     Expression on = readJoinSpecification(top, join, false);
                     addJoin(top, join, true, on);
                     break;
@@ -2421,14 +2421,14 @@ public class Parser {
                 case INNER: {
                     read();
                     read(JOIN);
-                    join = readTopTableFilter();
+                    join = readTableFilter();
                     Expression on = readJoinSpecification(top, join, false);
                     addJoin(top, join, false, on);
                     break;
                 }
                 case JOIN: {
                     read();
-                    join = readTopTableFilter();
+                    join = readTableFilter();
                     Expression on = readJoinSpecification(top, join, false);
                     addJoin(top, join, false, on);
                     break;
@@ -2850,20 +2850,20 @@ public class Parser {
     }
 
     private void parseSelectFrom(Select select) {
-        // 循环 topTableFilter
+        // 循环 tableFilter
         do {
-            TableFilter topTableFilter = readTopTableFilter();
-            select.addTableFilter(topTableFilter, true);
+            TableFilter tableFilter = readTableFilter();
+            select.addTableFilter(tableFilter, true);
             boolean isOuter = false;
 
-            // 循环当前 topTableFilter 的 join
+            // 循环当前 tableFilter 的 join
             for (; ; ) {
-                TableFilter nestedJoin = topTableFilter.getNestedJoin();
+                TableFilter nestedJoin = tableFilter.getNestedJoin();
                 if (nestedJoin != null) {
                     nestedJoin.visit(tableFilter0 -> select.addTableFilter(tableFilter0, false));
                 }
 
-                TableFilter join = topTableFilter.join;
+                TableFilter join = tableFilter.join;
                 if (join == null) {
                     break;
                 }
@@ -2880,12 +2880,12 @@ public class Parser {
                     }
 
                     join.removeJoinCondition();
-                    topTableFilter.removeJoin();
+                    tableFilter.removeJoin();
 
                     select.addTableFilter(join, true);
                 }
 
-                topTableFilter = join;
+                tableFilter = join;
             }
         } while (readIf(COMMA)); // 逗号的分隔的表
     }

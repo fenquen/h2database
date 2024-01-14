@@ -695,19 +695,26 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     }
 
     final boolean rewritePage(long pagePos) {
-        Page<K, V> p = readPage(pagePos);
-        if (p.getKeyCount() == 0) {
+        Page<K, V> page = readPage(pagePos);
+
+        if (page.getKeyCount() == 0) {
             return true;
         }
-        assert p.isSaved();
-        K key = p.getKey(0);
+
+        assert page.isSaved();
+
+        K key = page.getKey(0);
+
         if (!isClosed()) {
-            RewriteDecisionMaker<V> decisionMaker = new RewriteDecisionMaker<>(p.getPosition());
-            V result = operate(key, null, decisionMaker);
-            boolean res = decisionMaker.getDecision() != Decision.ABORT;
+            RewriteDecisionMaker<V> rewriteDecisionMaker = new RewriteDecisionMaker<>(page.position);
+            V result = operate(key, null, rewriteDecisionMaker);
+            boolean res = rewriteDecisionMaker.getDecision() != Decision.ABORT;
+
             assert !res || result != null;
+
             return res;
         }
+
         return false;
     }
 
@@ -1457,6 +1464,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     unlockRoot(appendCounter);
                 }
             }
+
             if (useRegularRemove) {
                 Page<K, V> lastLeaf = rootReference.rootPage.getAppendCursorPos(null).page;
                 assert lastLeaf.isLeaf();
@@ -1816,7 +1824,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
             Page<K, V> rootPage = rootReference.rootPage;
             long version = rootReference.version;
-            CursorPos<K, V> tip;
+
 
             unsavedMemoryHolder.value = 0;
 
@@ -1829,7 +1837,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
                 Page<K, V> page = cursorPos.page;
                 int index = cursorPos.index;
-                tip = cursorPos;
+                CursorPos<K, V> tip = cursorPos;
 
                 cursorPos = cursorPos.parent;
 
@@ -1845,6 +1853,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                             decisionMaker.reset();
                             continue;
                         }
+
                         return oldValue;
                     case REMOVE: {
                         if (0 > index) {
@@ -2166,17 +2175,20 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         @Override
         public Decision decide(V existingValue, V providedValue, CursorPos<?, ?> tip) {
             assert decision == null;
+
             decision = Decision.ABORT;
+
             if (!DataUtils.isLeafPosition(pagePos)) {
                 while ((tip = tip.parent) != null) {
-                    if (tip.page.getPosition() == pagePos) {
+                    if (tip.page.position == pagePos) {
                         decision = decide(existingValue, providedValue);
                         break;
                     }
                 }
-            } else if (tip.page.getPosition() == pagePos) {
+            } else if (tip.page.position == pagePos) {
                 decision = decide(existingValue, providedValue);
             }
+
             return decision;
         }
 

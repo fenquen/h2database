@@ -89,7 +89,7 @@ public abstract class Page<K, V> implements Cloneable {
      * but can be concurrently marked as removed
      */
     @SuppressWarnings("rawtypes")
-    private static final AtomicLongFieldUpdater<Page> posUpdater = AtomicLongFieldUpdater.newUpdater(Page.class, "position");
+    private static final AtomicLongFieldUpdater<Page> positionUpdater = AtomicLongFieldUpdater.newUpdater(Page.class, "position");
 
     /**
      * The estimated number of bytes used per child entry.
@@ -656,14 +656,15 @@ public abstract class Page<K, V> implements Cloneable {
      */
     private boolean markAsRemoved() {
         assert getTotalCount() > 0 : this;
-        long pagePos;
         do {
-            pagePos = position;
+            long pagePos = position;
+
             if (DataUtils.isPageSaved(pagePos)) {
                 return false;
             }
+
             assert !DataUtils.isPageRemoved(pagePos);
-        } while (!posUpdater.compareAndSet(this, 0L, 1L));
+        } while (!positionUpdater.compareAndSet(this, 0L, 1L));
         return true;
     }
 
@@ -751,7 +752,7 @@ public abstract class Page<K, V> implements Cloneable {
         long pagePos = DataUtils.getPagePos(chunk.id, tocElement);
 
         boolean isDeleted = isRemoved();
-        while (!posUpdater.compareAndSet(this, isDeleted ? 1L : 0L, pagePos)) {
+        while (!positionUpdater.compareAndSet(this, isDeleted ? 1L : 0L, pagePos)) {
             isDeleted = isRemoved();
         }
 
@@ -897,10 +898,8 @@ public abstract class Page<K, V> implements Cloneable {
      */
     public final int removePage(long version) {
         if (isPersistent() && getTotalCount() > 0) {
-            MVStore store = mvMap.mvStore;
-            if (!markAsRemoved()) { // only if it has been saved already
-                long pagePos = position;
-                store.accountForRemovedPage(pagePos, version, mvMap.isSingleWriter(), pageNo);
+            if (!markAsRemoved()) { // it has been saved already
+                mvMap.mvStore.accountForRemovedPage(position, version, mvMap.isSingleWriter(), pageNo);
             } else {
                 return -memory;
             }

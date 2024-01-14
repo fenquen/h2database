@@ -57,13 +57,13 @@ public class FileStore {
     /**
      * The file size (cached).
      */
-    protected long fileSize;
+    public long fileSize;
 
     /**
      * The free spaces between the chunks. The first block to use is block 2
      * (the first two blocks are the store header).
      */
-    protected final FreeSpaceBitSet freeSpaceBitSet = new FreeSpaceBitSet(2, MVStore.BLOCK_SIZE);
+    public final FreeSpaceBitSet freeSpaceBitSet = new FreeSpaceBitSet(2, MVStore.BLOCK_SIZE);
 
 
     private FileChannel fileChannel;
@@ -248,10 +248,7 @@ public class FileStore {
                 return;
             } catch (IOException e) {
                 if (++attemptCount == 10) {
-                    throw DataUtils.newMVStoreException(
-                            DataUtils.ERROR_WRITING_FAILED,
-                            "Could not truncate file {0} to size {1}",
-                            fileName, size, e);
+                    throw DataUtils.newMVStoreException(DataUtils.ERROR_WRITING_FAILED, "could not truncate file {0} to size {1}", fileName, size, e);
                 }
                 System.gc();
                 Thread.yield();
@@ -345,19 +342,6 @@ public class FileStore {
     }
 
     /**
-     * Allocate a number of blocks and mark them as used.
-     *
-     * @param length       the number of bytes to allocate
-     * @param reservedLow  start block index of the reserved area (inclusive)
-     * @param reservedHigh end block index of the reserved area (exclusive),
-     *                     special value -1 means beginning of the infinite free area
-     * @return the start position in bytes
-     */
-    long allocate(int length, long reservedLow, long reservedHigh) {
-        return freeSpaceBitSet.allocate(length, reservedLow, reservedHigh);
-    }
-
-    /**
      * Calculate starting position of the prospective allocation.
      *
      * @param blocks       the number of blocks to allocate
@@ -400,26 +384,8 @@ public class FileStore {
         return freeSpaceBitSet.getProjectedFillRate(vacatedBlocks);
     }
 
-    long getFirstFree() {
-        return freeSpaceBitSet.getFirstFree();
-    }
-
     long getFileLengthInUse() {
-        return freeSpaceBitSet.getLastFree();
-    }
-
-    /**
-     * Calculates relative "priority" for chunk to be moved.
-     *
-     * @param block where chunk starts
-     * @return priority, bigger number indicate that chunk need to be moved sooner
-     */
-    int getMovePriority(int block) {
-        return freeSpaceBitSet.getMovePriority(block);
-    }
-
-    long getAfterLastBlock() {
-        return freeSpaceBitSet.getAfterLastBlock();
+        return freeSpaceBitSet.getLastFreePosition();
     }
 
     /**

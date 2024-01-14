@@ -89,11 +89,11 @@ public class TestReorderWrites extends TestBase {
                         switch (r.nextInt(10)) {
                         case 0:
                             log("op compact");
-                            store.compact(100, 10 * 1024);
+                            store.rewrite(100, 10 * 1024);
                             break;
                         case 1:
                             log("op compactMoveChunks");
-                            store.compactMoveChunks();
+                            store. moveChunks(100, Long.MAX_VALUE);;
                             log("op compactMoveChunks done");
                             break;
                         }

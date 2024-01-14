@@ -238,11 +238,11 @@ public final class Store {
      * Store all pending changes.
      */
     public void flush() {
-        FileStore s = mvStore.getFileStore();
-        if (s == null || s.isReadOnly()) {
+        if (mvStore.fileStore == null || mvStore.fileStore.isReadOnly()) {
             return;
         }
-        if (!mvStore.compact(50, 4 * 1024 * 1024)) {
+
+        if (!mvStore.rewrite(50, 4 * 1024 * 1024)) {
             mvStore.commit();
         }
     }
@@ -330,19 +330,6 @@ public final class Store {
     public void sync() {
         flush();
         mvStore.sync();
-    }
-
-    /**
-     * Compact the database file, that is, compact blocks that have a low
-     * fill rate, and move chunks next to each other. This will typically
-     * shrink the database file. Changes are flushed to the file, and old
-     * chunks are overwritten.
-     *
-     * @param maxCompactTime the maximum time in milliseconds to compact
-     */
-    @SuppressWarnings("unused")
-    public void compactFile(int maxCompactTime) {
-        mvStore.compactFile(maxCompactTime);
     }
 
     /**

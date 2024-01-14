@@ -30,11 +30,11 @@ public class WriteBuffer {
     /**
      * The current buffer (may be replaced if it is too small).
      */
-    private ByteBuffer buff;
+    private ByteBuffer byteBuffer;
 
     public WriteBuffer(int initialSize) {
         reuse = ByteBuffer.allocate(initialSize);
-        buff = reuse;
+        byteBuffer = reuse;
     }
 
     public WriteBuffer() {
@@ -195,7 +195,7 @@ public class WriteBuffer {
      * @return this
      */
     public WriteBuffer limit(int newLimit) {
-        ensureCapacity(newLimit - buff.position()).limit(newLimit);
+        ensureCapacity(newLimit - byteBuffer.position()).limit(newLimit);
         return this;
     }
 
@@ -205,7 +205,7 @@ public class WriteBuffer {
      * @return the capacity
      */
     public int capacity() {
-        return buff.capacity();
+        return byteBuffer.capacity();
     }
 
     /**
@@ -215,7 +215,7 @@ public class WriteBuffer {
      * @return the new position
      */
     public WriteBuffer position(int newPosition) {
-        buff.position(newPosition);
+        byteBuffer.position(newPosition);
         return this;
     }
 
@@ -225,7 +225,7 @@ public class WriteBuffer {
      * @return the limit
      */
     public int limit() {
-        return buff.limit();
+        return byteBuffer.limit();
     }
 
     /**
@@ -234,7 +234,7 @@ public class WriteBuffer {
      * @return the position
      */
     public int position() {
-        return buff.position();
+        return byteBuffer.position();
     }
 
     /**
@@ -244,7 +244,7 @@ public class WriteBuffer {
      * @return this
      */
     public WriteBuffer get(byte[] dst) {
-        buff.get(dst);
+        byteBuffer.get(dst);
         return this;
     }
 
@@ -256,7 +256,7 @@ public class WriteBuffer {
      * @return this
      */
     public WriteBuffer putInt(int index, int value) {
-        buff.putInt(index, value);
+        byteBuffer.putInt(index, value);
         return this;
     }
 
@@ -268,7 +268,7 @@ public class WriteBuffer {
      * @return this
      */
     public WriteBuffer putShort(int index, short value) {
-        buff.putShort(index, value);
+        byteBuffer.putShort(index, value);
         return this;
     }
 
@@ -278,12 +278,12 @@ public class WriteBuffer {
      * @return this
      */
     public WriteBuffer clear() {
-        if (buff.limit() > MAX_REUSE_CAPACITY) {
-            buff = reuse;
-        } else if (buff != reuse) {
-            reuse = buff;
+        if (byteBuffer.limit() > MAX_REUSE_CAPACITY) {
+            byteBuffer = reuse;
+        } else if (byteBuffer != reuse) {
+            reuse = byteBuffer;
         }
-        buff.clear();
+        byteBuffer.clear();
         return this;
     }
 
@@ -293,18 +293,18 @@ public class WriteBuffer {
      * @return the byte buffer
      */
     public ByteBuffer getBuffer() {
-        return buff;
+        return byteBuffer;
     }
 
     private ByteBuffer ensureCapacity(int len) {
-        if (buff.remaining() < len) {
+        if (byteBuffer.remaining() < len) {
             grow(len);
         }
-        return buff;
+        return byteBuffer;
     }
 
     private void grow(int additional) {
-        ByteBuffer temp = buff;
+        ByteBuffer temp = byteBuffer;
 
         int needed = additional - temp.remaining();
         // grow at least MIN_GROW
@@ -319,16 +319,16 @@ public class WriteBuffer {
         }
 
         try {
-            buff = ByteBuffer.allocate(newCapacity);
+            byteBuffer = ByteBuffer.allocate(newCapacity);
         } catch (OutOfMemoryError e) {
             throw new OutOfMemoryError("Capacity: " + newCapacity);
         }
 
         temp.flip();
-        buff.put(temp);
+        byteBuffer.put(temp);
 
         if (newCapacity <= MAX_REUSE_CAPACITY) {
-            reuse = buff;
+            reuse = byteBuffer;
         }
     }
 

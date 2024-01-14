@@ -1799,7 +1799,7 @@ public final class Database implements DataHandler, CastDataProvider {
     }
 
     public int getRetentionTime() {
-        return store.getMvStore().getRetentionTime();
+        return store.mvStore.getRetentionTime();
     }
 
     public void setRetentionTime(int value) {

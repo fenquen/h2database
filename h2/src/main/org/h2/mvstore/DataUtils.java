@@ -486,8 +486,7 @@ public final class DataUtils {
                 off += len;
             } while (src.remaining() > 0);
         } catch (IOException e) {
-            throw newMVStoreException(ERROR_WRITING_FAILED, "Writing to {0} failed; length {1} at {2}",
-                    fileChannel, src.remaining(), pos, e);
+            throw newMVStoreException(ERROR_WRITING_FAILED, "Writing to {0} failed; length {1} at {2}", fileChannel, src.remaining(), pos, e);
         }
     }
 

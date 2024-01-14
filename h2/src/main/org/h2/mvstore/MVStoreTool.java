@@ -386,7 +386,7 @@ public class MVStoreTool {
                 getPercent(maxLengthLive, maxLengthNotEmpty));
             for (Entry<Integer, Chunk> e : chunks.entrySet()) {
                 Chunk c = e.getValue();
-                long created = fileCreated + c.time;
+                long created = fileCreated + c.creationTime;
                 pw.printf("  Chunk %d: %s, %d%% used, %d blocks",
                         c.id, formatTimestamp(created, fileCreated),
                         getPercent(c.maxLenLive, c.maxLen),
@@ -394,7 +394,7 @@ public class MVStoreTool {
                         );
                 if (c.maxLenLive == 0) {
                     pw.printf(", unused: %s",
-                            formatTimestamp(fileCreated + c.unused, fileCreated));
+                            formatTimestamp(fileCreated + c.noLongerNeededTime, fileCreated));
                 }
                 pw.printf("\n");
             }

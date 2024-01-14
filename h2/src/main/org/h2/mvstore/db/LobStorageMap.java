@@ -21,6 +21,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.message.DbException;
@@ -53,8 +54,7 @@ import org.h2.value.lob.LobDataDatabase;
  * This class stores LOB objects in the database, in maps. This is the back-end
  * i.e. the server side of the LOB storage.
  */
-public final class LobStorageMap implements LobStorageInterface
-{
+public final class LobStorageMap implements LobStorageInterface {
     private static final boolean TRACE = false;
 
     private final Database database;
@@ -72,7 +72,7 @@ public final class LobStorageMap implements LobStorageInterface
     /**
      * The lob metadata map for temporary lobs. It contains the mapping from the lob id
      * (which is a long) to the stream store id (which is a byte array).
-     *
+     * <p>
      * Key: lobId (long)
      * Value: streamStoreId (byte[])
      */
@@ -83,7 +83,7 @@ public final class LobStorageMap implements LobStorageInterface
      * more entries for the given streamStoreId exist, the data is removed from
      * the stream store.
      */
-    private final MVMap<BlobReference,Value> refMap;
+    private final MVMap<BlobReference, Value> refMap;
 
     private final StreamStore streamStore;
 
@@ -91,6 +91,7 @@ public final class LobStorageMap implements LobStorageInterface
 
     /**
      * Open map used to store LOB metadata
+     *
      * @param txStore containing map
      * @return MVMap instance
      */
@@ -100,6 +101,7 @@ public final class LobStorageMap implements LobStorageInterface
 
     /**
      * Open map used to store LOB data
+     *
      * @param txStore containing map
      * @return MVMap instance
      */
@@ -159,7 +161,7 @@ public final class LobStorageMap implements LobStorageInterface
                 if (id2 != null) {
                     next = Math.max(next, id2 + 1);
                 }
-                nextLobId.set( next );
+                nextLobId.set(next);
             }
         } finally {
             mvStore.deregisterVersionUsage(txCounter);
@@ -247,7 +249,7 @@ public final class LobStorageMap implements LobStorageInterface
         tempLobMap.put(lobId, streamStoreId);
         BlobReference key = new BlobReference(streamStoreId, lobId);
         refMap.put(key, ValueNull.INSTANCE);
-        ValueBlob lob =  new ValueBlob(new LobDataDatabase(database, tableId, lobId), length);
+        ValueBlob lob = new ValueBlob(new LobDataDatabase(database, tableId, lobId), length);
         if (TRACE) {
             trace("create " + tableId + "/" + lobId);
         }
@@ -504,8 +506,7 @@ public final class LobStorageMap implements LobStorageInterface
     }
 
 
-    public static final class BlobReference implements Comparable<BlobReference>
-    {
+    public static final class BlobReference implements Comparable<BlobReference> {
         public final byte[] streamStoreId;
         public final long lobId;
 
@@ -531,7 +532,8 @@ public final class LobStorageMap implements LobStorageInterface
         public static final class Type extends BasicDataType<BlobReference> {
             public static final Type INSTANCE = new Type();
 
-            private Type() {}
+            private Type() {
+            }
 
             @Override
             public int getMemory(BlobReference blobReference) {
@@ -566,8 +568,7 @@ public final class LobStorageMap implements LobStorageInterface
         }
     }
 
-    public static final class BlobMeta
-    {
+    public static final class BlobMeta {
         /**
          * Stream identifier. It is used as a key in LOB data map.
          */
@@ -621,8 +622,7 @@ public final class LobStorageMap implements LobStorageInterface
         }
     }
 
-    private static final class LobRemovalInfo
-    {
+    private static final class LobRemovalInfo {
         final long version;
         final long lobId;
         final int mapId;

@@ -65,15 +65,12 @@ public final class CursorPos<K, V> {
     }
 
     /**
-     * Calculate the memory used by changes that are not yet stored.
-     *
-     * @param version the version
-     * @return the amount of memory
+     * calculate the memory used by changes that are not yet stored.
      */
     int processRemovalInfo(long version) {
         int unsavedMemory = 0;
-        for (CursorPos<K, V> head = this; head != null; head = head.parent) {
-            unsavedMemory += head.page.removePage(version);
+        for (CursorPos<K, V> current = this; current != null; current = current.parent) {
+            unsavedMemory += current.page.removePage(version);
         }
         return unsavedMemory;
     }
