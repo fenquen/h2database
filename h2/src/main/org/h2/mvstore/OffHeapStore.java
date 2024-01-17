@@ -126,7 +126,6 @@ public class OffHeapStore extends FileStore {
 
     @Override
     public void sync() {
-        // nothing to do
     }
 
     @Override

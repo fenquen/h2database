@@ -197,7 +197,6 @@ public final class RootReference<K, V> {
         return holdCount == 0;
     }
 
-
     private boolean canUpdate() {
         return isFree() || ownerId == Thread.currentThread().getId();
     }

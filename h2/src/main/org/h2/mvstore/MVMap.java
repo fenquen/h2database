@@ -814,11 +814,6 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
         };
     }
 
-    /**
-     * Get the map name.
-     *
-     * @return the name
-     */
     public final String getName() {
         return mvStore.getMapName(id);
     }

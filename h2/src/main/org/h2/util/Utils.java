@@ -54,9 +54,9 @@ public class Utils {
      * pattern has not been found, and the start position if the pattern is
      * empty.
      *
-     * @param bytes the byte array
+     * @param bytes   the byte array
      * @param pattern the pattern
-     * @param start the start index from where to search
+     * @param start   the start index from where to search
      * @return the index
      */
     public static int indexOf(byte[] bytes, byte[] pattern, int start) {
@@ -190,7 +190,7 @@ public class Utils {
      * </p>
      *
      * @param bytes source array
-     * @param len the number of bytes in the new array
+     * @param len   the number of bytes in the new array
      * @return the byte array
      * @throws OutOfMemoryError if the allocation was too large
      * @see Arrays#copyOf(byte[], int)
@@ -262,7 +262,7 @@ public class Utils {
         long totalGCTime = 0;
         for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
             long collectionTime = gcMXBean.getCollectionTime();
-            if(collectionTime > 0) {
+            if (collectionTime > 0) {
                 totalGCTime += collectionTime;
             }
         }
@@ -274,7 +274,7 @@ public class Utils {
         int poolCount = 0;
         for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
             long collectionCount = gcMXBean.getCollectionTime();
-            if(collectionCount > 0) {
+            if (collectionCount > 0) {
                 totalGCCount += collectionCount;
                 poolCount += gcMXBean.getMemoryPoolNames().length;
             }
@@ -309,11 +309,11 @@ public class Utils {
      * Find the top limit values using given comparator and place them as in a
      * full array sort, in descending order.
      *
-     * @param <X> the type of elements
-     * @param array the array.
+     * @param <X>           the type of elements
+     * @param array         the array.
      * @param fromInclusive the start index, inclusive
-     * @param toExclusive the end index, exclusive
-     * @param comp the comparator.
+     * @param toExclusive   the end index, exclusive
+     * @param comp          the comparator.
      */
     public static <X> void sortTopN(X[] array, int fromInclusive, int toExclusive, Comparator<? super X> comp) {
         int highInclusive = array.length - 1;
@@ -335,16 +335,16 @@ public class Utils {
      * into {@code start..end} positions. All these regions aren't fully sorted.
      * </p>
      *
-     * @param <X> the type of elements
+     * @param <X>   the type of elements
      * @param array the array to sort
-     * @param low the lower index with data, inclusive
-     * @param high the higher index with data, inclusive, {@code high > low}
-     * @param comp the comparator
+     * @param low   the lower index with data, inclusive
+     * @param high  the higher index with data, inclusive, {@code high > low}
+     * @param comp  the comparator
      * @param start the start index of requested region, inclusive
-     * @param end the end index of requested region, inclusive, {@code end >= start}
+     * @param end   the end index of requested region, inclusive, {@code end >= start}
      */
     private static <X> void partialQuickSort(X[] array, int low, int high,
-            Comparator<? super X> comp, int start, int end) {
+                                             Comparator<? super X> comp, int start, int end) {
         if (low >= start && high <= end) {
             // Don't sort blocks entirely contained in the middle region
             return;
@@ -438,13 +438,13 @@ public class Utils {
      * than the one in the Java specification, but works well for most cases).
      *
      * @param classAndMethod a string with the entire class and method name, eg.
-     *            "java.lang.System.gc"
-     * @param params the method parameters
+     *                       "java.lang.System.gc"
+     * @param params         the method parameters
      * @return the return value from this call
      * @throws Exception on failure
      */
     public static Object callStaticMethod(String classAndMethod,
-            Object... params) throws Exception {
+                                          Object... params) throws Exception {
         int lastDot = classAndMethod.lastIndexOf('.');
         String className = classAndMethod.substring(0, lastDot);
         String methodName = classAndMethod.substring(lastDot + 1);
@@ -456,9 +456,9 @@ public class Utils {
      * where the most parameter classes match exactly (this algorithm is simpler
      * than the one in the Java specification, but works well for most cases).
      *
-     * @param instance the instance on which the call is done
+     * @param instance   the instance on which the call is done
      * @param methodName a string with the method name
-     * @param params the method parameters
+     * @param params     the method parameters
      * @return the return value from this call
      * @throws Exception on failure
      */
@@ -498,7 +498,7 @@ public class Utils {
      * one in the Java specification, but works well for most cases).
      *
      * @param className a string with the entire class, eg. "java.lang.Integer"
-     * @param params the constructor parameters
+     * @param params    the constructor parameters
      * @return the newly created object
      * @throws Exception on failure
      */
@@ -574,15 +574,11 @@ public class Utils {
     /**
      * Parses the specified string to boolean value.
      *
-     * @param value
-     *            string to parse
-     * @param defaultValue
-     *            value to return if value is null or on parsing error
-     * @param throwException
-     *            throw exception on parsing error or return default value instead
+     * @param value          string to parse
+     * @param defaultValue   value to return if value is null or on parsing error
+     * @param throwException throw exception on parsing error or return default value instead
      * @return parsed or default value
-     * @throws IllegalArgumentException
-     *             on parsing error if {@code throwException} is true
+     * @throws IllegalArgumentException on parsing error if {@code throwException} is true
      */
     public static boolean parseBoolean(String value, boolean defaultValue, boolean throwException) {
         if (value == null) {
@@ -590,33 +586,33 @@ public class Utils {
         }
 
         switch (value.length()) {
-        case 1:
-            if (value.equals("1") || value.equalsIgnoreCase("t") || value.equalsIgnoreCase("y")) {
-                return true;
-            }
-            if (value.equals("0") || value.equalsIgnoreCase("f") || value.equalsIgnoreCase("n")) {
-                return false;
-            }
-            break;
-        case 2:
-            if (value.equalsIgnoreCase("no")) {
-                return false;
-            }
-            break;
-        case 3:
-            if (value.equalsIgnoreCase("yes")) {
-                return true;
-            }
-            break;
-        case 4:
-            if (value.equalsIgnoreCase("true")) {
-                return true;
-            }
-            break;
-        case 5:
-            if (value.equalsIgnoreCase("false")) {
-                return false;
-            }
+            case 1:
+                if (value.equals("1") || value.equalsIgnoreCase("t") || value.equalsIgnoreCase("y")) {
+                    return true;
+                }
+                if (value.equals("0") || value.equalsIgnoreCase("f") || value.equalsIgnoreCase("n")) {
+                    return false;
+                }
+                break;
+            case 2:
+                if (value.equalsIgnoreCase("no")) {
+                    return false;
+                }
+                break;
+            case 3:
+                if (value.equalsIgnoreCase("yes")) {
+                    return true;
+                }
+                break;
+            case 4:
+                if (value.equalsIgnoreCase("true")) {
+                    return true;
+                }
+                break;
+            case 5:
+                if (value.equalsIgnoreCase("false")) {
+                    return false;
+                }
         }
 
         if (throwException) {
@@ -630,7 +626,7 @@ public class Utils {
      * Get the system property. If the system property is not set, or if a
      * security exception occurs, the default value is returned.
      *
-     * @param key the key
+     * @param key          the key
      * @param defaultValue the default value
      * @return the value
      */
@@ -646,7 +642,7 @@ public class Utils {
      * Get the system property. If the system property is not set, or if a
      * security exception occurs, the default value is returned.
      *
-     * @param key the key
+     * @param key          the key
      * @param defaultValue the default value
      * @return the value
      */
@@ -666,7 +662,7 @@ public class Utils {
      * Get the system property. If the system property is not set, or if a
      * security exception occurs, the default value is returned.
      *
-     * @param key the key
+     * @param key          the key
      * @param defaultValue the default value
      * @return the value
      */
@@ -724,8 +720,7 @@ public class Utils {
      * Returns the current value of the high-resolution time source plus the
      * specified offset.
      *
-     * @param ms
-     *            additional offset in milliseconds
+     * @param ms additional offset in milliseconds
      * @return time in nanoseconds, never equal to 0
      * @see System#nanoTime()
      */
@@ -737,10 +732,8 @@ public class Utils {
      * Returns the current value of the high-resolution time source plus the
      * specified offset.
      *
-     * @param nanoTime
-     *            time in nanoseconds
-     * @param ms
-     *            additional offset in milliseconds
+     * @param nanoTime time in nanoseconds
+     * @param ms       additional offset in milliseconds
      * @return time in nanoseconds, never equal to 0
      * @see System#nanoTime()
      */
@@ -758,25 +751,26 @@ public class Utils {
 
     public static ThreadPoolExecutor createSingleThreadExecutor(String threadName, BlockingQueue<Runnable> workQueue) {
         return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, workQueue,
-                                        r -> {
-                                            Thread thread = new Thread(r, threadName);
-                                            thread.setDaemon(true);
-                                            return thread;
-                                        });
+                r -> {
+                    Thread thread = new Thread(r, threadName);
+                    thread.setDaemon(true);
+                    return thread;
+                });
     }
 
     /**
      * Makes sure that all currently submitted tasks are processed before this method returns.
      * It is assumed that there will be no new submissions to this executor, once this method has started.
-     * It is assumed that executor is single-threaded, and flush is done by submitting a dummy task
+     * executor 应是 single-threaded, and flush is done by submitting a dummy task
      * and waiting for its completion.
+     *
      * @param executor to flush
      */
     public static void flushExecutor(ThreadPoolExecutor executor) {
         if (executor != null) {
             try {
                 executor.submit(() -> {}).get();
-            } catch (InterruptedException ignore) {/**/
+            } catch (InterruptedException ignore) {
             } catch (RejectedExecutionException ex) {
                 shutdownExecutor(executor);
             } catch (ExecutionException e) {
@@ -809,7 +803,7 @@ public class Utils {
          *
          * @param name the binary name of the class
          * @return true if this factory can return a valid class for the
-         *         provided class name
+         * provided class name
          */
         boolean match(String name);
 
@@ -819,7 +813,7 @@ public class Utils {
          * @param name the binary name of the class
          * @return the class object
          * @throws ClassNotFoundException If the class is not handle by this
-         *             factory
+         *                                factory
          */
         Class<?> loadClass(String name)
                 throws ClassNotFoundException;

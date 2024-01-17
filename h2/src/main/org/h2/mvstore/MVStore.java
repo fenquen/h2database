@@ -385,6 +385,7 @@ public class MVStore implements AutoCloseable {
     MVStore(Map<String, Object> config) {
         recoveryMode = config.containsKey("recoveryMode");
         compressionLevel = DataUtils.getConfigIntParam(config, "compress", 0);
+
         String fileName = (String) config.get("fileName");
 
         // 这个就算是在h2中也只是在test用到
@@ -405,8 +406,10 @@ public class MVStore implements AutoCloseable {
         }
 
         int pgSplitSize = 48; // for "mem:" case it is # of keys
+
         CacheLongKeyLIRS.Config pageCacheConfig = null;
         CacheLongKeyLIRS.Config chunkCacheConfig = null;
+
         if (fileStore != null) {
             int cacheSize = DataUtils.getConfigIntParam(config, "cacheSize", 16);
             if (cacheSize > 0) {
@@ -421,9 +424,11 @@ public class MVStore implements AutoCloseable {
             chunkCacheConfig.maxMemory = 1024L * 1024L;
             pgSplitSize = 16 * 1024;
         }
+
         if (pageCacheConfig != null) {
             pageCache = new CacheLongKeyLIRS<>(pageCacheConfig);
         }
+
         if (chunkCacheConfig != null) {
             chunkTocCache = new CacheLongKeyLIRS<>(chunkCacheConfig);
         }
@@ -433,10 +438,14 @@ public class MVStore implements AutoCloseable {
         if (pageCache != null && pgSplitSize > pageCache.getMaxItemSize()) {
             pgSplitSize = (int) pageCache.getMaxItemSize();
         }
+
         pageSplitSize = pgSplitSize;
+
         keysPerPage = DataUtils.getConfigIntParam(config, "keysPerPage", 48);
+
         // todo rust略过
         backgroundExceptionHandler = (UncaughtExceptionHandler) config.get("backgroundExceptionHandler");
+
         layout = new MVMap<>(this, 0, StringDataType.INSTANCE, StringDataType.INSTANCE);
 
         if (fileStore != null) {
@@ -492,6 +501,7 @@ public class MVStore implements AutoCloseable {
             lastCommitTime = getDurationSinceCreation();
 
             meta = openMetaMap();
+
             scrubLayoutMap();
             scrubMetaMap();
 
@@ -2116,8 +2126,6 @@ public class MVStore implements AutoCloseable {
      * @return true if any chunks were moved as result of this operation, false otherwise
      */
     public boolean moveChunks(int targetFillRate, long moveSize) {
-        boolean res = false;
-
         storeLock.lock();
 
         try {
@@ -2150,9 +2158,73 @@ public class MVStore implements AutoCloseable {
 
                         List<Chunk> chunksNeedMove = findChunksNeedMove(blockNumInFile, moveSize);
 
-                        moveChunks(chunksNeedMove);
+                        if (chunksNeedMove.isEmpty()) {
+                            return true;
+                        }
 
-                        res = true;
+                        // this will ensure better recognition of the last chunk
+                        // in case of power failure, since we are going to move older chunks to the end of the file
+                        writeMVStoreHeader();
+                        sync();
+
+                        long leftmostBlockNumInFile = chunksNeedMove.get(0).startBlockNumInFile;
+
+                        long lastFreeBlockNum = getLastFreeBlockNum();
+
+                        // we need to ensure that chunks moved within the following loop
+                        // do not overlap with space just released by chunks moved before them,
+                        // hence the need to reserve this area [leftmostBlockNumInFile, lastFreeBlockNum)
+                        for (Chunk chunkNeedMove : chunksNeedMove) {
+                            moveChunk(chunkNeedMove, leftmostBlockNumInFile, lastFreeBlockNum);
+                        }
+
+                        // update the metadata (hopefully within the file)
+                        store4MoveChunk(leftmostBlockNumInFile, lastFreeBlockNum);
+                        sync();
+
+                        Chunk lastChunk = this.lastChunk;
+                        assert lastChunk != null;
+
+                        long postEvacuationBlockCount = getLastFreeBlockNum();
+
+                        boolean lastChunkIsAlreadyInside = lastChunk.startBlockNumInFile < leftmostBlockNumInFile;
+                        boolean moveLastChunkToEof = !lastChunkIsAlreadyInside;
+
+                        // move all chunks, which previously did not fit before reserved area
+                        // now we can re-use previously reserved area [leftmostBlockNumInFile, lastFreeBlockNum),
+                        // but need to reserve [lastFreeBlockNum, postEvacuationBlockCount)
+                        for (Chunk chunkNeedMove : chunksNeedMove) {
+                            if (chunkNeedMove.startBlockNumInFile >= lastFreeBlockNum && moveChunk(chunkNeedMove, lastFreeBlockNum, postEvacuationBlockCount)) {
+                                assert chunkNeedMove.startBlockNumInFile < lastFreeBlockNum;
+                                moveLastChunkToEof = true;
+                            }
+                        }
+
+                        assert postEvacuationBlockCount >= getLastFreeBlockNum();
+
+                        if (moveLastChunkToEof) {
+                            boolean moved = moveChunkInside(lastChunk, lastFreeBlockNum);
+
+                            // store a new chunk with updated metadata (hopefully within a file)
+                            store4MoveChunk(lastFreeBlockNum, postEvacuationBlockCount);
+                            sync();
+
+                            // if chunkToMove did not fit within originalBlockCount (move is
+                            // false), and since now previously reserved area
+                            // [originalBlockCount, postEvacuationBlockCount) also can be
+                            // used, lets try to move that chunk into this area, closer to
+                            // the beginning of the file
+                            long lastBoundary = moved || lastChunkIsAlreadyInside ? postEvacuationBlockCount : lastChunk.startBlockNumInFile;
+                            moved = !moved && moveChunkInside(lastChunk, lastBoundary);
+                            if (moveChunkInside(this.lastChunk, lastBoundary) || moved) {
+                                store4MoveChunk(lastBoundary, -1);
+                            }
+                        }
+
+                        shrinkFileIfPossible(0);
+                        sync();
+
+                        return true;
                     }
                 } finally {
                     saveChunkLock.unlock();
@@ -2168,7 +2240,7 @@ public class MVStore implements AutoCloseable {
             unlockAndCheckPanicCondition();
         }
 
-        return res;
+        return false;
     }
 
     private List<Chunk> findChunksNeedMove(long blockNumInFile, long moveSize) {
@@ -2212,78 +2284,6 @@ public class MVStore implements AutoCloseable {
         }
 
         return chunksNeedMove;
-    }
-
-    private void moveChunks(List<Chunk> chunksNeedMove) {
-        assert storeLock.isHeldByCurrentThread();
-        assert serializationLock.isHeldByCurrentThread();
-        assert saveChunkLock.isHeldByCurrentThread();
-
-        if (chunksNeedMove.isEmpty()) {
-            return;
-        }
-
-        // this will ensure better recognition of the last chunk
-        // in case of power failure, since we are going to move older chunks to the end of the file
-        writeMVStoreHeader();
-        sync();
-
-        long leftmostBlockNumInFile = chunksNeedMove.get(0).startBlockNumInFile;
-
-        long lastFreeBlockNum = getLastFreeBlockNum();
-
-        // we need to ensure that chunks moved within the following loop
-        // do not overlap with space just released by chunks moved before them,
-        // hence the need to reserve this area [leftmostBlockNumInFile, lastFreeBlockNum)
-        for (Chunk chunkNeedMove : chunksNeedMove) {
-            moveChunk(chunkNeedMove, leftmostBlockNumInFile, lastFreeBlockNum);
-        }
-
-        // update the metadata (hopefully within the file)
-        store4MoveChunk(leftmostBlockNumInFile, lastFreeBlockNum);
-        sync();
-
-        Chunk lastChunk = this.lastChunk;
-        assert lastChunk != null;
-
-        long postEvacuationBlockCount = getLastFreeBlockNum();
-
-        boolean lastChunkIsAlreadyInside = lastChunk.startBlockNumInFile < leftmostBlockNumInFile;
-        boolean moveLastChunkToEof = !lastChunkIsAlreadyInside;
-
-        // move all chunks, which previously did not fit before reserved area
-        // now we can re-use previously reserved area [leftmostBlockNumInFile, lastFreeBlockNum),
-        // but need to reserve [lastFreeBlockNum, postEvacuationBlockCount)
-        for (Chunk chunkNeedMove : chunksNeedMove) {
-            if (chunkNeedMove.startBlockNumInFile >= lastFreeBlockNum && moveChunk(chunkNeedMove, lastFreeBlockNum, postEvacuationBlockCount)) {
-                assert chunkNeedMove.startBlockNumInFile < lastFreeBlockNum;
-                moveLastChunkToEof = true;
-            }
-        }
-
-        assert postEvacuationBlockCount >= getLastFreeBlockNum();
-
-        if (moveLastChunkToEof) {
-            boolean moved = moveChunkInside(lastChunk, lastFreeBlockNum);
-
-            // store a new chunk with updated metadata (hopefully within a file)
-            store4MoveChunk(lastFreeBlockNum, postEvacuationBlockCount);
-            sync();
-
-            // if chunkToMove did not fit within originalBlockCount (move is
-            // false), and since now previously reserved area
-            // [originalBlockCount, postEvacuationBlockCount) also can be
-            // used, lets try to move that chunk into this area, closer to
-            // the beginning of the file
-            long lastBoundary = moved || lastChunkIsAlreadyInside ? postEvacuationBlockCount : lastChunk.startBlockNumInFile;
-            moved = !moved && moveChunkInside(lastChunk, lastBoundary);
-            if (moveChunkInside(this.lastChunk, lastBoundary) || moved) {
-                store4MoveChunk(lastBoundary, -1);
-            }
-        }
-
-        shrinkFileIfPossible(0);
-        sync();
     }
 
     private void store4MoveChunk(long reservedLow, long reservedHigh) {

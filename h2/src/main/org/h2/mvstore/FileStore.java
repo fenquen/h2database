@@ -65,7 +65,6 @@ public class FileStore {
      */
     public final FreeSpaceBitSet freeSpaceBitSet = new FreeSpaceBitSet(2, MVStore.BLOCK_SIZE);
 
-
     private FileChannel fileChannel;
 
     /**
@@ -209,9 +208,6 @@ public class FileStore {
         }
     }
 
-    /**
-     * Flush all changes.
-     */
     public void sync() {
         if (fileChannel == null) {
            return;
@@ -233,11 +229,6 @@ public class FileStore {
         return fileSize;
     }
 
-    /**
-     * Truncate the file.
-     *
-     * @param size the new file size
-     */
     public void truncate(long size) {
         int attemptCount = 0;
         while (true) {
@@ -256,26 +247,10 @@ public class FileStore {
         }
     }
 
-    /**
-     * Get the file instance in use.
-     * <p>
-     * The application may read from the file (for example for online backup),
-     * but not write to it or truncate it.
-     *
-     * @return the file
-     */
     public FileChannel getFileChannel() {
         return fileChannel;
     }
 
-    /**
-     * Get the encrypted file instance, if encryption is used.
-     * <p>
-     * The application may read from the file (for example for online backup),
-     * but not write to it or truncate it.
-     *
-     * @return the encrypted file, or null if encryption is not used
-     */
     public FileChannel getEncryptedFileChannel() {
         return encryptedFileChannel;
     }

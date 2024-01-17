@@ -138,6 +138,7 @@ public class FreeSpaceBitSet {
 
         for (int i = 0; ; ) {
             int start = bitSet.nextClearBit(i);
+            // end 小于 0 说明 start后边全是0了要么是到了当前bitset末尾 有无限大的空的
             int end = bitSet.nextSetBit(start + 1);
 
             int freeBlocks = end - start;
