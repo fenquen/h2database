@@ -1801,7 +1801,7 @@ public final class JdbcCallableStatement extends JdbcPreparedStatement implement
                 outParameters = new BitSet();
             }
             checkIndexBounds(parameterIndex);
-            ParameterInterface param = cmdInterface.getParameters().get(--parameterIndex);
+            ParameterInterface param = cmdInterface.getParameterList().get(--parameterIndex);
             if (!param.isValueSet()) {
                 param.setValue(ValueNull.INSTANCE, false);
             }

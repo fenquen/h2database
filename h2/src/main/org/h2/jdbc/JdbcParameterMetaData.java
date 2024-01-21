@@ -32,7 +32,7 @@ public final class JdbcParameterMetaData extends TraceObject implements Paramete
             CommandInterface command, int id) {
         setTrace(trace, TraceObject.PARAMETER_META_DATA, id);
         this.prep = prep;
-        this.parameters = command.getParameters();
+        this.parameters = command.getParameterList();
         this.paramCount = parameters.size();
     }
 

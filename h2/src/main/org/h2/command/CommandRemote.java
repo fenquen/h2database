@@ -112,7 +112,7 @@ public class CommandRemote implements CommandInterface {
     }
 
     @Override
-    public ArrayList<ParameterInterface> getParameters() {
+    public ArrayList<ParameterInterface> getParameterList() {
         return parameters;
     }
 
@@ -320,7 +320,7 @@ public class CommandRemote implements CommandInterface {
 
     @Override
     public String toString() {
-        return sql + Trace.formatParams(getParameters());
+        return sql + Trace.formatParams(getParameterList());
     }
 
     @Override

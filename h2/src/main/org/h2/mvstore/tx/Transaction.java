@@ -166,7 +166,8 @@ public final class Transaction {
     public RootReference<Long, Record<?, ?>>[] undoLogRootReferences;
 
     /**
-     * Map of transactional maps for this transaction
+     * 如果是READ_COMMITTED这样的不可repeatedRead时候 执行新的statement时候会调用clearSnapshot()把该map清掉<br>
+     * 如果是repeatedRead那么是不会clear掉的
      */
     private final Map<Integer, TransactionMap<?, ?>> transactionMapMvMapId_transactionMap = new HashMap<>();
 
@@ -357,6 +358,7 @@ public final class Transaction {
                 committingTxs = transactionStore.committingTransactions.get();
 
                 for (MVMap<Object, VersionedValue<Object>> mvMap : mvMaps) {
+                    // 如果不是repeatedRead话 得到新的transactionMap
                     TransactionMap<?, ?> transactionMap = openMapX(mvMap);
                     transactionMap.statementSnapshot = new Snapshot(mvMap.flushAndGetRootReference(), committingTxs);
                 }
@@ -373,15 +375,13 @@ public final class Transaction {
             // should be considered as committed.
             // Subsequent processing uses this snapshot info only.
             for (MVMap<Object, VersionedValue<Object>> mvMap : mvMaps) {
+                // 如果不是repeatedRead话 transactionMap不是原来的了上边新生成的 那么它的snapShot便是null了
                 TransactionMap<?, ?> transactionMap = openMapX(mvMap);
                 transactionMap.promoteSnapshot();
             }
         }
     }
 
-    /**
-     * Mark an exit from SQL statement execution within this transaction.
-     */
     public void markStatementEnd() {
         if (allowNonRepeatableRead()) {
             releaseSnapshot();
@@ -393,9 +393,11 @@ public final class Transaction {
     }
 
     private void markTransactionEnd() {
-        if (!allowNonRepeatableRead()) {
-            releaseSnapshot();
+        if (allowNonRepeatableRead()) {
+            return;
         }
+
+        releaseSnapshot();
     }
 
     private void releaseSnapshot() {

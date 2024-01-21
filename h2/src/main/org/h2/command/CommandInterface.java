@@ -560,7 +560,7 @@ public interface CommandInterface extends AutoCloseable {
      *
      * @return the parameters
      */
-    ArrayList<? extends ParameterInterface> getParameters();
+    ArrayList<? extends ParameterInterface> getParameterList();
 
     /**
      * Execute the query.

@@ -301,7 +301,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         try {
             debugCodeCall("clearParameters");
             checkClosed();
-            ArrayList<? extends ParameterInterface> parameters = cmdInterface.getParameters();
+            ArrayList<? extends ParameterInterface> parameters = cmdInterface.getParameterList();
             for (ParameterInterface param : parameters) {
                 // can only delete old temp files if they are not in the batch
                 param.setValue(null, batchParameters == null);
@@ -1329,7 +1329,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     }
 
     private long executeBatchElement(Value[] set, SQLException exception) {
-        ArrayList<? extends ParameterInterface> parameters = cmdInterface.getParameters();
+        ArrayList<? extends ParameterInterface> parameters = cmdInterface.getParameterList();
         for (int i = 0, l = set.length; i < l; i++) {
             parameters.get(i).setValue(set[i], false);
         }
@@ -1371,7 +1371,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
             debugCodeCall("addBatch");
             checkClosed();
             ArrayList<? extends ParameterInterface> parameters =
-                    cmdInterface.getParameters();
+                    cmdInterface.getParameterList();
             int size = parameters.size();
             Value[] set = new Value[size];
             for (int i = 0; i < size; i++) {
@@ -1411,7 +1411,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     private void setParameter(int parameterIndex, Value value) {
         checkClosed();
         parameterIndex--;
-        ArrayList<? extends ParameterInterface> parameters = cmdInterface.getParameters();
+        ArrayList<? extends ParameterInterface> parameters = cmdInterface.getParameterList();
         if (parameterIndex < 0 || parameterIndex >= parameters.size()) {
             throw DbException.getInvalidValueException("parameterIndex",
                     parameterIndex + 1);

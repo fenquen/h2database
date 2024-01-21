@@ -214,7 +214,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      */
     private ArrayList<ValueLob> temporaryLobs;
 
-    private Transaction transaction;
+    public Transaction transaction;
     private final AtomicReference<State> state = new AtomicReference<>(State.INIT);
     private long startStatement = -1;
 
@@ -1245,7 +1245,8 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         State currentState;
         while ((currentState = state.get()) != State.CLOSED &&
                 (!checkSuspended || checkSuspended(currentState)) &&
-                !state.compareAndSet(currentState, targetState)) {}
+                !state.compareAndSet(currentState, targetState)) {
+        }
         return currentState;
     }
 
@@ -1622,9 +1623,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     }
 
     /**
-     * Start a new statement within a transaction.
-     *
-     * @param command about to be started
+     * start a new statement within a transaction.
      */
     @SuppressWarnings("incomplete-switch")
     public void startStatementWithinTransaction(Command command) {
@@ -1691,20 +1690,20 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         }
     }
 
-    private static void addTableToDependencies(MVTable table,
+    private static void addTableToDependencies(MVTable mvTable,
                                                HashSet<MVMap<Object, VersionedValue<Object>>> maps,
                                                HashSet<MVTable> processed) {
-        if (!processed.add(table)) {
+        if (!processed.add(mvTable)) {
             return;
         }
 
-        addTableToDependencies(table, maps);
+        addTableToDependencies(mvTable, maps);
 
-        ArrayList<Constraint> constraints = table.getConstraints();
+        ArrayList<Constraint> constraints = mvTable.getConstraints();
         if (constraints != null) {
             for (Constraint constraint : constraints) {
                 Table ref = constraint.getTable();
-                if (ref != table && ref instanceof MVTable) {
+                if (ref != mvTable && ref instanceof MVTable) {
                     addTableToDependencies((MVTable) ref, maps, processed);
                 }
             }
@@ -1718,7 +1717,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     public void endStatement() {
         setCurrentCommand(null);
 
-        if (hasTransaction()) {
+        if (transaction != null) {
             transaction.markStatementEnd();
         }
 

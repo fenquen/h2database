@@ -270,7 +270,7 @@ public class TcpServerThread implements Runnable {
 
     private void setParameters(Command command) throws IOException {
         int len = transfer.readInt();
-        ArrayList<? extends ParameterInterface> params = command.getParameters();
+        ArrayList<? extends ParameterInterface> params = command.getParameterList();
         for (int i = 0; i < len; i++) {
             Parameter p = (Parameter) params.get(i);
             p.setValue(transfer.readValue(null));
@@ -297,7 +297,7 @@ public class TcpServerThread implements Runnable {
                     transfer.writeInt(command.getCommandType());
                 }
 
-                ArrayList<? extends ParameterInterface> params = command.getParameters();
+                ArrayList<? extends ParameterInterface> params = command.getParameterList();
 
                 transfer.writeInt(params.size());
 

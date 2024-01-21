@@ -52,14 +52,12 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
     public final Transaction transaction;
 
     /**
-     * Snapshot of this map as of beginning of transaction or
-     * first usage within transaction or
-     * beginning of the statement, depending on isolation level
+     * 它是总的事务起始时候的,目前只在promoteSnapshot赋值
      */
-    private Snapshot<K, VersionedValue<V>> snapshot;
+    public Snapshot<K, VersionedValue<V>> snapshot;
 
     /**
-     * Snapshot of this map as of beginning of the statement
+     * 它是事务的某个statement起始时候的
      */
     public Snapshot<K, VersionedValue<V>> statementSnapshot;
 
@@ -71,7 +69,6 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
     private final TxDecisionMaker<K, V> txDecisionMaker;
     private final TxDecisionMaker<K, V> ifAbsentDecisionMaker;
     private final TxDecisionMaker<K, V> lockDecisionMaker;
-
 
     TransactionMap(Transaction transaction, MVMap<K, VersionedValue<V>> mvMap) {
         this.transaction = transaction;
@@ -1002,8 +999,8 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         RepeatableIterator(TransactionMap<K, V> transactionMap, K from, K to, boolean reverse, boolean forEntries) {
             super(transactionMap, from, to, transactionMap.getSnapshot(), reverse, forEntries);
             keyType = transactionMap.mvMap.getKeyType();
-            Snapshot<K, VersionedValue<V>> snapshot = transactionMap.getStatementSnapshot();
-            uncommittedCursor = transactionMap.mvMap.cursor(snapshot.rootReference, from, to, reverse);
+            Snapshot<K, VersionedValue<V>> statementSnapshot = transactionMap.getStatementSnapshot();
+            uncommittedCursor = transactionMap.mvMap.cursor(statementSnapshot.rootReference, from, to, reverse);
         }
 
         @Override
@@ -1049,25 +1046,31 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         private void fetchSnapshot() {
             while (cursor.hasNext()) {
                 K key = cursor.next();
-                VersionedValue<?> data = cursor.getValue();
+
+                VersionedValue<?> versionedValue = cursor.getValue();
+                if (versionedValue == null) {
+                    continue;
+                }
+
                 // If value doesn't exist or it was deleted by a committed transaction,
                 // or if value is a committed one, just return it.
-                if (data != null) {
-                    Object value = data.getCommittedValue();
-                    long id = data.getOperationId();
-                    if (id != 0) {
-                        int tx = TransactionStore.getTransactionId(id);
-                        if (tx == transactionId || committingTransactions.get(tx)) {
-                            // value comes from this transaction or another committed transaction
-                            // take current value instead instead of committed one
-                            value = data.getCurrentValue();
-                        }
+                Object value = versionedValue.getCommittedValue();
+
+                long operationId = versionedValue.getOperationId();
+
+                if (operationId != 0) {
+                    int tx = TransactionStore.getTransactionId(operationId);
+                    if (tx == transactionId || committingTransactions.get(tx)) {
+                        // value comes from this transaction or another committed transaction
+                        // take current value instead instead of committed one
+                        value = versionedValue.getCurrentValue();
                     }
-                    if (value != null) {
-                        snapshotKey = key;
-                        snapshotValue = value;
-                        return;
-                    }
+                }
+
+                if (value != null) {
+                    snapshotKey = key;
+                    snapshotValue = value;
+                    return;
                 }
             }
         }
@@ -1075,12 +1078,19 @@ public final class TransactionMap<K, V> extends AbstractMap<K, V> {
         private void fetchUncommitted() {
             while (uncommittedCursor.hasNext()) {
                 K key = uncommittedCursor.next();
-                VersionedValue<V> data = uncommittedCursor.getValue();
-                if (data != null) {
-                    long id = data.getOperationId();
-                    if (id != 0L && transactionId == TransactionStore.getTransactionId(id)) {
+
+                VersionedValue<V> versionedValue = uncommittedCursor.getValue();
+                if (versionedValue == null) {
+                    continue;
+                }
+
+                long operationId = versionedValue.getOperationId();
+
+                if (operationId != 0L) {
+                    int tx = TransactionStore.getTransactionId(operationId);
+                    if (tx == transactionId) {
                         uncommittedKey = key;
-                        uncommittedValue = data.getCurrentValue();
+                        uncommittedValue = versionedValue.getCurrentValue();
                         return;
                     }
                 }

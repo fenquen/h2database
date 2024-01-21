@@ -319,29 +319,29 @@ public final class SessionRemote extends Session implements DataHandler {
      * @return the session
      */
     public Session connectEmbeddedOrServer(boolean openNew) {
-        ConnectionInfo ci = connectionInfo;
+        ConnectionInfo connectionInfo = this.connectionInfo;
 
         // todo rust略过
-        if (ci.remote) {
-            connectServer(ci);
+        if (connectionInfo.remote) {
+            connectServer(connectionInfo);
             return this;
         }
 
-        boolean autoServerMode = ci.getPropertyBoolean("AUTO_SERVER", false);
+        boolean autoServerMode = connectionInfo.getPropertyBoolean("AUTO_SERVER", false);
         ConnectionInfo backup = null;
 
         try {
             // todo rust略过涉及到了clone
             if (autoServerMode) {
-                backup = ci.clone();
-                connectionInfo = ci.clone();
+                backup = connectionInfo.clone();
+                connectionInfo = connectionInfo.clone();
             }
 
             if (openNew) {
-                ci.setProperty("OPEN_NEW", "true");
+                connectionInfo.setProperty("OPEN_NEW", "true");
             }
 
-            return Engine.createSession(ci);
+            return Engine.createSession(connectionInfo);
         } catch (Exception re) {
             DbException dbException = DbException.convert2DbException(re);
             if (dbException.getErrorCode() == ErrorCode.DATABASE_ALREADY_OPEN_1) {
@@ -865,7 +865,7 @@ public final class SessionRemote extends Session implements DataHandler {
             }
         } else {
             try (CommandInterface command = prepareCommand("SET LOCK_MODE ?", 0)) {
-                command.getParameters().get(0).setValue(ValueInteger.get(isolationLevel.getLockMode()), false);
+                command.getParameterList().get(0).setValue(ValueInteger.get(isolationLevel.getLockMode()), false);
                 command.executeUpdate(null);
             }
         }
@@ -877,7 +877,7 @@ public final class SessionRemote extends Session implements DataHandler {
         if (settings == null) {
             boolean databaseToUpper = true, databaseToLower = false, caseInsensitiveIdentifiers = false;
             try (CommandInterface command = getSettingsCommand(" IN (?, ?, ?)")) {
-                ArrayList<? extends ParameterInterface> parameters = command.getParameters();
+                ArrayList<? extends ParameterInterface> parameters = command.getParameterList();
                 parameters.get(0).setValue(ValueVarchar.get("DATABASE_TO_UPPER"), false);
                 parameters.get(1).setValue(ValueVarchar.get("DATABASE_TO_LOWER"), false);
                 parameters.get(2).setValue(ValueVarchar.get("CASE_INSENSITIVE_IDENTIFIERS"), false);
@@ -915,7 +915,7 @@ public final class SessionRemote extends Session implements DataHandler {
             TimeZoneProvider timeZone = DateTimeUtils.getTimeZone();
             String javaObjectSerializerName = null;
             try (CommandInterface command = getSettingsCommand(" IN (?, ?, ?)")) {
-                ArrayList<? extends ParameterInterface> parameters = command.getParameters();
+                ArrayList<? extends ParameterInterface> parameters = command.getParameterList();
                 parameters.get(0).setValue(ValueVarchar.get("MODE"), false);
                 parameters.get(1).setValue(ValueVarchar.get("TIME ZONE"), false);
                 parameters.get(2).setValue(ValueVarchar.get("JAVA_OBJECT_SERIALIZER"), false);

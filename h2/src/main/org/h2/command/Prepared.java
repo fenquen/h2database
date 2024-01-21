@@ -8,6 +8,7 @@ package org.h2.command;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
@@ -184,8 +185,7 @@ public abstract class Prepared {
     /**
      * Sets whether values of parameters were specified in SQL.
      *
-     * @param withParamValues
-     *            are values of parameters were specified in SQL
+     * @param withParamValues are values of parameters were specified in SQL
      */
     public void setWithParamValues(boolean withParamValues) {
         this.withParamValues = withParamValues;
@@ -247,19 +247,19 @@ public abstract class Prepared {
     /**
      * Execute the query.
      *
-     * @param maxrows the maximum number of rows to return
+     * @param maxRows the maximum number of rows to return
      * @return the result set
      * @throws DbException if it is not a query
      */
     @SuppressWarnings("unused")
-    public ResultInterface query(long maxrows) {
+    public ResultInterface query(long maxRows) {
         throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
     }
 
     /**
      * Set the SQL statement.
      *
-     * @param sqlStr the SQL statement
+     * @param sqlStr    the SQL statement
      * @param sqlTokens the SQL tokens
      */
     public final void setSQL(String sqlStr, ArrayList<Token> sqlTokens) {
@@ -363,7 +363,7 @@ public abstract class Prepared {
      * enabled.
      *
      * @param startTimeNanos when the statement was started
-     * @param rowCount the query or update row count
+     * @param rowCount       the query or update row count
      */
     void trace(long startTimeNanos, long rowCount) {
         if (sessionLocal.getTrace().isInfoEnabled() && startTimeNanos > 0) {
@@ -446,8 +446,8 @@ public abstract class Prepared {
     /**
      * Set the SQL statement of the exception to the given row.
      *
-     * @param e the exception
-     * @param rowId the row number
+     * @param e      the exception
+     * @param rowId  the row number
      * @param values the values of the row
      * @return the exception
      */
@@ -493,6 +493,7 @@ public abstract class Prepared {
      *
      * @param dependencies collection of dependencies to populate
      */
-    public void collectDependencies(HashSet<DbObject> dependencies) {}
+    public void collectDependencies(HashSet<DbObject> dependencies) {
+    }
 
 }

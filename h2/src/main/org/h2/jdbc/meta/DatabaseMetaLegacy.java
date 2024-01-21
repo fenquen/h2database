@@ -654,7 +654,7 @@ public final class DatabaseMetaLegacy extends DatabaseMetaLocalBase {
             CommandInterface command = session.prepareCommand(sql, Integer.MAX_VALUE);
             int l = args.length;
             if (l > 0) {
-                ArrayList<? extends ParameterInterface> parameters = command.getParameters();
+                ArrayList<? extends ParameterInterface> parameters = command.getParameterList();
                 for (int i = 0; i < l; i++) {
                     parameters.get(i).setValue(args[i], true);
                 }

@@ -78,7 +78,7 @@ public abstract class Command implements CommandInterface {
      * @return the list of parameters
      */
     @Override
-    public abstract ArrayList<? extends ParameterInterface> getParameters();
+    public abstract ArrayList<? extends ParameterInterface> getParameterList();
 
     /**
      * Check if this command is read only.
@@ -107,15 +107,6 @@ public abstract class Command implements CommandInterface {
      * @throws DbException if the command is not an updating statement
      */
     public abstract ResultWithGeneratedKeys update(Object generatedKeysRequest);
-
-    /**
-     * Execute a query statement, if this is possible.
-     *
-     * @param maxrows the maximum number of rows returned
-     * @return the local result set
-     * @throws DbException if the command is not a query
-     */
-    public abstract ResultInterface query(long maxrows);
 
     @Override
     public final ResultInterface getMetaData() {
@@ -239,6 +230,8 @@ public abstract class Command implements CommandInterface {
             }
         }
     }
+
+    public abstract ResultInterface query(long maxRows);
 
     @Override
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
@@ -365,7 +358,7 @@ public abstract class Command implements CommandInterface {
 
     @Override
     public String toString() {
-        return sql + Trace.formatParams(getParameters());
+        return sql + Trace.formatParams(getParameterList());
     }
 
     public boolean isCacheable() {
@@ -387,7 +380,7 @@ public abstract class Command implements CommandInterface {
      */
     public void reuse() {
         canReuse = false;
-        ArrayList<? extends ParameterInterface> parameters = getParameters();
+        ArrayList<? extends ParameterInterface> parameters = getParameterList();
         for (ParameterInterface param : parameters) {
             param.setValue(null, true);
         }

@@ -3698,6 +3698,7 @@ public class MVStore implements AutoCloseable {
         if (cache == null) {
             return 0;
         }
+
         long hits = cache.getHits();
         return (int) (100 * hits / (hits + cache.getMisses() + 1));
     }

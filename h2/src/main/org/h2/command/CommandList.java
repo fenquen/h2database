@@ -20,35 +20,56 @@ import org.h2.result.ResultWithGeneratedKeys;
  */
 class CommandList extends Command {
 
-    private CommandContainer command;
-    private final ArrayList<Prepared> commands;
-    private final ArrayList<Parameter> parameters;
+    private final CommandContainer commandContainer;
+    private final ArrayList<Prepared> preparedList;
+    private final ArrayList<Parameter> parameterList;
     private String remaining;
     private Command remainingCommand;
 
-    CommandList(SessionLocal session, String sql, CommandContainer command, ArrayList<Prepared> commands,
-            ArrayList<Parameter> parameters, String remaining) {
+    CommandList(SessionLocal session,
+                String sql,
+                CommandContainer commandContainer,
+                ArrayList<Prepared> preparedList,
+                ArrayList<Parameter> parameterList,
+                String remaining) {
         super(session, sql);
-        this.command = command;
-        this.commands = commands;
-        this.parameters = parameters;
+
+        this.commandContainer = commandContainer;
+        this.preparedList = preparedList;
+        this.parameterList = parameterList;
         this.remaining = remaining;
     }
 
     @Override
-    public ArrayList<? extends ParameterInterface> getParameters() {
-        return parameters;
+    public ArrayList<? extends ParameterInterface> getParameterList() {
+        return parameterList;
+    }
+
+    @Override
+    public ResultWithGeneratedKeys update(Object generatedKeysRequest) {
+        ResultWithGeneratedKeys result = commandContainer.executeUpdate(null);
+        executeRemaining();
+        return result;
+    }
+
+    @Override
+    public ResultInterface query(long maxrows) {
+        ResultInterface result = commandContainer.query(maxrows);
+        executeRemaining();
+        return result;
     }
 
     private void executeRemaining() {
-        for (Prepared prepared : commands) {
+        for (Prepared prepared : preparedList) {
             prepared.prepare();
+
             if (prepared.isQuery()) {
                 prepared.query(0);
             } else {
                 prepared.update();
             }
         }
+
         if (remaining != null) {
             remainingCommand = sessionLocal.prepareLocal(remaining);
             remaining = null;
@@ -61,23 +82,9 @@ class CommandList extends Command {
     }
 
     @Override
-    public ResultWithGeneratedKeys update(Object generatedKeysRequest) {
-        ResultWithGeneratedKeys result = command.executeUpdate(null);
-        executeRemaining();
-        return result;
-    }
-
-    @Override
-    public ResultInterface query(long maxrows) {
-        ResultInterface result = command.query(maxrows);
-        executeRemaining();
-        return result;
-    }
-
-    @Override
     public void stop() {
-        command.stop();
-        for (Prepared prepared : commands) {
+        commandContainer.stop();
+        for (Prepared prepared : preparedList) {
             CommandContainer.clearCTE(sessionLocal, prepared);
         }
         if (remainingCommand != null) {
@@ -87,7 +94,7 @@ class CommandList extends Command {
 
     @Override
     public boolean isQuery() {
-        return command.isQuery();
+        return commandContainer.isQuery();
     }
 
     @Override
@@ -102,18 +109,18 @@ class CommandList extends Command {
 
     @Override
     public ResultInterface queryMeta() {
-        return command.queryMeta();
+        return commandContainer.queryMeta();
     }
 
     @Override
     public int getCommandType() {
-        return command.getCommandType();
+        return commandContainer.getCommandType();
     }
 
     @Override
     public Set<DbObject> getDependencies() {
         HashSet<DbObject> dependencies = new HashSet<>();
-        for (Prepared prepared : commands) {
+        for (Prepared prepared : preparedList) {
             prepared.collectDependencies(dependencies);
         }
         return dependencies;
@@ -121,6 +128,6 @@ class CommandList extends Command {
 
     @Override
     protected boolean isCurrentCommandADefineCommand() {
-        return command.isCurrentCommandADefineCommand();
+        return commandContainer.isCurrentCommandADefineCommand();
     }
 }

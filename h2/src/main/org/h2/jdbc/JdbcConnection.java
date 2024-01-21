@@ -696,7 +696,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
             checkClosed();
             setQueryTimeout = prepareCommand("SET QUERY_TIMEOUT ?",
                     setQueryTimeout);
-            setQueryTimeout.getParameters().get(0)
+            setQueryTimeout.getParameterList().get(0)
                     .setValue(ValueInteger.get(seconds * 1000), false);
             setQueryTimeout.executeUpdate(null);
             queryTimeoutCache = seconds;
@@ -715,7 +715,7 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
                 getQueryTimeout = prepareCommand(!session.isOldInformationSchema()
                         ? "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME=?"
                         : "SELECT `VALUE` FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME=?", getQueryTimeout);
-                getQueryTimeout.getParameters().get(0)
+                getQueryTimeout.getParameterList().get(0)
                         .setValue(ValueVarchar.get("QUERY_TIMEOUT"), false);
                 ResultInterface result = getQueryTimeout.executeQuery(0, false);
                 result.next();

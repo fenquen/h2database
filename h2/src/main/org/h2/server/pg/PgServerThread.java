@@ -313,7 +313,7 @@ public final class PgServerThread implements Runnable {
             }
             try {
                 p.prep = session.prepareLocal(p.sql);
-                ArrayList<? extends ParameterInterface> parameters = p.prep.getParameters();
+                ArrayList<? extends ParameterInterface> parameters = p.prep.getParameterList();
                 int count = parameters.size();
                 p.paramType = new int[count];
                 for (int i = 0; i < count; i++) {
@@ -352,7 +352,7 @@ public final class PgServerThread implements Runnable {
             }
             int paramCount = readShort();
             try {
-                ArrayList<? extends ParameterInterface> parameters = prep.prep.getParameters();
+                ArrayList<? extends ParameterInterface> parameters = prep.prep.getParameterList();
                 for (int i = 0; i < paramCount; i++) {
                     setParameter(parameters, prep.paramType[i], i, formatCodes);
                 }
@@ -400,7 +400,7 @@ public final class PgServerThread implements Runnable {
                     sendErrorResponse("Prepared not found: " + name);
                 } else {
                     try {
-                        sendParameterDescription(p.prep.getParameters(), p.paramType);
+                        sendParameterDescription(p.prep.getParameterList(), p.paramType);
                         sendRowDescription(p.prep.getMetaData(), null);
                     } catch (Exception e) {
                         sendErrorResponse(e);
